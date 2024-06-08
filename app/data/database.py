@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from app.config import Config
+from app.models import Sync
 
 Base = declarative_base()
 
@@ -60,3 +61,30 @@ class Database:
             session.close()
     def get_engine(self):
         return self.engine
+    
+    def find_by_primary_key(self, model, pk_column, pk_value):
+        session = self.get_session()
+        try:
+            return session.query(model).filter(getattr(model, pk_column) == pk_value).first()
+        finally:
+            session.close()
+
+    def find_by_name(self, model, name_column, name_value):
+        session = self.get_session()
+        try:
+            return session.query(model).filter(getattr(model, name_column) == name_value).all()
+        finally:
+            session.close()
+
+class Sync_repo(Database):
+    def find_id(self, input_value, object_type, input_from):
+        session = self.get_session()
+        try:
+            sync_entry = session.query(Sync).filter(
+                Sync.input_value == input_value,
+                Sync.object_type == object_type,
+                Sync.input_from == input_from
+            ).first()
+            return sync_entry.id_to if sync_entry else None
+        finally:
+            session.close()
