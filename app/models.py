@@ -2,7 +2,8 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, JSON, Forei
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry  # For storing geometric data types
-from config import Config
+from .config import Config
+# from app.data.database import Base
 
 Base = declarative_base()
 
@@ -16,7 +17,7 @@ class Region(Base):
     description = Column(Text)
     characters = Column(JSON)
 
-    cities = relationship('City', back_populates='region')
+    cities = relationship('City', back_populates='region', foreign_keys='City.id_region')
     capital_city = relationship('City', foreign_keys=[capital])
     locations = relationship('Location', back_populates='region')
     metric_values = relationship('MetricValue', back_populates='region')
@@ -32,7 +33,7 @@ class City(Base):
     description = Column(Text)
     characters = Column(JSON)
 
-    region = relationship('Region', back_populates='cities')
+    region = relationship('Region', back_populates='cities', foreign_keys=[id_region])
     locations = relationship('Location', back_populates='city')
     metric_values = relationship('MetricValue', back_populates='city')
 
@@ -92,6 +93,14 @@ class MetricValue(Base):
     city = relationship('City', back_populates='metric_values')
     location = relationship('Location', back_populates='metric_values')
 
+class Sync(Base):
+    __tablename__ = 'sync'
+
+    id_sync = Column(Integer, primary_key=True, autoincrement=True)
+    id_to = Column(Integer, nullable=False)
+    object_type = Column(String, nullable=False)
+    input_value = Column(String, nullable=False)
+    input_from = Column(String, nullable=False)
 
 # Подключение к базе данных
 DATABASE_URL = Config.SQLALCHEMY_DATABASE_URI

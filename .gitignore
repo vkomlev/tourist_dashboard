@@ -42,7 +42,6 @@ Desktop.ini
 create_model.py
 /alembic/
 *.ini
-*.txt
 PKG-INFO
 *.lock
 *.cmd
@@ -51,3 +50,4 @@ models_gen.py
 settings.py
 *.docx
 config.py
+*.csv
