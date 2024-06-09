@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from app.config import Config
-from app.models import Sync
+from app.models import Sync, Region
 
 Base = declarative_base()
 
@@ -86,5 +86,13 @@ class Sync_repo(Database):
                 Sync.input_from == input_from
             ).first()
             return sync_entry.id_to if sync_entry else None
+        finally:
+            session.close()
+
+class Region_repo(Database):
+    def find_region_by_id(self, id_region):
+        session = self.get_session()
+        try:
+            return session.query(Region).filter(Region.id_region == id_region).first()
         finally:
             session.close()
