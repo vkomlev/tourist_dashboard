@@ -32,7 +32,7 @@ def generate_map():
             region_name = row['name:ru']
             region_id = sync_repo.find_id(region_name, 'region', 'OSM')
             if region_id is not None:
-                popup_content = f"<b>{region_name}</b><br><a href='/region/{region_id}'>Подробнее</a>"
+                popup_content = f"<b>{region_name}</b><br><a href='/region/{region_id}' target='_blank'>Подробнее</a>"
                 popup = folium.Popup(popup_content, max_width=300)
                 color = "#{:06x}".format(random.randint(0, 0xFFFFFF))  # Генерация случайного цвета
                 folium.GeoJson(

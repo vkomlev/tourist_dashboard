@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Region Details{% endblock %}
+{% block title %}Подробнее о регионе{% endblock %}
 {% block content %}
-<h1>Дашборд региона: {{ region_name }}</h1>
+<h2>Дашборд региона: {{ region_name }}</h2>
 <p>{{ description }}</p>
 <p><strong>Население:</strong> {{ population }}</p>
 <a href="{{ url_for('main.index') }}">Назад на главную</a>

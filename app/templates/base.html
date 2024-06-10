@@ -10,5 +10,70 @@
         {% block content %}
         {% endblock %}
     </div>
+    <!--<script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Обработчик для всех ссылок с использованием AJAX
+            document.body.addEventListener('click', function(event) {
+                let target = event.target;
+                // Ищем элемент <a>, в случае если кликнули на дочерний элемент
+                while (target && target.tagName !== 'A') {
+                    target = target.parentNode;
+                }
+
+                if (target && target.tagName === 'A' && target.getAttribute('href') && !target.getAttribute('target')) {
+                    event.preventDefault();
+                    let url = target.getAttribute('href');
+
+                    fetch(url)
+                        .then(response => {
+                            if (response.ok) {
+                                return response.text();
+                            } else {
+                                throw new Error('Network response was not ok.');
+                            }
+                        })
+                        .then(html => {
+                            // Заменить содержимое страницы
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const newContent = doc.querySelector('.container').innerHTML;
+                            document.querySelector('.container').innerHTML = newContent;
+
+                            // Обновить заголовок
+                            const title = doc.querySelector('title').textContent;
+                            document.title = title;
+
+                            // Обновить URL
+                            window.history.pushState({ url: url }, title, url);
+                        })
+                        .catch(error => console.log('Error:', error));
+                }
+            });
+
+            // Обработка переходов через кнопки "Назад" / "Вперед"
+            window.addEventListener('popstate', function(event) {
+                if (event.state && event.state.url) {
+                    fetch(event.state.url)
+                        .then(response => {
+                            if (response.ok) {
+                                return response.text();
+                            } else {
+                                throw new Error('Network response was not ok.');
+                            }
+                        })
+                        .then(html => {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const newContent = doc.querySelector('.container').innerHTML;
+                            document.querySelector('.container').innerHTML = newContent;
+
+                            const title = doc.querySelector('title').textContent;
+                            document.title = title;
+                        })
+                        .catch(error => console.log('Error:', error));
+                }
+            });
+        });
+    </script>-->
 </body>
 </html>
