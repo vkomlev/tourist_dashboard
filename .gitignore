@@ -26,10 +26,6 @@ env/
 /bower_components/
 /jspm_packages/
 /node_modules/
-*.jpeg
-*.jpg
-*.gif
-*.png
 *.mp4
 Thumbs.db
 Desktop.ini
