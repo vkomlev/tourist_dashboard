@@ -4,6 +4,7 @@ from flask import current_app
 from app.data.database import Sync_repo, Region_repo
 import folium
 import random
+from app.data.processing import process_tourism_data
 
 # Кэш для хранения GeoDataFrame
 cached_gdf, map = None, None
@@ -56,6 +57,21 @@ def generate_map():
         m = map
 
     return m._repr_html_()
+
+def generate_top_popular_table():
+    '''Генерация таблицы с топ 10 самых популярных регионов'''
+    tourism_data = process_tourism_data(n=10)
+    tourism_table = generate_tourism_table(tourism_data)
+    return tourism_table
+
+def generate_tourism_table(df):
+    table_html = '<table class="table">'
+    table_html += '<thead><tr><th>Место</th><th>Название региона</th><th>Турпоток</th><th>Доля в %</th></tr></thead>'
+    table_html += '<tbody>'
+    for _, row in df.iterrows():
+        table_html += f'<tr><td>{row["rank"]}</td><td>{row["region_name"]}</td><td>{row["value"]}</td><td>{row["percentage"]:.2f}</td></tr>'
+    table_html += '</tbody></table>'
+    return table_html
 
 def get_region_details(region_id):
     '''Получение детальной информации о регионе'''

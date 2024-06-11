@@ -1,6 +1,7 @@
-from flask import Flask, render_template, Blueprint, request
+from flask import Flask, render_template, Blueprint, url_for, send_from_directory
 from app.additional.textutil import transliterate
-from app.main.views import load_geojson, generate_map, get_region_details  # Импортируйте функции из views.py
+from app.main.views import load_geojson, generate_map, get_region_details, generate_top_popular_table  # Импортируйте функции из views.py
+import os
 
 app = Flask(__name__)
 
@@ -21,7 +22,8 @@ main = Blueprint('main', __name__)
 @main.route('/')
 def index():
     map_html = generate_map()
-    return render_template('index.html', map_html=map_html)
+    tourism_table  = generate_top_popular_table()
+    return render_template('index.html', map_html=map_html, tourism_table=tourism_table)
 
 @main.route('/region/<int:id>')
 def region(id):
@@ -30,3 +32,4 @@ def region(id):
         return render_template('region.html', **region_details)
     else:
         return render_template('404.html'), 404
+

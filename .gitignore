@@ -51,3 +51,4 @@ settings.py
 *.docx
 config.py
 *.csv
+run_debug.py

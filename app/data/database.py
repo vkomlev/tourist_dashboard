@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from app.config import Config
-from app.models import Sync, Region
+from app.models import Sync, Region, MetricValue
 
 Base = declarative_base()
 
@@ -94,5 +94,19 @@ class Region_repo(Database):
         session = self.get_session()
         try:
             return session.query(Region).filter(Region.id_region == id_region).first()
+        finally:
+            session.close()
+
+class MV_repo(Database):
+    def get_tourism_data(self):
+        session = self.get_session()
+        try:
+            query = session.query(
+                MetricValue.id_region,
+                MetricValue.value
+            ).filter(
+                MetricValue.id_metric == 2
+            )
+            return query.all()
         finally:
             session.close()

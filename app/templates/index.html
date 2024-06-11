@@ -5,4 +5,8 @@
 {% if map_html %}
     {{ map_html|safe }}
 {% endif %}
+<div>
+    <h2>Топ регионов по суммарному турпотоку</h2>
+    {{ tourism_table|safe }}
+</div>
 {% endblock %}
