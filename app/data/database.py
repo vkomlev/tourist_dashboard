@@ -98,14 +98,34 @@ class Region_repo(Database):
             session.close()
 
 class MV_repo(Database):
-    def get_tourism_data(self):
+    def get_tourist_count_data(self):
+        '''Турпоток по регионам'''
         session = self.get_session()
         try:
             query = session.query(
                 MetricValue.id_region,
-                MetricValue.value
+                MetricValue.value,
+                MetricValue.month,
+                MetricValue.year,
             ).filter(
                 MetricValue.id_metric == 2
+            )
+            return query.all()
+        finally:
+            session.close()
+    
+    def get_tourist_count_data_by_region(self, region_id):
+        '''Турпоток по конкретному региону в разресе периодов'''
+        session = self.get_session()
+        try:
+            query = session.query(
+                MetricValue.id_region,
+                MetricValue.value,
+                MetricValue.month,
+                MetricValue.year,
+            ).filter(
+                MetricValue.id_metric == 2,
+                MetricValue.id_region == region_id
             )
             return query.all()
         finally:

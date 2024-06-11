@@ -5,8 +5,14 @@
 {% if map_html %}
     {{ map_html|safe }}
 {% endif %}
-<div>
-    <h2>Топ регионов по суммарному турпотоку</h2>
+
+<h2>Тепловая карта турпотока</h2>
+<div class="heatmap">
+    <img src="{{ url_for('static', filename='images/heatmap.png') }}" alt="Tourist Flow Heatmap">
+</div>
+
+<h2>Топ 10 регионов по турпотоку</h2>
+<div class="tourism-table">
     {{ tourism_table|safe }}
 </div>
 {% endblock %}

@@ -4,5 +4,8 @@
 <h2>Дашборд региона: {{ region_name }}</h2>
 <p>{{ description }}</p>
 <p><strong>Население:</strong> {{ population }}</p>
+<div class="histogram">
+    <img src="{{ url_for('static', filename=histogram_path) }}" alt="Гистограмма турпотока по региону">
+</div>
 <a href="{{ url_for('main.index') }}">Назад на главную</a>
 {% endblock %}

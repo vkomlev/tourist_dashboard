@@ -1,10 +1,11 @@
 import os
 import geopandas as gpd
-from flask import current_app
+from flask import current_app, url_for
 from app.data.database import Sync_repo, Region_repo
 import folium
 import random
-from app.data.processing import process_tourism_data
+from app.reports.table_data import process_tourist_count_data
+from app.reports.plot import plot_region_flow_histogram
 
 # Кэш для хранения GeoDataFrame
 cached_gdf, map = None, None
@@ -33,7 +34,14 @@ def generate_map():
             region_name = row['name:ru']
             region_id = sync_repo.find_id(region_name, 'region', 'OSM')
             if region_id is not None:
-                popup_content = f"<b>{region_name}</b><br><a href='/region/{region_id}' target='_blank'>Подробнее</a>"
+                image_path = os.path.join(current_app.root_path, 'static', 'images', f'{region_id}.jpg')
+                if os.path.exists(image_path):
+                    image_url = url_for('static', filename=f'images/{region_id}.jpg')
+                    image_html = f'<br><img src="{image_url}" alt="Достопримечательность" width="150" height="100">'
+                else:
+                    image_html = ''
+                
+                popup_content = f"<b>{region_name}</b><br><a href='/region/{region_id}' target='_blank'>Подробнее</a>{image_html}"
                 popup = folium.Popup(popup_content, max_width=300)
                 color = "#{:06x}".format(random.randint(0, 0xFFFFFF))  # Генерация случайного цвета
                 folium.GeoJson(
@@ -52,19 +60,20 @@ def generate_map():
                     tooltip=row['name:ru'],
                     popup=popup
                 ).add_to(m)
-                map  = m
+                map = m
     else:
         m = map
 
     return m._repr_html_()
 
-def generate_top_popular_table():
+
+def generate_top_popular_data():
     '''Генерация таблицы с топ 10 самых популярных регионов'''
-    tourism_data = process_tourism_data(n=10)
-    tourism_table = generate_tourism_table(tourism_data)
+    tourism_data = process_tourist_count_data(n=10, top=True)
+    tourism_table = generate_top_popular_html(tourism_data)
     return tourism_table
 
-def generate_tourism_table(df):
+def generate_top_popular_html(df):
     table_html = '<table class="table">'
     table_html += '<thead><tr><th>Место</th><th>Название региона</th><th>Турпоток</th><th>Доля в %</th></tr></thead>'
     table_html += '<tbody>'
@@ -74,14 +83,17 @@ def generate_tourism_table(df):
     return table_html
 
 def get_region_details(region_id):
-    '''Получение детальной информации о регионе'''
+    '''Получение детальной информации о регионе и генерация гистограммы'''
     db = Region_repo()
     region = db.find_region_by_id(region_id)
     if region:
         population = region.characters.get('population') if region.characters else 'Unknown'
+        plot_region_flow_histogram(region_id, region.region_name)  # Генерация гистограммы
         return {
             'region_name': region.region_name,
             'description': region.description,
-            'population': population
+            'population': population,
+            'histogram_path': f'images/histogram_flow_{region_id}.png'
         }
     return None
+
