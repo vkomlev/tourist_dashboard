@@ -20,6 +20,7 @@ import secrets
 import random
 # from webdriver_manager.chrome import ChromeDriverManager
 # from app.data.compare import Compare_cities
+from app.config import USER_AGENTS_FILE
 
 class Parse:
 
@@ -118,7 +119,7 @@ class Parse:
     # берёт user_agents из файла 
     def get_user_agents(self):
         try:
-            file = open(r'file\user_agent.txt', 'r')
+            file = open(USER_AGENTS_FILE, 'r')
             self.user_agents = list(set(file.readlines()))
             # self.user_agents = [i for i in user_agents if not 'Safari' in i]
             # print(len(self.user_agents))
