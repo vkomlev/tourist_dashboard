@@ -1,4 +1,4 @@
-from app.data.import_csv import import_csv
+from app.data.imports.import_csv import import_csv
 import os
 
 if __name__ == "__main__":
