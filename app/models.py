@@ -21,25 +21,7 @@ from geoalchemy2 import Geometry  # For storing geometric data types
 from sqlalchemy.dialects.postgresql import JSONB
 
 from .config import Config
-
-# Настройка логирования
-import logging
-from logging.handlers import RotatingFileHandler
-
-handler = RotatingFileHandler(
-    'app.log',
-    maxBytes=5*1024*1024,  # 5 MB
-    backupCount=5  # Количество резервных файлов
-)
-
-logging.basicConfig(
-    handlers=[handler],
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-)
-
-logger = logging.getLogger(__name__)
+from app.logging_config import logger
 
 
 Base = declarative_base()
