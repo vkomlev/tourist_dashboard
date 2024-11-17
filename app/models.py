@@ -1,13 +1,16 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, JSON, ForeignKey, Sequence
+from sqlalchemy import create_engine, Column, Integer, String, Text, JSON,\
+SmallInteger, ForeignKey, Sequence, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry  # For storing geometric data types
 from .config import Config
 from sqlalchemy.dialects.postgresql import JSONB
 
+
 # from app.data.database import Base
 
 Base = declarative_base()
+metadata = Base.metadata
 
 class Region(Base):
     '''Таблица регионов'''
@@ -62,7 +65,7 @@ class Location(Base):
     id_location = Column(Integer, Sequence('locations_id_location_seq'), primary_key=True)
     location_name = Column(String)
     description = Column(Text)
-    coordinates = Column(Geometry('POINT'))
+    coordinates = Column(Geometry('POINT', srid=4326))
     id_city = Column(Integer, ForeignKey('cities.id_city', ondelete='RESTRICT'))
     id_region = Column(Integer, ForeignKey('regions.id_region', ondelete='RESTRICT'))
     characters = Column(JSONB)
@@ -107,11 +110,33 @@ class Sync(Base):
     '''Таблица соответствия для синхронизации данных из разных источников'''
     __tablename__ = 'sync'
 
-    id_sync = Column(Integer, primary_key=True, autoincrement=True)
+    id_sync = Column(Integer, primary_key=True)
     id_to = Column(Integer, nullable=False)
     object_type = Column(String, nullable=False)
     input_value = Column(String, nullable=False)
     input_from = Column(String, nullable=False)
+
+class Photo(Base):
+    '''Таблица для хранения url фотографий по конкретным локациям '''
+    __tablename__ = 'photos'
+
+    id_photo = Column(Integer, primary_key=True, server_default=text("nextval('photos_id_photo_seq'::regclass)"))
+    id_location = Column(ForeignKey('locations.id_location', ondelete='CASCADE'))
+    url = Column(String, nullable=False)
+
+    location = relationship('Location')
+
+class Rewiew(Base):
+    __tablename__ = 'rewiews'
+
+    id_rewiews = Column(Integer, primary_key=True, server_default=text("nextval('rewiews_id_rewiews_seq'::regclass)"))
+    id_location = Column(ForeignKey('locations.id_location', ondelete='CASCADE'), nullable=False)
+    like = Column(SmallInteger)
+    text = Column(Text)
+    data = Column(String)
+
+    location = relationship('Location')
+
 
 # Подключение к базе данных
 DATABASE_URL = Config.SQLALCHEMY_DATABASE_URI
