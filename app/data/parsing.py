@@ -118,13 +118,8 @@ class Parse:
 
     # берёт user_agents из файла 
     def get_user_agents(self):
-        try:
-            file = open(USER_AGENTS_FILE, 'r')
+        with open( USER_AGENTS_FILE, 'r') as file:
             self.user_agents = list(set(file.readlines()))
-            # self.user_agents = [i for i in user_agents if not 'Safari' in i]
-            # print(len(self.user_agents))
-        finally:
-            file.close()
     
     # берёт рандомнй и удаляет из списка, чтобы не повторялись
     def random_user_agent(self):
