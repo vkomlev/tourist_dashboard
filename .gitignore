@@ -49,3 +49,4 @@ config.py
 *.csv
 run_debug.py
 run_compare.py
+run_tests.py

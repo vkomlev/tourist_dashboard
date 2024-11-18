@@ -4,7 +4,7 @@ import csv
 import os
 from typing import List
 
-from app.data.database import Database
+
 from app.models import Sync
 from app.logging_config import logger
 
@@ -24,6 +24,7 @@ def import_csv(file_path: str, delimiter: str = ',') -> None:
         FileNotFoundError: Если файл не существует.
         Exception: Если происходит ошибка при импорте данных.
     """
+    from app.data.database import Database
     logger.info(f"Начало импорта данных из файла: {file_path}")
 
     # Проверка существования файла

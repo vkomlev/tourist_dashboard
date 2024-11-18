@@ -16,9 +16,9 @@ handler = RotatingFileHandler(
 
 logging.basicConfig(
     handlers=[handler],
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Исправлено на %(levelname)s
-    datefmt='%Y-%m-%d %H:%M:%S',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Исправлено на %(levelname)s
+    datefmt='%d.%m.%Y %H:%M:%S',
 )
 
 logger = logging.getLogger(__name__)

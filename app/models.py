@@ -84,6 +84,12 @@ class Region(Base):
         doc='Значения метрик региона',
     )
 
+    def __repr__(self):
+        return (f"<Region(id_region={self.id_region}, region_name='{self.region_name}', "
+                f"capital={self.capital})>")
+
+    def __str__(self):
+        return f"Регион: {self.region_name} (ID: {self.id_region})"
 
 class City(Base):
     """Таблица городов."""
@@ -136,6 +142,12 @@ class City(Base):
         doc='Значения метрик города',
     )
 
+    def __repr__(self):
+        return (f"<City(id_city={self.id_city}, city_name='{self.city_name}', "
+                f"id_region={self.id_region})>")
+
+    def __str__(self):
+        return f"Город: {self.city_name} (ID: {self.id_city})"
 
 class LocationType(Base):
     """Таблица типов локаций."""
@@ -175,6 +187,13 @@ class LocationType(Base):
         back_populates='location_type',
         doc='Локации данного типа',
     )
+
+    def __repr__(self):
+        return (f"<LocationType(id_location_type={self.id_location_type}, "
+                f"location_type_value='{self.location_type_value}', name='{self.name}')>")
+
+    def __str__(self):
+        return f"Тип локации: {self.name} (ID: {self.id_location_type})"
 
 
 class Location(Base):
@@ -240,7 +259,12 @@ class Location(Base):
         back_populates='location',
         doc='Значения метрик локации',
     )
+    def __repr__(self):
+        return (f"<Location(id_location={self.id_location}, location_name='{self.location_name}', "
+                f"id_city={self.id_city}, id_region={self.id_region})>")
 
+    def __str__(self):
+        return f"Локация: {self.location_name} (ID: {self.id_location})"
 
 class Metric(Base):
     """Таблица метрик."""
@@ -267,7 +291,11 @@ class Metric(Base):
         back_populates='metric',
         doc='Значения метрики',
     )
+    def __repr__(self):
+        return (f"<Metric(id_metrics={self.id_metrics}, metric_name='{self.metric_name}')>")
 
+    def __str__(self):
+        return f"Метрика: {self.metric_name} (ID: {self.id_metrics})"
 
 class MetricValue(Base):
     """Таблица значений метрик."""
@@ -335,6 +363,13 @@ class MetricValue(Base):
         doc='Связанная локация',
     )
 
+    def __repr__(self):
+        return (f"<MetricValue(id_mv={self.id_mv}, id_metric={self.id_metric}, value='{self.value}', "
+                f"month={self.month}, year={self.year})>")
+
+    def __str__(self):
+        return (f"Значение Метрики: {self.metric.metric_name if self.metric else 'N/A'} - "
+                f"Value: {self.value} (ID: {self.id_mv})")
 
 class Sync(Base):
     """Таблица соответствия для синхронизации данных из разных источников."""
@@ -367,6 +402,15 @@ class Sync(Base):
         doc='Источник входных данных',
     )
 
+    def __repr__(self):
+        return (f"<Sync(id_sync={self.id_sync}, id_to={self.id_to}, "
+                f"object_type='{self.object_type}', input_value='{self.input_value}', "
+                f"input_from='{self.input_from}')>")
+
+    def __str__(self):
+        return (f"Синхронизация: {self.object_type} (ID Sync: {self.id_sync}) "
+                f"от {self.input_from} с значением '{self.input_value}'")
+
 
 class Photo(Base):
     """Таблица для хранения URL фотографий по конкретным локациям."""
@@ -393,6 +437,13 @@ class Photo(Base):
         'Location',
         doc='Связанная локация',
     )
+
+    def __repr__(self):
+        return (f"<Photo(id_photo={self.id_photo}, id_location={self.id_location}, "
+                f"url='{self.url}')>")
+
+    def __str__(self):
+        return f"Фотография (ID: {self.id_photo}) для локации ID: {self.id_location}"
 
 
 class Rewiew(Base):
@@ -428,6 +479,14 @@ class Rewiew(Base):
         'Location',
         doc='Связанная локация',
     )
+
+    def __repr__(self):
+        return (f"<Rewiew(id_rewiews={self.id_rewiews}, id_location={self.id_location}, "
+                f"like={self.like}, data='{self.data}')>")
+
+    def __str__(self):
+        return (f"Отзыв (ID: {self.id_rewiews}) для локации ID: {self.id_location} - "
+                f"Лайков: {self.like}, Дата: {self.data}")
 
 
 def initialize_database() -> None:

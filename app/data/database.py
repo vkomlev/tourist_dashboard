@@ -2,9 +2,10 @@
 
 import time
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+import json
 
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, Column
 from sqlalchemy.exc import NoResultFound, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 from sqlalchemy.dialects.postgresql import JSONB
@@ -98,6 +99,7 @@ class Database:
     def __init__(self):
         self.engine = create_engine(Config.SQLALCHEMY_DATABASE_URI)
         self.SessionLocal = sessionmaker(bind=self.engine)
+        self.session = self.SessionLocal()
         logger.info("Создан SQLAlchemy Engine и sessionmaker.")
 
     def create_tables(self) -> None:
@@ -152,7 +154,7 @@ class Database:
         logger.info(f"Добавлено {len(objs)} объектов.")
 
     @manage_session
-    def query_all(self, model: Type[T]) -> List[T]:
+    def get_all(self, model: Type[T]) -> List[T]:
         """
         Возвращает все записи из указанной модели.
 
@@ -174,9 +176,14 @@ class Database:
         Args:
             obj (Base): Объект модели SQLAlchemy.
         """
-        self.session.delete(obj)
-        self.session.commit()
-        logger.info(f"Удален объект: {obj}")
+        try:
+            self.session.delete(obj)
+            self.session.commit()
+            logger.info(f"Удален объект: {obj}")
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при обновлении объекта {obj}: {e}")
+            raise      
+        
 
     def get_engine(self) -> Any:
         """
@@ -186,29 +193,56 @@ class Database:
             Engine: Экземпляр SQLAlchemy Engine.
         """
         return self.engine
-
-    @manage_session
-    def find_by_primary_key(
-        self, model: Type[T], pk_column: str, pk_value: Any
-    ) -> Optional[T]:
+    
+    def _get_pk_fields(self, model: Type[T]) -> List[Column]:
         """
-        Находит запись по первичному ключу.
+        Возвращает список столбцов, являющихся первичными ключами модели.
 
         Args:
             model (Type[T]): Класс модели SQLAlchemy.
-            pk_column (str): Название столбца первичного ключа.
-            pk_value (Any): Значение первичного ключа.
+
+        Returns:
+            List[Column]: Список столбцов первичных ключей.
+        """
+        return [column for column in inspect(model).mapper.columns if column.primary_key]
+
+    @manage_session
+    def find_by_primary_key(
+        self, model: Type[T], pk_values: Dict[str, Any]
+    ) -> Optional[T]:
+        """
+        Находит запись по первичным ключам.
+
+        Args:
+            model (Type[T]): Класс модели SQLAlchemy.
+            pk_values (Dict[str, Any]): Словарь с названиями столбцов первичных ключей и их значениями.
 
         Returns:
             Optional[T]: Найденная запись или None.
         """
-        record = (
-            self.session.query(model)
-            .filter(getattr(model, pk_column) == pk_value)
-            .first()
-        )
+        pk_columns = self._get_pk_fields(model)
+
+        if not pk_columns:
+            raise ValueError(f"Модель {model.__name__} не имеет первичных ключей.")
+
+        if len(pk_columns) != len(pk_values):
+            raise ValueError(
+                f"Модель {model.__name__} ожидает {len(pk_columns)} первичных ключей, "
+                f"получено {len(pk_values)}."
+            )
+
+        # Создаем фильтры для запроса
+        filters = []
+        for column in pk_columns:
+            column_name = column.name
+            if column_name not in pk_values:
+                raise ValueError(f"Отсутствует значение для первичного ключа '{column_name}'.")
+            filters.append(getattr(model, column_name) == pk_values[column_name])
+
+        # Выполняем запрос
+        record = self.session.query(model).filter(*filters).first()
         logger.debug(
-            f"Поиск по PK - модель: {model.__tablename__}, {pk_column}: {pk_value}. Найдено: {record is not None}"
+            f"Поиск по PK - модель: {model.__tablename__}, PK Values: {pk_values}. Найдено: {record is not None}"
         )
         return record
 
@@ -235,21 +269,6 @@ class Database:
         logger.debug(
             f"Поиск по имени - модель: {model.__tablename__}, {name_column}: {name_value}. Найдено: {len(records)}"
         )
-        return records
-
-    @manage_session
-    def get_all(self, model: Type[T]) -> List[T]:
-        """
-        Возвращает все записи из указанной модели.
-
-        Args:
-            model (Type[T]): Класс модели SQLAlchemy.
-
-        Returns:
-            List[T]: Список записей модели.
-        """
-        records = self.session.query(model).all()
-        logger.debug(f"Получено {len(records)} записей из {model.__tablename__}.")
         return records
 
     @classmethod
@@ -299,7 +318,7 @@ class Database:
         try:
             if not self.session.object_session(obj):
                 self.session.merge(obj)
-                logger.debug(f"Объект объединен в сессию: {obj}")
+                logger.debug(f"Объект добавлен в сессию: {obj}")
             self.session.commit()
             logger.info(f"Обновлен объект: {obj}")
         except SQLAlchemyError as e:
@@ -335,85 +354,59 @@ class JSONRepository(Database):
     def update_json_fields(
         self,
         model_instance: Type[T],
-        field_name: str = "characteristics",
-        json_field: Dict[str, Any] = {},
+        key_value: Any,
+        field_name: str = "characters",
+        json_field: Dict[str, Any] | List = {},
+        operation: str = "replace",
     ) -> None:
         """
         Обновляет пары JSON в указанном поле модели.
 
         Args:
             model_instance (Base): Экземпляр модели SQLAlchemy.
-            field_name (str, optional): Название JSON поля. По умолчанию 'characteristics'.
+            key_value (Any): Значение первичного ключа записи.
+            field_name (str, optional): Название JSON поля. По умолчанию 'characters'.
             json_field (Dict[str, Any], optional): Пары ключ-значение для обновления.
+            operation (str, optional): Тип операции ('replace', 'append', 'remove'). По умолчанию 'replace'.
         """
         if not json_field:
             logger.debug("Нет данных для обновления JSON полей.")
             return
-
-        for key, value in json_field.items():
-            wrapped_value = self._wrap_json_value(value)
-            self._update_json_value(
-                model_instance.__class__,
-                model_instance.id,
-                field_name,
-                f"{{{key}}}",
-                wrapped_value,
-            )
-            logger.debug(
-                f"Обновлено JSON поле {field_name} для записи {model_instance.id}: {key} = {wrapped_value}"
-            )
-
-    def _update_json_value(
-        self,
-        model_class: Type[T],
-        name_id: Any,
-        json_field: str,
-        key_path: str,
-        new_value: str,
-        operation: str = "replace",
-    ) -> None:
-        """
-        Обновляет значение JSONB поля в базе данных.
-
-        Args:
-            model_class (Type[Base]): Класс модели SQLAlchemy.
-            name_id (Any): Значение идентификатора записи.
-            json_field (str): Название JSON поля.
-            key_path (str): Путь к ключу JSON.
-            new_value (str): Новое значение для ключа.
-            operation (str, optional): Тип операции ('replace', 'append', 'remove'). По умолчанию 'replace'.
-
-        Raises:
-            ValueError: Если операция не поддерживается.
-        """
-        operations = {
-            "replace": f"jsonb_set({json_field}, :key_path, :new_value)",
-            "append": f"jsonb_set({json_field}, :key_path, ({json_field} #> :key_path) || :new_value)",
-            "remove": f"jsonb_set({json_field}, :key_path, ({json_field} #> :key_path) - :new_value)",
-        }
-
-        if operation not in operations:
+        pk_column = self._get_pk_fields(model_instance.__class__)[0].name
+        existing_record = self.find_by_primary_key(model_instance.__class__, {pk_column: key_value})
+        old_value = getattr(existing_record, field_name, {})
+        if not old_value:
+            old_value = {}
+        if operation not in ['replace', 'append', 'remove']:
             logger.error(f"Unsupported operation: {operation}")
             raise ValueError("Unsupported operation. Use 'replace', 'append', or 'remove'.")
+        
+        if operation == "replace":
+            new_value = old_value | json_field
+        elif operation == "append":
+            new_value = json_field | old_value
+        
+        if operation == "remove":
+            try:
+                for key in json_field:
+                    self.delete_json_pair(model_instance.__class__, key_value, field_name, key)
+            except SQLAlchemyError as e:
+                logger.error(f"Ошибка при удалении пары JSON: {e}")
+                raise
+            return
+        else:
+            try:
+                table_columns = inspect(existing_record.__class__).columns
+                for column in table_columns:
+                    column_name = column.name
+                    if column_name == field_name and isinstance(column.type, JSONB):
+                        setattr(existing_record, column_name, new_value)
+                        self.update(existing_record)
+            except SQLAlchemyError as e:
+                logger.error(f"Ошибка при обновлении JSON поля: {e}")
+                raise
+            return
 
-        sql_expression = text(
-            f"UPDATE {model_class.__tablename__} SET {json_field} = {operations[operation]} WHERE id = :item_id"
-        )
-
-        try:
-            session = self.get_session()
-            session.execute(
-                sql_expression,
-                {"item_id": name_id, "key_path": key_path, "new_value": new_value},
-            )
-            session.commit()
-            logger.debug(
-                f"Выполнена операция '{operation}' на {json_field} для id={name_id}."
-            )
-        except SQLAlchemyError as e:
-            session.rollback()
-            logger.error(f"Ошибка при обновлении JSON поля: {e}")
-            raise
 
     @manage_session
     def delete_json_pair(
@@ -435,50 +428,28 @@ class JSONRepository(Database):
         if not key:
             logger.warning("Ключ для удаления JSON пары не указан.")
             return
-
+        pk_column = self._get_pk_fields(model_class)[0].name
         sql_expression = text(
-            f"UPDATE {model_class.__tablename__} SET {json_field} = {json_field} - :key_path WHERE id = :item_id"
+            f"UPDATE {model_class.__tablename__} SET {json_field} = {json_field} - :key_path WHERE {pk_column} = :item_id"
         )
-
+        params = {"item_id": item_id, "key_path": f'{key}'}
+        logger.debug(f'SQL удаления: {sql_expression}')
+        logger.debug(f"Параметры: {params}")
         try:
             self.session.execute(
-                sql_expression, {"item_id": item_id, "key_path": f"{{{key}}}"}
+                sql_expression, params
             )
             self.session.commit()
-            logger.info(f"Удалена JSON пара '{key}' из {json_field} для id={item_id}.")
+            logger.info(f"Удалена JSON пара '{key}' из {json_field} для {pk_column}={item_id}.")
         except SQLAlchemyError as e:
             self.session.rollback()
             logger.error(f"Ошибка при удалении JSON пары: {e}")
             raise
 
-    def _wrap_json_value(self, value: Any) -> str:
-        """
-        Оборачивает значение в зависимости от типа данных для JSON.
-
-        Args:
-            value (Any): Значение для оборачивания.
-
-        Returns:
-            str: Обработанное значение.
-        """
-        if isinstance(value, (int, float)):
-            return str(value)
-        elif isinstance(value, str):
-            return f'"{value}"'
-        elif isinstance(value, list):
-            wrapped_values = [self._wrap_json_value(v) for v in value]
-            return f"[{', '.join(wrapped_values)}]"
-        elif value is None:
-            return "null"
-        else:
-            logger.warning(f"Неизвестный тип данных для JSON: {type(value)}")
-            return f'"{str(value)}"'
-
     @manage_session
     def get_json_value(
         self,
         model_class: Type[T],
-        serial_id: str,
         item_id: Any,
         json_field: str,
         key: str,
@@ -488,7 +459,6 @@ class JSONRepository(Database):
 
         Args:
             model_class (Type[Base]): Класс модели SQLAlchemy.
-            serial_id (str): Название столбца идентификатора.
             item_id (Any): Идентификатор записи.
             json_field (str): Название JSON поля.
             key (str): Ключ для получения значения.
@@ -496,84 +466,26 @@ class JSONRepository(Database):
         Returns:
             Optional[str]: Значение по ключу или None.
         """
+        pk_column = self._get_pk_fields(model_class)[0].name
         sql_expression = text(
-            f"SELECT {json_field}->> :key_path FROM {model_class.__tablename__} WHERE {serial_id} = :item_id"
+            f"SELECT {json_field}->> :key_path FROM {model_class.__tablename__} WHERE {pk_column} = :item_id"
         )
         try:
             session = self.get_session()
-            result = session.execute(
-                sql_expression, {"item_id": item_id, "key_path": f"{{{key}}}"}
-            ).scalar()
+            params = {"item_id": item_id, "key_path": f"{key}"}
+            logger.debug(f'SQL получения: {sql_expression}')
+            logger.debug(f"Параметры: {params}")
+            result = session.execute(sql_expression, params).scalar()
             logger.debug(
                 f"Получено значение '{result}' для ключа '{key}' из {json_field}."
             )
             return result
         except NoResultFound:
             logger.warning(
-                f"Запись с {serial_id}={item_id} не найдена для получения JSON значения."
+                f"Запись с {pk_column}={item_id} не найдена для получения JSON значения."
             )
             return None
 
-    @manage_session
-    def _update_existing_record(
-        self, existing_record: Type[T], data: Dict[str, Any], keep_existing: bool = False
-    ) -> None:
-        """
-        Обновляет существующую запись новыми данными.
-
-        Args:
-            existing_record (Base): Существующая запись.
-            data (Dict[str, Any]): Новые данные для обновления.
-            keep_existing (bool, optional): Флаг сохранения существующих данных. По умолчанию False.
-        """
-        table_columns = inspect(existing_record.__class__).columns
-        for column in table_columns:
-            column_name = column.name
-            if column_name in data and isinstance(column.type, JSONB):
-                column_data = getattr(existing_record, column_name, {})
-                new_data = data.get(column_name, {})
-                if not keep_existing:
-                    column_data.update(new_data)
-                else:
-                    column_data = {**new_data, **column_data}
-                setattr(existing_record, column_name, column_data)
-                logger.debug(
-                    f"Обновлено JSON поле '{column_name}' для записи id={existing_record.id}."
-                )
-            elif column_name in data:
-                if not (keep_existing and getattr(existing_record, column_name)):
-                    setattr(existing_record, column_name, data[column_name])
-                    logger.debug(
-                        f"Обновлено поле '{column_name}' для записи id={existing_record.id}."
-                    )
-        self.update(existing_record)
-
-    @manage_session
-    def _add_new_record(
-        self, data: Dict[str, Any], table_name: str
-    ) -> None:
-        """
-        Добавляет новую запись в базу данных, если она не существует.
-
-        Args:
-            data (Dict[str, Any]): Данные для создания новой записи.
-            table_name (str): Название таблицы.
-        """
-        record = data.copy()
-        record.pop("table_to_load", None)
-        record.pop("source_id", None)
-
-        model_class = self.get_model_by_tablename(table_name)
-        if not model_class:
-            logger.error(f"Модель для таблицы '{table_name}' не найдена.")
-            return
-
-        valid_keys = [
-            key for key in record.keys() if key in model_class.__table__.columns
-        ]
-        new_record = model_class(**{key: record[key] for key in valid_keys})
-        self.add(new_record)
-        logger.info(f"Добавлена новая запись в таблицу '{table_name}': {new_record}")
 
 class SyncRepository(Database):
     """
