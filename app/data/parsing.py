@@ -1,776 +1,1054 @@
-import requests 
-from bs4 import BeautifulSoup 
+# app/data/parsing.py
+
+import random
+import time
+import logging
+from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+
+import requests
+from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-import time
-from ymaps import Search
-# from selenium.webdriver.firefox.options import Options as FirefoxOptions
-# from selenium.webdriver.firefox.options import Options
-# from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
-# from selenium.webdriver.chrome.options import Options
-# from selenium.webdriver.common.proxy import Proxy, ProxyType
 import undetected_chromedriver as uc
-from selenium.webdriver.common.by import By
-# from selenium.webdriver.chrome.service import Service
-import secrets
-import random
-# from webdriver_manager.chrome import ChromeDriverManager
-# from app.data.compare import Compare_cities
+
+from ymaps import Search
+
 from app.config import USER_AGENTS_FILE
+from app.data.compare import CompareCities
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+
+class ParseError(Exception):
+    """Исключение, возникающее при ошибках парсинга."""
+    pass
+
 
 class Parse:
+    """Базовый класс для парсинга веб-страниц."""
 
-    def __init__(self, url):
-        self.soup = None
-        self.url = url
+    def __init__(self, url: str) -> None:
+        """
+        Инициализирует базовый класс Parse.
 
+        Args:
+            url (str): Базовый URL для парсинга.
+        """
+        self.soup: Optional[BeautifulSoup] = None
+        self.url: str = url
+        self.driver: Optional[webdriver.Chrome] = None
+        self.user_agents: List[str] = []
+        self.load_user_agents()
 
-    def get_data(self, url='', tag = None, id = None, class_ = None, itemprop = None, all_data = False): 
+    def get_data(
+        self,
+        url: str = '',
+        tag: Optional[str] = None,
+        id: Optional[str] = None,
+        class_: Optional[str] = None,
+        itemprop: Optional[str] = None,
+        all_data: bool = False
+    ) -> Union[List[BeautifulSoup], BeautifulSoup, str]:
+        """
+        Получает данные с веб-страницы.
+
+        Args:
+            url (str, optional): Относительный URL для запроса. По умолчанию ''.
+            tag (Optional[str], optional): Название тега для поиска. По умолчанию None.
+            id (Optional[str], optional): Идентификатор для поиска. По умолчанию None.
+            class_ (Optional[str], optional): Класс для поиска. По умолчанию None.
+            itemprop (Optional[str], optional): Атрибут itemprop для поиска. По умолчанию None.
+            all_data (bool, optional): Флаг для поиска всех элементов. По умолчанию False.
+
+        Returns:
+            Union[List[BeautifulSoup], BeautifulSoup, str]: Найденные элементы или текст страницы.
+        """
         try:
             if not self.soup and url:
-                response = requests.get(self.url + url) 
+                full_url = self.url + url
+                response = requests.get(full_url)
+                response.raise_for_status()
                 self.soup = BeautifulSoup(response.text, 'html.parser')
+                logger.debug(f"Загружена страница: {full_url}")
+
             if tag:
-                elements = {'id':id, 'class':class_, 'itemprop': itemprop}
-                conditions = {f'{k}': v for k,v in elements.items() if v != None}
+                search_conditions = {k: v for k, v in {'id': id, 'class': class_, 'itemprop': itemprop}.items() if v}
                 if all_data:
-                    result = self.soup.find_all(tag, conditions)
+                    result = self.soup.find_all(tag, search_conditions)
+                    logger.debug(f"Найдено {len(result)} элементов <{tag}> с условиями {search_conditions}.")
                 else:
-                    result = self.soup.find(tag, conditions)
+                    result = self.soup.find(tag, search_conditions)
+                    logger.debug(f"Найден один элемент <{tag}> с условиями {search_conditions}.")
             else:
-                result = self.soup.text
+                result = self.soup.get_text() if self.soup else ''
+                logger.debug("Получен текст страницы.")
             return result
+        except requests.HTTPError as e:
+            logger.error(f"HTTP ошибка при запросе {self.url + url}: {e}")
+            raise ParseError(f"HTTP ошибка: {e}") from e
         except Exception as e:
-            print(f'Ошибка в get_data, {e}')
-    
-    def parse_data(self, result, filter):
+            logger.error(f"Ошибка в методе get_data: {e}")
+            raise ParseError(f"Ошибка получения данных: {e}") from e
+
+    def parse_data(self, result: BeautifulSoup, filter: Any) -> Any:
+        """
+        Метод для последующего парсинга данных. Реализуется в наследниках.
+
+        Args:
+            result (BeautifulSoup): Парсенные данные.
+            filter (Any): Фильтр для обработки данных.
+
+        Returns:
+            Any: Результат парсинга.
+        """
         pass
-    
-    def get_free_proxy(self):
-        response = requests.get('https://free-proxy-list.net/')
-        soup = BeautifulSoup(response.text, 'html.parser')
-        table = soup.find('table')
-        for row in table.find_all('tr')[1:]:
-            columns = row.find_all('td')
-            ip = columns[0].text
-            port = columns[1].text
-            yield f'{ip}:{port}'
-            
-    # запускает браузер лиса с user_agent
-    def foxi_user(self,  run =False):
-        # для случайных User-Agent  
-        user_agent = self.random_user_agent() 
-        # print(user_agent)       
-              
-        # profile = FirefoxProfile()
-        # # устанавливаем своего User-Agent 
-        # profile.set_preference("general.useragent.override", user_agent)
-        # # попытка скрыть, бота
-        # profile.set_preference("dom.webdriver.enabled", False)
-        # profile.set_preference('useAutomationExtension', False)
-        # profile.update_preferences
-        # options = FirefoxOptions()
-        # options.add_argument('--disable-features=NetworkService')
-        # options.add_argument('--disable-dev-shm-usage')
-        # options.add_argument('--no-first-run')
-        # options.add_argument('--no-default-browser-check')
-        # options.add_argument('--no-sandbox')
-        # options.add_argument('--disable-blink-features=AutomationControlled')
-        # options.set_preference('excludeSwitches', 'enable-automation')
-        # proxy = next(self.get_free_proxy())
-        # options.set_preference('network.proxy.type', 1)
-        # options.set_preference('network.proxy.http', proxy.split(':')[0])
-        # options.set_preference('network.proxy.http_port', int(proxy.split(':')[1]))
 
-        # # Быстрая загрузка, не дожидается полной загрузки ресурсов
-        # if run:
-        #     options.page_load_strategy = 'eager'  
-        
-        # self.driver = webdriver.Firefox(options=options)
+    def get_free_proxy(self) -> Generator[str, None, None]:
+        """
+        Получает бесплатные прокси-серверы.
 
-        options = uc.ChromeOptions()
-        if run:
-            options.page_load_strategy = 'eager'
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--start-maximized")
-        options.add_argument(f'user-agent={user_agent}')
-        self.driver = uc.Chrome(options=options)
-        # Пример скрытия некоторых следов автоматизации
-        self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        self.driver.execute_script("window.navigator.chrome = {runtime: {}}")
-        self.driver.execute_script("""
-                                    Object.defineProperty(navigator, 'plugins', {
-                                        get: () => [1, 2, 3, 4, 5]
-                                    });
-                                    """)
-        self.driver.execute_script("""
-                                    Object.defineProperty(navigator, 'languages', {
-                                        get: () => ['en-US', 'en']
-                                    });
-                                    """)
-        
+        Yields:
+            str: Прокси-сервер в формате 'IP:PORT'.
+        """
+        try:
+            response = requests.get('https://free-proxy-list.net/')
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            table = soup.find('table')
+            for row in table.find_all('tr')[1:]:
+                columns = row.find_all('td')
+                ip = columns[0].text.strip()
+                port = columns[1].text.strip()
+                yield f'{ip}:{port}'
+        except requests.HTTPError as e:
+            logger.error(f"HTTP ошибка при получении прокси: {e}")
+            raise ParseError(f"HTTP ошибка при получении прокси: {e}") from e
+        except Exception as e:
+            logger.error(f"Ошибка в методе get_free_proxy: {e}")
+            raise ParseError(f"Ошибка получения прокси: {e}") from e
 
+    def foxi_user(self, run: bool = False) -> None:
+        """
+        Запускает браузер с подменой User-Agent.
 
+        Args:
+            run (bool, optional): Флаг для изменения стратегии загрузки страницы. По умолчанию False.
+        """
+        try:
+            user_agent = self.random_user_agent()
+            options = uc.ChromeOptions()
+            if run:
+                options.page_load_strategy = 'eager'
+            options.add_argument("--disable-blink-features=AutomationControlled")
+            options.add_argument("--start-maximized")
+            options.add_argument(f'user-agent={user_agent}')
 
-    # берёт user_agents из файла 
-    def get_user_agents(self):
-        with open( USER_AGENTS_FILE, 'r') as file:
-            self.user_agents = list(set(file.readlines()))
-    
-    # берёт рандомнй и удаляет из списка, чтобы не повторялись
-    def random_user_agent(self):
-        while True:
-            try:
-                user_agent = secrets.choice(self.user_agents)
-                self.user_agents.remove(user_agent)
-                return user_agent
-            except:
-                # print('Агенты кончились, повторяем')
-                self.get_user_agents()
-                continue
+            self.driver = uc.Chrome(options=options)
+            # Скрываем следы автоматизации
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            self.driver.execute_script("window.navigator.chrome = {runtime: {}}")
+            self.driver.execute_script("""
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5]
+                });
+            """)
+            self.driver.execute_script("""
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['en-US', 'en']
+                });
+            """)
+            logger.debug("Браузер запущен с подмененным User-Agent.")
+        except Exception as e:
+            logger.error(f"Ошибка при запуске браузера: {e}")
+            raise ParseError(f"Ошибка запуска браузера: {e}") from e
 
-    def click_bot(self):
-        # <input type="submit" id="js-button" class="CheckboxCaptcha-Button" aria-ch>
-        html = self.driver.page_source
-        html = BeautifulSoup(html, 'html.parser')
-        elements = {'id':'js-button', 'type':'submit'}
-        result = html.find('input', elements)
-        if result:
-            element = self.driver.find_element(By.ID, 'js-button')
-            actions = ActionChains(self.driver)
-            actions.move_to_element(element).click().perform()
-            time.sleep(random.randrange(1,6)/2)
+    def load_user_agents(self) -> None:
+        """Загружает список User-Agent из файла."""
+        try:
+            with open(USER_AGENTS_FILE, 'r') as file:
+                self.user_agents = list(set(line.strip() for line in file))
+            logger.debug(f"Загружено {len(self.user_agents)} уникальных User-Agent.")
+        except FileNotFoundError:
+            logger.error(f"Файл {USER_AGENTS_FILE} не найден.")
+            raise ParseError(f"Файл {USER_AGENTS_FILE} не найден.")
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке User-Agent: {e}")
+            raise ParseError(f"Ошибка загрузки User-Agent: {e}") from e
+
+    def random_user_agent(self) -> str:
+        """
+        Выбирает случайный User-Agent из списка и удаляет его из списка.
+
+        Returns:
+            str: Случайный User-Agent.
+        """
+        try:
+            if not self.user_agents:
+                self.load_user_agents()
+            user_agent = random.choice(self.user_agents)
+            self.user_agents.remove(user_agent)
+            logger.debug(f"Выбран User-Agent: {user_agent}")
+            return user_agent
+        except IndexError:
+            logger.warning("Список User-Agent пуст, повторная загрузка.")
+            self.load_user_agents()
+            return self.random_user_agent()
+        except Exception as e:
+            logger.error(f"Ошибка в методе random_user_agent: {e}")
+            raise ParseError(f"Ошибка выбора User-Agent: {e}") from e
+
+    def click_bot(self) -> bool:
+        """
+        Проверяет наличие CAPTCHA и пытается её обойти.
+
+        Returns:
+            bool: True, если CAPTCHA обнаружена и обработана, иначе False.
+        """
+        try:
             html = self.driver.page_source
-            html = BeautifulSoup(html, 'html.parser')
-            elements = {'type':'submit', 
-                        'data-testid':'submit',
-                        'aria-describedby':'submit-description',
-                        'class':'CaptchaButton CaptchaButton_view_action CaptchaButton_size_l',
-                        'aria-busy':'false'
-                        }
-            result = html.find('button', elements)
-            if result:
-                print('Проверка на бота ожидаем и повторяем')
-                time.sleep(random.randrange(60,120))
-                return True
-            else:
-                time.sleep(10)
+            soup = BeautifulSoup(html, 'html.parser')
+            captcha_button = soup.find('input', {'id': 'js-button', 'type': 'submit'})
+            if captcha_button:
+                element = self.driver.find_element(By.ID, 'js-button')
+                ActionChains(self.driver).move_to_element(element).click().perform()
+                time.sleep(random.uniform(0.5, 3.0))
+                soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+                captcha_confirm = soup.find('button', {
+                    'type': 'submit',
+                    'data-testid': 'submit',
+                    'aria-describedby': 'submit-description',
+                    'class': 'CaptchaButton CaptchaButton_view_action CaptchaButton_size_l',
+                    'aria-busy': 'false'
+                })
+                if captcha_confirm:
+                    logger.info("CAPTCHA обнаружена и обработана. Повторяем запрос.")
+                    time.sleep(random.uniform(30, 60))
+                    return True
+                else:
+                    time.sleep(10)
+            return False
+        except Exception as e:
+            logger.error(f"Ошибка в методе click_bot: {e}")
+            raise ParseError(f"Ошибка обработки CAPTCHA: {e}") from e
 
+    def get_js_page_content(
+        self,
+        url: str,
+        by: str = '',
+        what: str = '',
+        click: Tuple[bool, str] = (False, ''),
+        run: bool = False,
+        close_: bool = True
+    ) -> BeautifulSoup:
+        """
+        Получает содержимое страницы, которая загружается с помощью JavaScript.
 
-    # обращается к сайту как пользователь и возвращает его код
-    def get_JS_page_content(self, url, by='', what='', click = [False, ''], run =False, close_ = True): 
-        while True:
-            try: 
-                # словарь с методами поиска
-                way = {'id' : By.ID, 'class' : By.CLASS_NAME}
+        Args:
+            url (str): URL страницы для загрузки.
+            by (str, optional): Метод поиска элемента (например, 'id', 'class'). По умолчанию ''.
+            what (str, optional): Значение для метода поиска. По умолчанию ''.
+            click (Tuple[bool, str], optional): Флаг и селектор для клика. По умолчанию (False, '').
+            run (bool, optional): Флаг для использования стратегии загрузки 'eager'. По умолчанию False.
+            close_ (bool, optional): Флаг для закрытия браузера после выполнения. По умолчанию True.
 
-                # запуск браузера
+        Returns:
+            BeautifulSoup: Парсенный HTML страницы.
+        """
+        try:
+            while True:
                 self.foxi_user(run=run)
-
                 if run:
-                    # Установка времени загрузки страницы
                     self.driver.set_page_load_timeout(10)
-                
-                self.driver.get(url)
-                time.sleep(10)
-                check_bot = self.click_bot()
-                if check_bot:
-                    continue
-                
-                # если не нужно ждать прогрузки всего сайта а только чего то конкретного
-                # используется для ускорения сбора данных
-                if run:
-                    # Явное ожидание, например, ожидание видимости элемента с id 'content'
-                    try:
-                        WebDriverWait(self.driver, 20).until(
-                            EC.visibility_of_element_located((way[by], what))
-                        )
-                    except Exception as e:
-                        print(f"Ожидание завершено с ошибкой: {e}")
 
-                # если куда-то нужно нажать для прогрузки элементов
-                if click[0]:
-                    element = self.driver.find_element(By.CSS_SELECTOR, click[1])
-                    actions = ActionChains(self.driver)
-                    actions.move_to_element(element).click().perform()
-                    time.sleep(random.randrange(5,10))
+                self.driver.get(url)
+                logger.debug(f"Перешли на страницу: {url}")
+                time.sleep(10)
+
+                if self.click_bot():
+                    continue
+
+                if run and by and what:
+                    try:
+                        way = {'id': By.ID, 'class': By.CLASS_NAME}
+                        WebDriverWait(self.driver, 20).until(
+                            EC.visibility_of_element_located((way.get(by, By.ID), what))
+                        )
+                        logger.debug(f"Элемент {what} виден на странице.")
+                    except Exception as e:
+                        logger.warning(f"Ошибка ожидания элемента {what}: {e}")
+
+                if click[0] and click[1]:
+                    try:
+                        element = self.driver.find_element(By.CSS_SELECTOR, click[1])
+                        ActionChains(self.driver).move_to_element(element).click().perform()
+                        time.sleep(random.uniform(2.5, 5.0))
+                        logger.debug(f"Кликнули по элементу {click[1]}.")
+                    except Exception as e:
+                        logger.error(f"Ошибка клика по элементу {click[1]}: {e}")
+                        raise ParseError(f"Ошибка клика: {e}") from e
 
                 time.sleep(15)
-                # Получаем HTML страницы
-                pageSource = self.driver.page_source
-                # Используем BeautifulSoup для анализа страницы
-                bs = BeautifulSoup(pageSource, 'html.parser')
-                return bs
-            
-            except Exception as e: 
-                print(e)
+                page_source = self.driver.page_source
+                soup = BeautifulSoup(page_source, 'html.parser')
+                return soup
 
-            finally: 
-                if close_:
-                    self.driver.close()
-                    self.driver.quit()
-                    
+        except Exception as e:
+            logger.error(f"Ошибка в методе get_js_page_content: {e}")
+            raise ParseError(f"Ошибка получения содержимого страницы: {e}") from e
 
-    # Выравнивание словаря
+        finally:
+            if close_ and self.driver:
+                self.driver.close()
+                self.driver.quit()
+                logger.debug("Браузер закрыт.")
+
     @classmethod
-    def dictionary_alignment(self, location, mass_final = {}):
+    def dictionary_alignment(cls, location: Dict[str, Any], mass_final: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Выравнивает вложенные словари.
+
+        Args:
+            location (Dict[str, Any]): Входной словарь.
+            mass_final (Optional[Dict[str, Any]], optional): Итоговый словарь. По умолчанию None.
+
+        Returns:
+            Dict[str, Any]: Выравненный словарь.
+        """
+        if mass_final is None:
+            mass_final = {}
+
         for key, values in location.items():
-            if mass_final.get(key):
-                key = key + '_'
+            original_key = key
+            if key in mass_final:
+                key = f"{key}_"
             mass_final[key] = []
-            if not (isinstance(values, list) or isinstance(values, dict)) :
-                mass_final[key] = mass_final[key] + [values]
+            if not isinstance(values, (list, dict)):
+                mass_final[key].append(values)
             elif isinstance(values, list):
                 for value in values:
                     if isinstance(value, dict):
-                        mass_final = mass_final|self.dictionary_alignment(value, mass_final)
+                        cls.dictionary_alignment(value, mass_final)
                     else:
-                        mass_final[key] = mass_final[key] + [value]
+                        mass_final[key].append(value)
             elif isinstance(values, dict):
-                mass_final = mass_final|self.dictionary_alignment(values, mass_final)
+                cls.dictionary_alignment(values, mass_final)
             else:
-                print(key, value)
-                print(type(value))
+                logger.warning(f"Неизвестный тип данных для ключа {key}: {type(values)}")
         return mass_final
-        
-class Parse_weather(Parse):
 
-    def __init__(self):
-        super().__init__('')
-        self.url = 'http://russia.pogoda360.ru/'
 
-    # берёт таблицу с регионами
-    def get_region(self):
+class ParseWeather(Parse):
+    """Класс для парсинга погодных данных."""
+
+    def __init__(self) -> None:
+        """Инициализирует класс ParseWeather."""
+        super().__init__(url='http://russia.pogoda360.ru/')
+        logger.info("Инициализирован ParseWeather.")
+
+    def get_region(self) -> BeautifulSoup:
+        """
+        Получает HTML-код блока с регионами.
+
+        Returns:
+            BeautifulSoup: Парсенный HTML блока регионов.
+        """
+        logger.debug("Получение региона из страницы.")
         return self.get_data(tag='div', id='statesPanel')
-    
-    # берёт таблицу с городами
-    def get_cities(self, url):
-        return self.get_data(url=url ,tag='div', id='citiesPanel')
 
-    # делает словарь где ключ - регион или город, а значение добавочный url
-    def parse_data(self, result, tag):
-        result = result.find_all(tag)
-        data = {}
-        for item in result:
-            if '(' in item.text:
-                data[item.text[:item.text.rfind('(')-1]] = item.get('href')
-            else: 
-                data[item.text] = item.get('href')
+    def get_cities(self, url: str) -> BeautifulSoup:
+        """
+        Получает HTML-код блока с городами по заданному URL.
+
+        Args:
+            url (str): Относительный URL для получения городов.
+
+        Returns:
+            BeautifulSoup: Парсенный HTML блока городов.
+        """
+        logger.debug(f"Получение городов по URL: {url}")
+        return self.get_data(url=url, tag='div', id='citiesPanel')
+
+    def parse_data(self, result: BeautifulSoup, tag: str) -> Dict[str, str]:
+        """
+        Парсит данные из HTML-элементов.
+
+        Args:
+            result (BeautifulSoup): Парсенный HTML.
+            tag (str): Тег для поиска элементов.
+
+        Returns:
+            Dict[str, str]: Словарь с названиями и URL.
+        """
+        elements = result.find_all(tag)
+        data: Dict[str, str] = {}
+        for item in elements:
+            name = item.text.strip()
+            href = item.get('href', '').strip()
+            if '(' in name:
+                name = name[:name.rfind('(')].strip()
+            data[name] = f'https://{self.url.split("//")[1]}{href}'
+            logger.debug(f"Парсинг элемента: {name} -> {data[name]}")
         return data
-    
-    # берёт список регионов, фильтрует и выдает в формате словаря
-    def parse_regions(self):
+
+    def parse_regions(self) -> Dict[str, str]:
+        """
+        Парсит список регионов.
+
+        Returns:
+            Dict[str, str]: Словарь регионов и их URL.
+        """
+        logger.info("Парсинг регионов.")
         result = self.get_region()
         return self.parse_data(result, tag='a')
-    
-    # берёт список городов, фильтрует и выдает в формате словаря
-    def parse_cities(self, url):
-        # try:
-            result = self.get_cities(url)
-            return self.parse_data(result, tag='a')
-        # except Exception as e:
-        #     print(e)
-        # finally:
-        #     self.driver.close()
-        #     self.driver.quit()
 
-    
-    # выдает список городов для конкретного региона
-    def get_city_from_region(self, region_name, data):
-        return self.parse_cities(data[region_name])
-    
-    # Делает словарь где ключ - номер месяца, а значение температура возруха днем
-    def get_dayly_temperature(self, bs):
+    def parse_cities(self, url: str) -> Dict[str, str]:
+        """
+        Парсит список городов по заданному региону.
+
+        Args:
+            url (str): URL региона для получения городов.
+
+        Returns:
+            Dict[str, str]: Словарь городов и их URL.
+        """
+        logger.info(f"Парсинг городов по URL: {url}")
+        result = self.get_cities(url)
+        return self.parse_data(result, tag='a')
+
+    def get_city_from_region(self, region_name: str, data: Dict[str, str]) -> Dict[str, str]:
+        """
+        Получает список городов для конкретного региона.
+
+        Args:
+            region_name (str): Название региона.
+            data (Dict[str, str]): Словарь регионов и их URL.
+
+        Returns:
+            Dict[str, str]: Словарь городов и их URL.
+        """
+        logger.debug(f"Получение городов для региона: {region_name}")
+        return self.parse_cities(data.get(region_name, ''))
+
+    def get_dayly_temperature(self, soup: BeautifulSoup) -> Dict[int, str]:
+        """
+        Получает дневные температуры.
+
+        Args:
+            soup (BeautifulSoup): Парсенный HTML страницы.
+
+        Returns:
+            Dict[int, str]: Словарь с номерами месяцев и дневными температурами.
+        """
         try:
-            # Находим родительский элемент с ID 'chartTemp'
-            chart_temp = bs.find(id='chartTemp')
+            chart_temp = soup.find(id='chartTemp')
             series_elements = chart_temp.find_all('div', class_='jqplot-series-0')
-            # Создаем словарь для хранения результатов
-            result_dict = {}
-            # Обрабатываем найденные элементы
+            result_dict: Dict[int, str] = {}
             for element in series_elements:
-                # Извлекаем текст элемента
-                text_value = element.get_text()
-                # Ищем класс с шаблоном 'jqplot-point-*'
-                for class_name in element['class']:
+                text_value = element.get_text().strip()
+                for class_name in element.get('class', []):
                     if class_name.startswith('jqplot-point-') and class_name != 'jqplot-point-label':
-                        # Извлекаем число из класса 
-                        point_number = int(class_name.split('-')[-1])
-                        # Увеличиваем число на 1 и используем его в качестве ключа
-                        result_dict[point_number + 1] = text_value
+                        point_number = int(class_name.split('-')[-1]) + 1
+                        result_dict[point_number] = text_value
+                        logger.debug(f"Дневная температура: Месяц {point_number} -> {text_value}")
             return result_dict
-    
         except Exception as e:
-            print(e)
-    
-    # Делает словарь где ключ - номер месяца, а значение температура возруха ночью
-    def get_night_temperature(self, bs):
+            logger.error(f"Ошибка получения дневных температур: {e}")
+            raise ParseError(f"Ошибка получения дневных температур: {e}") from e
+
+    def get_night_temperature(self, soup: BeautifulSoup) -> Dict[int, str]:
+        """
+        Получает ночные температуры.
+
+        Args:
+            soup (BeautifulSoup): Парсенный HTML страницы.
+
+        Returns:
+            Dict[int, str]: Словарь с номерами месяцев и ночными температурами.
+        """
         try:
-            # Находим родительский элемент с ID 'chartTemp'
-            chart_temp = bs.find(id='chartTemp')
+            chart_temp = soup.find(id='chartTemp')
             series_elements = chart_temp.find_all('div', class_='jqplot-series-1')
-            # Создаем словарь для хранения результатов
-            result_dict = {}
-            # Обрабатываем найденные элементы
+            result_dict: Dict[int, str] = {}
             for element in series_elements:
-                # Извлекаем текст элемента
-                text_value = element.get_text()
-                # Ищем класс с шаблоном 'jqplot-point-*'
-                for class_name in element['class']:
+                text_value = element.get_text().strip()
+                for class_name in element.get('class', []):
                     if class_name.startswith('jqplot-point-') and class_name != 'jqplot-point-label':
-                        # Извлекаем число из класса 
-                        point_number = int(class_name.split('-')[-1])
-                        # Увеличиваем число на 1 и используем его в качестве ключа
-                        result_dict[point_number + 1] = text_value
+                        point_number = int(class_name.split('-')[-1]) + 1
+                        result_dict[point_number] = text_value
+                        logger.debug(f"Ночная температура: Месяц {point_number} -> {text_value}")
             return result_dict
-        
         except Exception as e:
-            print(e)
-    
-    # Делает словарь где ключ - номер месяца, а значение количество осадков в мм
-    def get_rainfall(self, bs):
-        try:
-            # Находим родительский элемент с ID 'chartTemp'
-            chart_temp = bs.find(id='chartPrecip')
-            series_elements = chart_temp.find_all('div', class_='jqplot-series-0')
-            # Создаем словарь для хранения результатов
-            result_dict = {}
-            # Обрабатываем найденные элементы
-            for element in series_elements:
-                # Извлекаем текст элемента
-                text_value = element.get_text()
-                # Ищем класс с шаблоном 'jqplot-point-*'
-                for class_name in element['class']:
-                    if class_name.startswith('jqplot-point-') and class_name != 'jqplot-point-label':
-                        # Извлекаем число из класса 
-                        point_number = int(class_name.split('-')[-1])
-                        # Увеличиваем число на 1 и используем его в качестве ключа
-                        result_dict[point_number + 1] = text_value
-            return result_dict
-    
-        except Exception as e:
-            print(e)
+            logger.error(f"Ошибка получения ночных температур: {e}")
+            raise ParseError(f"Ошибка получения ночных температур: {e}") from e
 
-    # Делает словарь где ключ - номер месяца, а значение температура воды
-    def get_water_temperature(self, bs):
-        try:
-            # Находим родительский элемент с ID 'chartTemp'
-            chart_temp = bs.find(id='chartSeaTemp')
-            series_elements = chart_temp.find_all('div', class_='jqplot-series-0')
-            # Создаем словарь для хранения результатов
-            result_dict = {}
-            # Обрабатываем найденные элементы
-            for element in series_elements:
-                # Извлекаем текст элемента
-                text_value = element.get_text()
-                # Ищем класс с шаблоном 'jqplot-point-*'
-                for class_name in element['class']:
-                    if class_name.startswith('jqplot-point-') and class_name != 'jqplot-point-label':
-                        # Извлекаем число из класса 
-                        point_number = int(class_name.split('-')[-1])
-                        # Увеличиваем число на 1 и используем его в качестве ключа
-                        result_dict[point_number + 1] = text_value
-            return result_dict
-        
-        except Exception as e:
-            print('\t\tНету температуры моря: ', e)
+    def get_rainfall(self, soup: BeautifulSoup) -> Dict[int, str]:
+        """
+        Получает количество осадков.
 
-    # Потучает словарь температур в одном городе 
-    # (дневная ночная температура воздуха и температуру воды)
-    def get_temperature(self, _url):
-        while True:
-            try:
-                url = self.url + _url
-                bs = self.get_JS_page_content(url, by = 'id', what='chartTemp', run=True)
-                day_t = self.get_dayly_temperature(bs)
-                night_t = self.get_night_temperature(bs)
-                rainfall = self.get_rainfall(bs)
-                water_t = self.get_water_temperature(bs)
-                if water_t:
-                    return {'day': day_t, 'night': night_t, 'rainfall': rainfall, 'water': water_t}
-                else:
-                    return {'day': day_t, 'night': night_t, 'rainfall': rainfall, 'water': {f'{i}':None for i in range(1,13)}}      
-            except Exception as e:
-                print(e)
-                print('что-то сломалось жду 60 секунд и пробую ещё раз')
-                time.sleep(60)
-                continue
-    
-    # ЗАПУСКАТЬ - выдает температуры по городам, где ключ это id города из БД,
-    # а значение словарь где ключ номер месяца, а значение словарь температур day, night и water
-    def get_all_temperature (self):
-        from app.data.compare import Compare_cities
-        compare_cities = Compare_cities()
-        compare_cities.union_cities()
-        self.full_cities_data = {}
-        for id_city, value in compare_cities.all_found_cities.items():
-            while True:
+        Args:
+            soup (BeautifulSoup): Парсенный HTML страницы.
+
+        Returns:
+            Dict[int, str]: Словарь с номерами месяцев и количеством осадков.
+        """
+        try:
+            chart_temp = soup.find(id='chartPrecip')
+            series_elements = chart_temp.find_all('div', class_='jqplot-series-0')
+            result_dict: Dict[int, str] = {}
+            for element in series_elements:
+                text_value = element.get_text().strip()
+                for class_name in element.get('class', []):
+                    if class_name.startswith('jqplot-point-') and class_name != 'jqplot-point-label':
+                        point_number = int(class_name.split('-')[-1]) + 1
+                        result_dict[point_number] = text_value
+                        logger.debug(f"Количество осадков: Месяц {point_number} -> {text_value}")
+            return result_dict
+        except Exception as e:
+            logger.error(f"Ошибка получения количества осадков: {e}")
+            raise ParseError(f"Ошибка получения осадков: {e}") from e
+
+    def get_water_temperature(self, soup: BeautifulSoup) -> Dict[int, Optional[str]]:
+        """
+        Получает температуры воды.
+
+        Args:
+            soup (BeautifulSoup): Парсенный HTML страницы.
+
+        Returns:
+            Dict[int, Optional[str]]: Словарь с номерами месяцев и температурами воды.
+        """
+        try:
+            chart_temp = soup.find(id='chartSeaTemp')
+            series_elements = chart_temp.find_all('div', class_='jqplot-series-0')
+            result_dict: Dict[int, Optional[str]] = {}
+            for element in series_elements:
+                text_value = element.get_text().strip()
+                for class_name in element.get('class', []):
+                    if class_name.startswith('jqplot-point-') and class_name != 'jqplot-point-label':
+                        point_number = int(class_name.split('-')[-1]) + 1
+                        result_dict[point_number] = text_value
+                        logger.debug(f"Температура воды: Месяц {point_number} -> {text_value}")
+            return result_dict
+        except Exception as e:
+            logger.warning(f"Нету температуры моря: {e}")
+            return {i: None for i in range(1, 13)}
+
+    def get_temperature(self, _url: str) -> Dict[str, Dict[int, Optional[str]]]:
+        """
+        Получает температуры для конкретного города.
+
+        Args:
+            _url (str): Относительный URL города.
+
+        Returns:
+            Dict[str, Dict[int, Optional[str]]]: Словарь температур по месяцам.
+        """
+        try:
+            full_url = self.url + _url
+            soup = self.get_js_page_content(full_url, by='id', what='chartTemp', run=True)
+            day_t = self.get_dayly_temperature(soup)
+            night_t = self.get_night_temperature(soup)
+            rainfall = self.get_rainfall(soup)
+            water_t = self.get_water_temperature(soup)
+            temperature_data = {
+                'day': day_t,
+                'night': night_t,
+                'rainfall': rainfall,
+                'water': water_t
+            }
+            logger.info(f"Получены температуры для URL: {full_url}")
+            return temperature_data
+        except ParseError as e:
+            logger.error(f"Ошибка получения температур: {e}")
+            raise
+
+    def get_all_temperature(self) -> Dict[int, Dict[int, Dict[str, Optional[str]]]]:
+        """
+        Получает температуры для всех городов.
+
+        Returns:
+            Dict[int, Dict[int, Dict[str, Optional[str]]]]: Словарь с ID городов и их температурами по месяцам.
+        """
+        try:
+            compare_cities = CompareCities()
+            compare_cities.union_cities()
+            full_cities_data: Dict[int, Dict[int, Dict[str, Optional[str]]]] = {}
+
+            for id_city, value in compare_cities.all_found_cities.items():
+                city_name = value[0]
+                city_url = value[1]
+                logger.info(f"Начало работы с городом: {city_name} (ID: {id_city})")
                 try:
-                    print('Начало работы с ', value[0])
-                    temperature = self.get_temperature(value[1])
-                    self.full_cities_data[id_city] = {}
-                    for i in range(1,13):
-                        self.full_cities_data[id_city][i] = {
-                            'day':temperature.get('day').get(i),
-                            'night':temperature.get('night').get(i),
-                            'rainfall':temperature.get('rainfall').get(i),
-                            'water':temperature.get('water').get(i)
-                            }
-                    print('Окончание работы с ', value[0])
-                    break
-                except:
-                    print('-'*20)
-                    print('Что то пошло не так c', id_city)
-                    print(temperature)
-                    print('-'*20)
+                    temperature = self.get_temperature(city_url)
+                    full_cities_data[id_city] = {
+                        month: {
+                            'day': temperature['day'].get(month),
+                            'night': temperature['night'].get(month),
+                            'rainfall': temperature['rainfall'].get(month),
+                            'water': temperature['water'].get(month)
+                        }
+                        for month in range(1, 13)
+                    }
+                    logger.info(f"Завершение работы с городом: {city_name} (ID: {id_city})")
+                except ParseError:
+                    logger.warning(f"Не удалось получить температуры для города: {city_name} (ID: {id_city})")
                     continue
-        
+
+            logger.info("Получение температур для всех городов завершено.")
+            return full_cities_data
+        except Exception as e:
+            logger.error(f"Ошибка в методе get_all_temperature: {e}")
+            raise ParseError(f"Ошибка получения всех температур: {e}") from e
 
 
-# Парсит яндекс карты для получения отзывов, оценок и фото локаций
-class Parse_yandex_map(Parse):
+class ParseYandexMap(Parse):
+    """Класс для парсинга данных с Яндекс.Карт."""
 
-    def __init__(self):
-        self.soup = None
-        self.url = ''
-        self.driver = None
+    def __init__(self) -> None:
+        """Инициализирует класс ParseYandexMap."""
+        super().__init__(url='')
+        logger.info("Инициализирован ParseYandexMap.")
 
-    def __del__(self):
-        pass
-        
+    def __del__(self) -> None:
+        """Закрывает браузер при удалении объекта."""
+        if self.driver:
+            self.driver.close()
+            self.driver.quit()
+            logger.debug("Браузер закрыт при удалении объекта ParseYandexMap.")
 
-    # Запускаем для полного сбора информации в одной локации
-    def get_location_rewiews_and_photos(self, loc_url, rewiews=True, photos = True):
-        if rewiews:
-            self.get_location_rewiews(loc_url)
-        if photos:
-            self.get_location_photos(loc_url)
+    def get_location_reviews_and_photos(
+        self,
+        loc_url: str,
+        reviews: bool = True,
+        photos: bool = True
+    ) -> None:
+        """
+        Получает отзывы и фото для конкретной локации.
 
-    # берёт локации по городу и выдает словарь, где ключ это название локации, а значение ее url
-    def get_locations(self, region_city_loc):
-        restart = 0
-        while True:
-            try:
-                # словарь где ключ название локации, а значение url
-                dict_locations = {}
-                # запуск поисковика
-                self.foxi_user()
-                # переход на сайт
-                self.driver.get("https://yandex.ru/maps")
-                # проверка на проверку бота
-                check_bot = self.click_bot()
-                if check_bot:
+        Args:
+            loc_url (str): URL локации.
+            reviews (bool, optional): Флаг для получения отзывов. По умолчанию True.
+            photos (bool, optional): Флаг для получения фото. По умолчанию True.
+        """
+        try:
+            if reviews:
+                self.get_location_reviews(loc_url)
+            if photos:
+                self.get_location_photos(loc_url)
+            logger.debug(f"Получены отзывы и фото для локации: {loc_url}")
+        except ParseError as e:
+            logger.error(f"Ошибка при получении отзывов и фото: {e}")
+            raise
+
+    def get_locations(self, region_city_loc: str) -> Dict[str, str]:
+        """
+        Получает локации по названию города.
+
+        Args:
+            region_city_loc (str): Название города.
+
+        Returns:
+            Dict[str, str]: Словарь с названиями локаций и их URL.
+        """
+        try:
+            dict_locations: Dict[str, str] = {}
+            self.foxi_user()
+            self.driver.get("https://yandex.ru/maps")
+            logger.debug("Перешли на Яндекс.Карты.")
+            time.sleep(5)
+
+            if self.click_bot():
+                return {}
+
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            nothing_found = self.get_data(tag='div', class_='nothing-found-view__header')
+            alone_location = self.get_data(tag='a', class_='card-title-view__title-link')
+            mass_locations = self.get_data(tag='a', class_='link-overlay', all_data=True)
+
+            if nothing_found:
+                logger.info(f"Локации в {region_city_loc} не найдены.")
+                return {}
+
+            elif alone_location:
+                dict_locations[alone_location.text.strip()] = f"https://yandex.ru{alone_location.get('href', '').strip()}"
+                logger.debug(f"Найдена одна локация: {alone_location.text.strip()} -> {dict_locations[alone_location.text.strip()]}")
+            elif mass_locations:
+                self.soup = self.scroll_reviews(class_name='search-business-snippet-view', click=True)
+                soup = BeautifulSoup(self.soup, 'html.parser')
+                locations = self.get_data(tag='a', class_='link-overlay', all_data=True)
+                for loc in locations:
+                    loc_name = loc.get('aria-label', '').strip()
+                    loc_href = loc.get('href', '').strip()
+                    if loc_name and loc_href:
+                        dict_locations[loc_name] = f"https://yandex.ru{loc_href}"
+                        logger.debug(f"Найдена локация: {loc_name} -> https://yandex.ru{loc_href}")
+            else:
+                logger.warning("Неизвестная структура страницы.")
+                return {}
+
+            logger.info(f"Получено {len(dict_locations)} локаций для города {region_city_loc}.")
+            return dict_locations
+
+        except Exception as e:
+            logger.error(f"Ошибка в методе get_locations: {e}")
+            raise ParseError(f"Ошибка получения локаций: {e}") from e
+
+    def get_loc_type_td(
+        self,
+        url: str,
+        sql_city: str,
+        full_get_info: bool = False
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Получает информацию о типе локации.
+
+        Args:
+            url (str): URL локации.
+            sql_city (str): Название города из базы данных.
+            full_get_info (bool, optional): Флаг для полного получения информации. По умолчанию False.
+
+        Returns:
+            Optional[Dict[str, Any]]: Информация о локации или None.
+        """
+        try:
+            id_yandex = int([part for part in url.split('/') if part.isdigit()][0])
+            self.soup = self.get_js_page_content(url, by='id', what='chartTemp', run=True)
+            logger.debug(f"Получение информации о локации с ID Yandex: {id_yandex}")
+
+            # Проверка соответствия города
+            html_city = self.get_data(tag='a', class_='breadcrumbs-view__breadcrumb _outline', all_data=True)
+            city = html_city[1].get('title') if len(html_city) > 1 else ''
+            index = 3 if len(sql_city) <= 5 else 5
+            if not (city == sql_city or city[:index] == sql_city[:index]):
+                alternative_city = self.get_data(tag='a', class_='business-contacts-view__address-link').text.strip().split(' ')
+                if not (sql_city in alternative_city or sql_city[:5] in alternative_city):
+                    logger.info(f"Локация принадлежит другому городу: {alternative_city}, требуется {sql_city}")
+                    return None
+
+            # Количество лайков
+            element_like = self.get_data(tag='div', class_="business-header-rating-view__text _clickable")
+            count_like = element_like.text.split(' ')[0] if element_like else '0'
+
+            # Средняя оценка
+            like = self.get_data(tag='span', class_="business-rating-badge-view__rating-text").text.strip()
+
+            # Особенности
+            features_http = self.get_data(tag='div', class_='business-features-view _wide _view_overview _orgpage')
+            features = {
+                'features_text': [item.text.strip() for item in features_http.find_all('div', {'class': 'business-features-view__bool-text'})],
+                'features_key': {
+                    item.find('span', {'class': 'business-features-view__valued-title'}).text.strip():
+                        item.find('span', {'class': 'business-features-view__valued-value'}).text.strip()
+                    for item in features_http.find_all('div', {'class': 'business-features-view__valued'})
+                }
+            }
+
+            # Типы локации
+            types = [item.text.strip() for item in self.get_data(tag='div', class_='orgpage-categories-info-view').find_all('span', {'class': 'button__text'})]
+
+            # Координаты
+            coordinates_div = self.soup.find('div', {'class': 'card-feature-view _view_normal _size_large _interactive _no-side-padding card-share-view__coordinates'})
+            coordinates_text = self.get_data(tag='div', class_='card-share-view__text').text.strip().split(', ') if coordinates_div else ['', '']
+            coordinates = [coordinates_text[1], coordinates_text[0]] if len(coordinates_text) == 2 else [None, None]
+
+            loc_info = {
+                'count_like': count_like,
+                'like': like,
+                'types': types,
+                'coordinates': coordinates,
+                'id_yandex': id_yandex,
+                'features': features
+            }
+
+            if full_get_info:
+                self.get_location_reviews_and_photos(loc_url=url)
+
+            logger.debug(f"Информация о локации: {loc_info}")
+            return loc_info
+
+        except (IndexError, ValueError) as e:
+            logger.error(f"Ошибка обработки данных о локации: {e}")
+            raise ParseError(f"Ошибка обработки данных о локации: {e}") from e
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка в методе get_loc_type_td: {e}")
+            raise ParseError(f"Неизвестная ошибка: {e}") from e
+
+    def get_location_reviews(self, url: str) -> Dict[int, Dict[str, Union[int, str]]]:
+        """
+        Получает отзывы для конкретной локации.
+
+        Args:
+            url (str): URL локации.
+
+        Returns:
+            Dict[int, Dict[str, Union[int, str]]]: Словарь отзывов.
+        """
+        try:
+            self.soup = self.scroll_reviews(
+                url_map=f"{url}reviews/",
+                class_name='business-reviews-card-view__space',
+                click=True,
+                check_none=[True, 'h2', 'tab-empty-view__title']
+            )
+            if self.soup is True:
+                logger.info("Отзывов не найдено.")
+                return {}
+
+            soup = BeautifulSoup(self.soup, 'html.parser')
+            reviews = self.get_data(tag='div', class_='business-reviews-card-view__review', all_data=True)
+            reviews_filter: Dict[int, Dict[str, Union[int, str]]] = {}
+            for i, review in enumerate(reviews, 1):
+                try:
+                    review_like = len(review.find_all('span', {'class': 'inline-image _loaded icon business-rating-badge-view__star _full'}))
+                    review_text = review.find('span', {'class': 'business-review-view__body-text'}).get_text(strip=True)
+                    review_date = review.find('meta', {'itemprop': 'datePublished'}).get('content', '').split('T')[0]
+                    reviews_filter[i] = {
+                        'like': review_like,
+                        'text': review_text,
+                        'date': review_date
+                    }
+                    logger.debug(f"Отзыв {i}: {reviews_filter[i]}")
+                except AttributeError:
+                    logger.warning(f"Некорректная структура отзыва #{i}.")
                     continue
-                time.sleep(5)
-                # поиск поисковой строки
-                element = self.driver.find_element(By.TAG_NAME, "input")
-                # ввод запроса
-                element.send_keys(f'{region_city_loc}', Keys.ENTER)
-                time.sleep(2)
-                # проверяем что получили - нет элементов или есть один элемент или список элементов
-                self.soup = self.driver.page_source
-                self.soup = BeautifulSoup(self.soup, 'html.parser')
-                none_location = self.get_data(tag='div', class_='nothing-found-view__header')
-                alone_location = self.get_data(tag='a', class_='card-title-view__title-link')
-                mass_locations = self.get_data(tag = 'a', class_= 'link-overlay', all_data= True)
-                # проверяем на отсутствие такой локации
-                if none_location:
-                    print(f'таких локаций в {region_city_loc} не найдено')
-                    if restart == 1:
-                        self.driver.close()
-                        self.driver.quit()
-                        return False 
+
+            self.loc_reviews = reviews_filter
+            logger.info(f"Получено {len(reviews_filter)} отзывов.")
+            return reviews_filter
+
+        except ParseError as e:
+            logger.error(f"Ошибка получения отзывов: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка в методе get_location_reviews: {e}")
+            raise ParseError(f"Неизвестная ошибка при получении отзывов: {e}") from e
+
+    def get_location_photos(self, url: str) -> Dict[int, Optional[str]]:
+        """
+        Получает фото для конкретной локации.
+
+        Args:
+            url (str): URL локации.
+
+        Returns:
+            Dict[int, Optional[str]]: Словарь фото.
+        """
+        try:
+            self.soup = self.scroll_reviews(
+                url_map=f"{url}gallery/",
+                class_name='media-wrapper__media',
+                click=True,
+                check_none=[True, 'h2', 'tab-empty-view__title']
+            )
+            if self.soup is True:
+                logger.info("Фотографий не найдено.")
+                return {1: None}
+
+            soup = BeautifulSoup(self.soup, 'html.parser')
+            photos_html = self.get_data(tag='img', class_='media-wrapper__media', all_data=True)
+            dict_photos: Dict[int, Optional[str]] = {}
+            for i, photo in enumerate(photos_html, 1):
+                photo_src = photo.get('src', '').strip()
+                dict_photos[i] = photo_src if photo_src else None
+                logger.debug(f"Фото {i}: {dict_photos[i]}")
+
+            self.loc_photos = dict_photos
+            logger.info(f"Получено {len(dict_photos)} фотографий.")
+            return dict_photos
+
+        except ParseError as e:
+            logger.error(f"Ошибка получения фото: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка в методе get_location_photos: {e}")
+            raise ParseError(f"Неизвестная ошибка при получении фото: {e}") from e
+
+    def scroll_reviews(
+        self,
+        class_name: str,
+        check_none: Optional[List[Union[bool, str, str]]] = None,
+        url_map: str = '',
+        click: bool = False
+    ) -> Union[str, bool]:
+        """
+        Скроллит страницу для загрузки всех отзывов или фотографий.
+
+        Args:
+            class_name (str): Класс элементов для поиска.
+            check_none (Optional[List[Union[bool, str, str]]], optional): Параметры проверки отсутствия элементов. По умолчанию None.
+            url_map (str, optional): URL для перехода. По умолчанию ''.
+            click (bool, optional): Флаг для клика по элементу. По умолчанию False.
+
+        Returns:
+            Union[str, bool]: HTML страницы или True, если элементы отсутствуют.
+        """
+        try:
+            while True:
+                if url_map:
+                    self.foxi_user()
+                    self.driver.get(url_map)
+                    logger.debug(f"Перешли на страницу: {url_map}")
                     time.sleep(10)
-                    restart += 1
+
+                    if self.click_bot():
+                        continue
+
+                    if check_none and check_none[0]:
+                        soup = self.get_data(tag=check_none[1], class_=check_none[2])
+                        if soup:
+                            logger.info("Необходимые элементы отсутствуют на странице.")
+                            self.driver.close()
+                            self.driver.quit()
+                            return True
+
+                try:
+                    WebDriverWait(self.driver, 20).until(
+                        EC.presence_of_element_located((By.CLASS_NAME, class_name))
+                    )
+                    logger.debug(f"Элемент с классом '{class_name}' найден на странице.")
+                except Exception as e:
+                    logger.warning(f"Элемент с классом '{class_name}' не найден: {e}")
                     self.driver.close()
                     self.driver.quit()
                     continue
 
-                elif alone_location:
-                    dict_locations[f'{alone_location.text}'] = 'https://yandex.ru'+ alone_location.get('href')
-                    self.driver.close()
-                    self.driver.quit()
+                try:
+                    if click:
+                        element = self.driver.find_element(By.CLASS_NAME, class_name)
+                        ActionChains(self.driver).move_to_element(element).click().perform()
+                        logger.debug(f"Кликнули по элементу с классом '{class_name}'.")
+                        time.sleep(random.uniform(2.5, 5.0))
 
-                elif mass_locations:
-                    self.soup = self.reviews_scrol(class_name = 'search-business-snippet-view', click=True)
-                    self.soup = BeautifulSoup(self.soup, 'html.parser')
-                    locations = self.get_data(tag = 'a', class_= 'link-overlay', all_data= True)
-                    for i in locations:
-                        dict_locations[f'{i.get('aria-label')}'] = 'https://yandex.ru'+ i.get('href')
-                
-                else:
-                    print('хз')
-                    self.driver.close()
-                    self.driver.quit()
-                    continue
-                
-                return dict_locations
-                
-            except Exception as e:
-                print(f'Ошибка в get_locations, {e}')
-                continue
-            
+                    reviews_section = self.driver.find_element(By.CLASS_NAME, 'scroll__container')
+                    last_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
+                    not_good = 0
 
-    # Берёт с вкладки обзор основную информацию и запускает полный сбор если True в full_get_info
-    def get_loc_type_td (self, url, sql_city, full_get_info = False):
-        while True:
-            try:
-                
-                id_yandex = int([id for id in url.split('/') if id.isdigit()][0])
-                self.soup = self.get_JS_page_content(url, click=[True, 'div.action-button-view._type_share'], close_=True)
-            # проверяем местоположение локации по названию города
-                html_city = self.get_data(tag='a', class_='breadcrumbs-view__breadcrumb _outline', all_data=True)
-                city = html_city[1].get('title')
-                if len(sql_city) <= 5:
-                    index = 3
-                else:
-                    index = 5
-                if city == sql_city or city[:index] == sql_city[:index]:
-                    pass
-                else:
-                    # elements = {'role':'link', 'class':'breadcrumbs-view__breadcrumb _outline', 'tabindex':'0'}
-                    elements = {'class':'business-contacts-view__address-link'}
-                    html_city = self.soup.find('a', elements).text
-                    city =  html_city.split(' ')
-                    if sql_city in html_city or sql_city[:5] in html_city:
-                        pass
-                    else:
-                        print(f'У локации другой город - {city}, а нас нужен {sql_city}')
-                        return True   
-            # количество оценок
-                element_like = self.get_data(tag='div', class_="business-header-rating-view__text _clickable")
-                if element_like:
-                    count_like = element_like.text
-                    count_like = count_like.split(' ')[0]
-                else:
-                    count_like = '0'
-            # средняя оценка
-                like = self.get_data(tag='span', class_="business-rating-badge-view__rating-text").text
-            # раздел особенности    
-                features_http = self.get_data(tag='div', class_='business-features-view _wide _view_overview _orgpage')
-                features = {}
-                mass = [i.text for i in features_http.find_all('div', {'class':'business-features-view__bool-text'})]
-                features['featurs_text'] = mass 
-                mass = {i.find('span', {'class':'business-features-view__valued-title'}).text: 
-                        i.find('span', {'class':'business-features-view__valued-value'}).text 
-                        for i in features_http.find_all('div', {'class':'business-features-view__valued'})}
-                features['featurs_key'] = mass
-            # все типы локации
-                types = self.get_data(tag = 'div',class_='orgpage-categories-info-view')
-                types = [i.text for i in types.find_all('span', {'class':'button__text'})]
-            # координаты
-                self.soup = self.soup.find('div',
-                                        {'class':'card-feature-view _view_normal _size_large _interactive _no-side-padding card-share-view__coordinates'})
-                coordinates = self.get_data(tag = 'div',class_='card-share-view__text').text.split(', ')
-                self.loc_info = {'count_like':count_like, 'like': like, 'types':types, 'coordinates': [coordinates[1], coordinates[0]], 'id_yandex':id_yandex, 'features':features}
-                if full_get_info:
-                    self.get_location_rewiews_and_photos(loc_url=url)
-                break
-
-            except Exception as e:
-                print(f'ошибка в get_loc_type_td, {e}')
-                time.sleep(random.randrange(5,20))
-                continue
-
-    # ОТЗЫВЫ
-    # делает словарь, где ключ это номер отзыва, а значение словарь, где ключ это либо like, либо text 
-    def get_location_rewiews(self, url): 
-        while True:
-            try:
-                self.soup = self.reviews_scrol(url_map = url+'reviews/', class_name='business-reviews-card-view__space', 
-                                               click = True, check_none=[True, 'h2', 'tab-empty-view__title'])
-                if self.soup != True:
-                    self.soup = BeautifulSoup(self.soup, 'html.parser')
-                    rewiews = self.get_data(tag = 'div', class_='business-reviews-card-view__review', all_data=True)
-                    rewiews_filter = {}
-                    i = 0
-                    for rewiew in rewiews:
-                        self.soup = rewiew
-                        i +=1
-                        rewiews_filter[i] = {}
-                        like = len(self.get_data(tag = 'span', class_='inline-image _loaded icon business-rating-badge-view__star _full', all_data=True))
-                        rewiews_filter[i]['like'] = like
-                        rewiews_filter[i]['text'] = self.get_data(tag = 'span', class_='business-review-view__body-text').get_text()
-                        rewiews_filter[i]['data'] = self.get_data(tag = 'meta', itemprop='datePublished').get('content').split('T')[0]
-                    self.loc_rewiews = rewiews_filter 
-                    break
-                else:
-                    rewiews_filter = {}
-                    rewiews_filter[1] = {}
-                    rewiews_filter[1]['like'] = 0
-                    rewiews_filter[1]['text'] = 'None'
-                    rewiews_filter[1]['data'] = 'None'
-                    self.loc_rewiews = rewiews_filter
-                    break
-            except:
-                print('ошибка в get_location_rewiews')
-                time.sleep(random.randrange(5,20))
-                self.driver.close()
-                self.driver.quit()
-                continue
-
-    
-
-    # ФОТО
-    # Делаейт словарь где ключ номер фото, а значение его url
-    def get_location_photos(self, url):
-        while True:
-            try:
-                self.soup = self.reviews_scrol(url_map=url + 'gallery/', class_name='media-wrapper__media',
-                                click=True, check_none=[True, 'h2', 'tab-empty-view__title'])
-                if self.soup != True:
-                    self.soup = BeautifulSoup(self.soup, 'html.parser')
-                    photos_html = self.get_data(tag = 'img',class_='media-wrapper__media', all_data = True)
-                    i = 0
-                    dict_photos = {}
-                    for photo in photos_html:
-                        i += 1
-                        dict_photos[i] = photo.get('src')
-                    self.loc_photos = dict_photos
-                    break
-                else:
-                    dict_photos = {}
-                    dict_photos[1] = 'None'
-                    self.loc_photos = dict_photos
-                    break
-            except:
-                print('ошибка в get_location_photos')
-                time.sleep(random.randrange(60,120))
-                self.driver.close()
-                self.driver.quit()
-                continue
-
-    # скролит сайты для прогрузки элементов, может сам заходить на страницы если передать url_map 
-    # и может кликать на выбраный элемент чтобы явно показать за чем закреплен скролинг
-    def reviews_scrol(self, class_name, check_none=[False, '', ''], url_map = '', click = False):
-        # slov = {'class':By.CLASS_NAME, 'id':By.ID}
-        while True:
-            if url_map:
-                # для случайных User-Agent  
-                self.foxi_user()
-                # Переход по ссылке
-                self.driver.get(f'{url_map}')
-                time.sleep(10)
-                check_bot = self.click_bot()
-                if check_bot:
-                    self.driver.close()
-                    self.driver.quit()
-                    continue
-                # если необходимо проверяет на отсутствие какого либо ряда элементов (нету отзывов например)
-                # необходимо передать True и что искать и если есть то возвращает истина (т.е. да нету что парсить)
-                if check_none[0]:
-                    self.soup = self.driver.page_source
-                    self.soup = BeautifulSoup(self.soup, 'html.parser')
-                    none = self.get_data(tag = check_none[1], class_=check_none[2])
-                    if none:
-                        self.driver.close()
-                        self.driver.quit()
-                        return True
-            # Использование WebDriverWait для ожидания появления элемента с отзывами
-            try:
-                first_review = WebDriverWait(self.driver, 20).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, f'{class_name}'))
-                )
-
-            except Exception as e:
-                # print(f"Error locating first: {e}")
-                print('Не найден нужный элемент, пробую повторно')
-                self.driver.close()
-                self.driver.quit()
-                continue
-
-            try:
-                # Перемещение указателя мыши на первый отзыв и клик
-                if click:
-                    actions = ActionChains(self.driver)
-                    actions.move_to_element(first_review).click().perform()
-
-                reviews_section = self.driver.find_element(By.CLASS_NAME, 'scroll__container')
-                last_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
-                not_good = 0
-                while not_good < 3:
-                    try:
-                        self.scroll_to_bottom(reviews_section)
-                        time.sleep(5)
-                        new_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
-                        if new_height == last_height:
+                    while not_good < 3:
+                        try:
+                            self.scroll_to_bottom(reviews_section)
+                            time.sleep(5)
+                            new_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
+                            if new_height == last_height:
+                                not_good += 1
+                                logger.debug("Высота прокрутки не изменилась.")
+                            else:
+                                not_good = 0
+                                last_height = new_height
+                                logger.debug("Высота прокрутки изменилась, продолжаем прокрутку.")
+                        except Exception as e:
+                            logger.error(f"Ошибка при прокрутке: {e}")
                             not_good += 1
-                        else:
-                            not_good = 0 
-                            last_height = new_height
-                    except Exception as e:
-                        print(e)
-                        not_good += 1
-                time.sleep(5)
-                page_source = self.driver.page_source
-                return page_source
-            
-            finally:
-                self.driver.close()
-                self.driver.quit()
 
+                    time.sleep(5)
+                    page_source = self.driver.page_source
+                    logger.debug("Прокрутка завершена, получаем содержимое страницы.")
+                    return page_source
 
-    def scroll_to_bottom(self, section):
-        self.driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", section)
+                finally:
+                    self.driver.close()
+                    self.driver.quit()
+                    logger.debug("Браузер закрыт после прокрутки.")
+        except Exception as e:
+            logger.error(f"Ошибка в методе scroll_reviews: {e}")
+            raise ParseError(f"Ошибка прокрутки страницы: {e}") from e
 
+    def scroll_to_bottom(self, section: webdriver.remote.webelement.WebElement) -> None:
+        """
+        Скроллит страницу до конца.
 
-        # работала когда была халява ключей
-    # собирает все локации в конкретном городе
-    # def get_locations_api(self, name_city, type_loc):
-    #     all_api_key = ['547d8501-74fd-46af-930a-9ea2fff048bf']
-    #     current_key = 0
-    #     lang = 'ru_RU'
-    #     client = Search(all_api_key[current_key])
-    #     address = f"{name_city} {type_loc}"
-    #     all_loc = 1000
-    #     get_loc = 0
-    #     try:
-    #         while all_loc > get_loc:
-    #             response = client.search(text = address,lang=lang,rspn=True,results=50, skip = get_loc)
-    #             if 'error' in response and len(all_api_key) > current_key:
-    #                 current_key += 1
-    #                 print(f'\n\n {response}')
-    #                 client = Search(all_api_key[current_key])
-    #                 continue
+        Args:
+            section (webdriver.remote.webelement.WebElement): Секция страницы для прокрутки.
+        """
+        try:
+            self.driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", section)
+            logger.debug("Прокрутка до конца секции выполнена.")
+        except Exception as e:
+            logger.error(f"Ошибка при прокрутке до конца секции: {e}")
+            raise ParseError(f"Ошибка прокрутки до конца секции: {e}") from e
 
-    #             elif 'error' in response and len(all_api_key) == current_key:
-    #                 print('Лимит парсинга')
-    #                 break
-                
-    #             # общая информация (кол объектов надо)
-    #             properties = response['properties']
-    #             all_loc = properties['ResponseMetaData']['SearchResponse']['found']
-    #             get_loc += 50
-            
-    #             # найденые объекты
-    #             features = response['features']
-    #             return features
+    def get_locations_api(self, name_city: str, type_loc: str) -> List[Dict[str, Any]]:
+        """
+        Получает список локаций через API Яндекс.Карт.
 
-    #     except Exception as e:
-    #         print("Ошибка:", e)
+        Args:
+            name_city (str): Название города.
+            type_loc (str): Тип локации.
 
-    # работала когда была халява ключей
-    # Получает  полный url До локации, название и количество отзывов
-    # def get_location_rewiews_summary(self, _url):
-    #     url = f'https://yandex.ru/maps-reviews-widget/{_url}?comments'
-    #     url_map = self.get_data(url, tag ='a',
-    #                              class_ = 'badge__more-reviews-link' )
-    #     url_map = url_map.get('href')
-    #     number = self.get_data(tag = 'p', class_='mini-badge__stars-count')
-    #     number = float(number.text.replace(',','.'))
-    #     count_ = self.get_data(tag = 'a', class_ = 'mini-badge__rating')
-    #     count_ = count_.text.split(' ')
-    #     count_ = {'отзывы': int(count_[0]), 'оценки':int(count_[3])}
-    #     self.soup = None
-    #     time.sleep(1)
-    #     return {'url_map': url_map, 'number': number, 'count': count_}
-                
+        Returns:
+            List[Dict[str, Any]]: Список локаций.
+        """
+        all_api_keys = ['547d8501-74fd-46af-930a-9ea2fff048bf']
+        current_key = 0
+        lang = 'ru_RU'
+        client = Search(all_api_keys[current_key])
+        address = f"{name_city} {type_loc}"
+        all_loc = 1000
+        get_loc = 0
 
-    
+        try:
+            while all_loc > get_loc:
+                response = client.search(text=address, lang=lang, rspn=True, results=50, skip=get_loc)
+                if 'error' in response:
+                    if current_key + 1 < len(all_api_keys):
+                        current_key += 1
+                        client = Search(all_api_keys[current_key])
+                        logger.warning(f"API ключ недействителен, переключение на ключ {current_key}.")
+                        continue
+                    else:
+                        logger.error("Достигнут лимит парсинга API.")
+                        break
 
-    
-    
+                properties = response.get('properties', {})
+                all_loc = properties.get('ResponseMetaData', {}).get('SearchResponse', {}).get('found', 0)
+                get_loc += 50
+
+                features = response.get('features', [])
+                return features
+
+        except Exception as e:
+            logger.error(f"Ошибка в методе get_locations_api: {e}")
+            raise ParseError(f"Ошибка получения локаций через API: {e}") from e
+
+    def get_location_reviews_summary(self, loc_url: str) -> Dict[str, Any]:
+        """
+        Получает сводную информацию об отзывах для локации.
+
+        Args:
+            loc_url (str): URL локации.
+
+        Returns:
+            Dict[str, Any]: Сводная информация об отзывах.
+        """
+        try:
+            url = f'https://yandex.ru/maps-reviews-widget/{loc_url}?comments'
+            soup = self.get_data(url=url, tag='a', class_='badge__more-reviews-link')
+            href = soup.get('href', '').strip() if soup else ''
+            if not href:
+                logger.warning(f"Ссылка на отзывы не найдена для URL: {loc_url}")
+                raise ParseError("Ссылка на отзывы не найдена.")
+
+            number = self.get_data(tag='p', class_='mini-badge__stars-count')
+            number = float(number.text.replace(',', '.')) if number else 0.0
+
+            count_ = self.get_data(tag='a', class_='mini-badge__rating')
+            count_split = count_.text.split(' ') if count_ else []
+            count_data = {
+                'отзывы': int(count_split[0]) if len(count_split) > 0 and count_split[0].isdigit() else 0,
+                'оценки': int(count_split[3]) if len(count_split) > 3 and count_split[3].isdigit() else 0
+            }
+
+            logger.debug(f"Сводная информация об отзывах: URL_map={href}, number={number}, count={count_data}")
+            return {'url_map': href, 'number': number, 'count': count_data}
+
+        except (ValueError, IndexError) as e:
+            logger.error(f"Ошибка обработки данных в get_location_reviews_summary: {e}")
+            raise ParseError(f"Ошибка обработки данных: {e}") from e
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка в методе get_location_reviews_summary: {e}")
+            raise ParseError(f"Неизвестная ошибка: {e}") from e

@@ -2,7 +2,8 @@
 
 import csv
 import os
-from typing import List
+from typing import List, Dict, Tuple
+import pandas as pd
 
 
 from app.models import Sync
@@ -70,3 +71,54 @@ def import_csv(file_path: str, delimiter: str = ',') -> None:
         # Закрытие соединения с базой данных, если требуется
         db.close()
         logger.debug("Соединение с базой данных закрыто.")
+
+def load_regions_from_csv(self, path: str) -> Dict[str, int]:
+        """Загружает регионы из CSV файла.
+
+        Args:
+            path (str): Путь к CSV файлу.
+
+        Returns:
+            Dict[str, int]: Словарь с названиями регионов и их ID.
+        """
+        try:
+            df = pd.read_csv(path, delimiter=';')
+            self.input_data_regions = {row['region_name']: row['id_region'] for _, row in df.iterrows()}
+            logger.debug(f"Загружено {len(self.input_data_regions)} регионов из CSV файла {path}.")
+            return self.input_data_regions
+        except FileNotFoundError:
+            logger.error(f"Файл {path} не найден.")
+            raise
+        except pd.errors.ParserError as e:
+            logger.error(f"Ошибка парсинга CSV файла {path}: {e}")
+            raise
+        except KeyError as e:
+            logger.error(f"Отсутствует необходимый столбец в CSV файле {path}: {e}")
+            raise
+
+def load_cities_from_csv(self, path: str) -> Dict[Tuple[str, int], int]:
+        """Загружает города из CSV файла.
+
+        Args:
+            path (str): Путь к CSV файлу.
+
+        Returns:
+            Dict[Tuple[str, int], int]: Словарь с кортежами (название города, id региона) и id города.
+        """
+        try:
+            df = pd.read_csv(path, delimiter=';')
+            self.input_data_cities = {
+                (row['city_name'], row['id_region']): row['id_city']
+                for _, row in df.iterrows()
+            }
+            logger.debug(f"Загружено {len(self.input_data_cities)} городов из CSV файла {path}.")
+            return self.input_data_cities
+        except FileNotFoundError:
+            logger.error(f"Файл {path} не найден.")
+            raise
+        except pd.errors.ParserError as e:
+            logger.error(f"Ошибка парсинга CSV файла {path}: {e}")
+            raise
+        except KeyError as e:
+            logger.error(f"Отсутствует необходимый столбец в CSV файле {path}: {e}")
+            raise

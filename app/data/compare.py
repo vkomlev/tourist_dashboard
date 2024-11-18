@@ -1,160 +1,269 @@
-import pandas
-# from app.data.parsing import Parse_weather
+# app/data/compare.py
+
+from typing import Any, Dict, List, Optional, Type, Tuple
 from app.data.database import Database
-from app.models import Region, City, LocationType, Location
+from app.models import Region, City, LocationType
 import time
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class Compare:
+    """Базовый класс для сравнения данных из базы данных и внешних источников."""
 
-    def __init__(self):
-        self.input_data = {}
+    def __init__(self) -> None:
+        """Инициализирует базовый класс."""
+        self.input_data: List[Dict[str, Any]] = []
         self.database = Database()
 
-    def load_from_database(self, model):
-        data = self.database.get_all(model)
-        self.input_data = [Database.to_dict(i) for i in data]
-        return self.input_data
+    def load_from_database(self, model: Type[Any]) -> List[Dict[str, Any]]:
+        """Загружает все записи из базы данных для указанной модели.
 
-class Compare_regions(Compare):
+        Args:
+            model (Type[Any]): Класс модели SQLAlchemy.
 
-    def __init__(self):
+        Returns:
+            List[Dict[str, Any]]: Список записей в виде словарей.
+        """
+        try:
+            data = self.database.get_all(model)
+            self.input_data = [Database.to_dict(record) for record in data]
+            logger.debug(f"Загружено {len(self.input_data)} записей из модели {model.__tablename__}.")
+            return self.input_data
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке данных из базы данных: {e}")
+            raise
+
+
+class CompareRegions(Compare):
+    """Класс для сравнения регионов из базы данных и внешних источников."""
+
+    def __init__(self) -> None:
+        """Инициализирует класс CompareRegions."""
         super().__init__()
-        
-    # !!!когда на маке работал - Делает словарь где ключи это названия регионов а значение их id из БД
-    def load_regions_from_csv(self, path):
-        self.input_data_regions = {}
-        df = pandas.read_csv(path, delimiter=';')
-        self.input_data_regions = {i['region_name']:i['id_region'] for index, i in df.iterrows()}
-        return self.input_data_regions
-    
-    # Делает словарь где ключи это названия регионов а значение их id из БД
-    def load_regions_from_database(self):
-        self.input_data_regions = {}
-        self.load_from_database(Region)
-        self.input_data_regions = {i['region_name']:i['id_region'] for i in self.input_data}
-        return self.input_data_regions
-    
-    # Заменяет ключи с названия в БД на названия с сайта который парсим чтобы в последствии соотносить их с id из БД
-    def compare_regions_from_weather(self):
-        from app.data.parsing import Parse_weather
-        weather = Parse_weather()
-        weather_regions = weather.parse_regions()
-        self.load_regions_from_database()
-        self.found_regions = {}
-        self.not_found_regions = []
-        for region in weather_regions.keys():
-            check = self._check_names(region, self.input_data_regions)
-            if check:
-                self.found_regions[check[1]] = self.input_data_regions[check[0]]
-            else:
-                self.not_found_regions.append(region)
-        return self.found_regions
-        
-    # Соотносит названия в базе данных с новыми (с сайтов)
-    def _check_names(self, alt_name, input_data):
-        sql_many = input_data.keys()
-        for sql_one in sql_many:
-            sql_one = sql_one.split(' ')
-            if sql_one.count(alt_name) == 1:
-                sql_one = ' '.join(sql_one)
-                return [sql_one, alt_name, input_data[sql_one]]
-        
-        for sql_one in sql_many:
-            if sql_one.count(alt_name[0:5]) == 1:
-                return [sql_one, alt_name, input_data[sql_one]]
-            
-
-class Compare_cities(Compare_regions):
-
-    def __init__(self):
-        super().__init__()
-        self.count = 0
-
-    def load_cities_from_csv(self, path):
-        self.input_data_cities = {}
-        df = pandas.read_csv(path, delimiter=';')
-        self.input_data_cities = {(i['city_name'],i['id_region']):i['id_city'] for index, i in df.iterrows()}
-        return self.input_data_cities
-    
-    def load_cities_from_database(self):
-        self.input_data_cities = {}
-        self.load_from_database(City)
-        self.input_data_cities = {(i['city_name'],i['id_region']):i['id_city'] for i in self.input_data}
-        return self.input_data_cities
-        
-    # Получаем словарь городов где ключ это id из БД 
-    # а значение кортеж из названия города и url по всем регионам с сайта погоды
-    def union_cities(self):
-        from app.data.parsing import Parse_weather
-        self.count += 1
-        i = -1
-        self.all_found_cities = {}
-        self.all_not_found_cities = {}
-        self.load_cities_from_database()
-        time.sleep(2)
-        weather = Parse_weather()
-        weather_regions = weather.parse_regions()
-        for key, value in weather_regions.items():
-            # i += 1
-            # if i == 0 :
-                i += 1
-                self.compare_cities_from_weather(value,key)
-                self.all_found_cities = self.all_found_cities|self.found_cities
-                self.all_not_found_cities = self.all_not_found_cities|self.not_found_cities
-                print('прошли регион', i+1, key, value)
-                print(20*'-')
-                # break
-        print(f'прошли {i+1} регион/региона/регионов')
-        print(self.count)
+        self.input_data_regions: Dict[str, int] = {}
 
     
-    # получает список городов в одном регионе и формирует 2 словаря
-    # 1. совпавшие города
-    # 2. не совпавшие
-    def compare_cities_from_weather(self, region_url, region_name):
-        from app.data.parsing import Parse_weather
-        time.sleep(2)
-        weather = Parse_weather()
-        weather_cities = weather.parse_cities(region_url)
-        self.load_regions_from_database()
-        id_region = self._check_names(region_name, self.input_data_regions)[2]
-        sql_cities_from_region = {key[0]: value for key, value in self.input_data_cities.items() if key[1] == id_region}
-        # print('города из базы: ', len(sql_cities_from_region))
-        # print('города с сайта: ', len(weather_cities))
-        self.found_cities = {}
-        self.not_found_cities= {}
-        for city, url in weather_cities.items():
-            check = self._check_names(city, sql_cities_from_region)
-            if check:
-                self.found_cities[sql_cities_from_region[check[0]]] = (check[1], url)
-                print('взял', city)
-            else:
-                if region_name in self.not_found_cities:
-                    self.not_found_cities[region_name].append(city)
+    def load_regions_from_database(self) -> Dict[str, int]:
+        """Загружает регионы из базы данных.
+
+        Returns:
+            Dict[str, int]: Словарь с названиями регионов и их ID.
+        """
+        try:
+            self.load_from_database(Region)
+            self.input_data_regions = {record['region_name']: record['id_region'] for record in self.input_data}
+            logger.debug(f"Загружено {len(self.input_data_regions)} регионов из базы данных.")
+            return self.input_data_regions
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке регионов из базы данных: {e}")
+            raise
+
+    def compare_regions_from_weather(self) -> Tuple[Dict[str, int], List[str]]:
+        """Сравнивает регионы из источника погоды с базой данных.
+
+        Returns:
+            Tuple[Dict[str, int], List[str]]: Найденные регионы и не найденные регионы.
+        """
+        from app.data.parsing import ParseWeather
+
+        try:
+            weather = ParseWeather()
+            weather_regions = weather.parse_regions()
+            self.load_regions_from_database()
+
+            found_regions: Dict[str, int] = {}
+            not_found_regions: List[str] = []
+
+            for region_name in weather_regions.keys():
+                check = self._check_names(region_name, self.input_data_regions)
+                if check:
+                    found_regions[check[1]] = self.input_data_regions[check[0]]
                 else:
-                    self.not_found_cities[region_name] = [city]
-        # return self.found_cities
-    
-class Compare_yandex(Compare):
+                    not_found_regions.append(region_name)
 
-    def __init__(self):
+            logger.debug(
+                f"Сравнение регионов завершено. Найдено: {len(found_regions)}, не найдено: {len(not_found_regions)}."
+            )
+            return found_regions, not_found_regions
+        except Exception as e:
+            logger.error(f"Ошибка при сравнении регионов: {e}")
+            raise
+
+    def _check_names(self, alt_name: str, input_data: Dict[str, int]) -> Optional[List[Any]]:
+        """Проверяет соответствие названий регионов.
+
+        Args:
+            alt_name (str): Альтернативное название региона.
+            input_data (Dict[str, int]): Словарь названий регионов и их ID.
+
+        Returns:
+            Optional[List[Any]]: Список с именем региона и его ID или None.
+        """
+        # Полное совпадение
+        for sql_one in input_data.keys():
+            sql_name_parts = sql_one.split(' ')
+            if alt_name in sql_name_parts:
+                return [sql_one, alt_name, input_data[sql_one]]
+
+        # Частичное совпадение (первые 5 символов)
+        for sql_one in input_data.keys():
+            if sql_one.startswith(alt_name[:5]):
+                return [sql_one, alt_name, input_data[sql_one]]
+
+        return None
+
+
+class CompareCities(CompareRegions):
+    """Класс для сравнения городов из базы данных и внешних источников."""
+
+    def __init__(self) -> None:
+        """Инициализирует класс CompareCities."""
         super().__init__()
+        self.count: int = 0
+        self.input_data_cities: Dict[Tuple[str, int], int] = {}
+        self.found_cities: Dict[int, Tuple[str, str]] = {}
+        self.not_found_cities: Dict[str, List[str]] = {}
 
-    # делает два словаря с городами по регионно и метриками для последующего использования при парсинге
-    def load_regions_city_location_from_database(self):
-        # получаем данные из таблицы регионов
-        self.load_from_database(Region)
-        input_data_regions = self.input_data
-        # получаем данные из таблицы городов
-        self.load_from_database(City)
-        input_data_cities = self.input_data
-        self.input_data = {}
-        # объединение словарей регионы и города
-        self.input_data_r_c = {}
-        for region in input_data_regions:
-            for city in input_data_cities:
-                if city['id_region'] == region['id_region']:
-                    self.input_data_r_c[region['region_name'], city['city_name']] = [region['id_region'], city['id_city']]
-        # получаем данные из таблицы метрик, только те что из yandex 
-        self.load_from_database(LocationType)
-        self.input_data_yandex_locations_type = {i['name']: i['id_location_type'] for i in self.input_data if 'yandex' in i['location_type_value']}
+    
+    def load_cities_from_database(self) -> Dict[Tuple[str, int], int]:
+        """Загружает города из базы данных.
+
+        Returns:
+            Dict[Tuple[str, int], int]: Словарь с кортежами (название города, id региона) и id города.
+        """
+        try:
+            self.load_from_database(City)
+            self.input_data_cities = {
+                (record['city_name'], record['id_region']): record['id_city']
+                for record in self.input_data
+            }
+            logger.debug(f"Загружено {len(self.input_data_cities)} городов из базы данных.")
+            return self.input_data_cities
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке городов из базы данных: {e}")
+            raise
+
+    def union_cities(self) -> None:
+        """Объединяет города из базы данных и источника погоды."""
+        from app.data.parsing import ParseWeather
+
+        try:
+            self.count += 1
+            self.all_found_cities: Dict[int, Tuple[str, str]] = {}
+            self.all_not_found_cities: Dict[str, List[str]] = {}
+
+            self.load_cities_from_database()
+            time.sleep(2)
+
+            weather = ParseWeather()
+            weather_regions = weather.parse_regions()
+
+            for i, (region_name, region_url) in enumerate(weather_regions.items(), 1):
+                self.compare_cities_from_weather(region_url, region_name)
+                self.all_found_cities.update(self.found_cities)
+                self.all_not_found_cities.update(self.not_found_cities)
+                logger.info(f"Прошли регион {i}: {region_name} ({region_url})")
+                logger.info("-" * 20)
+
+            logger.info(f"Прошли {i} регионов.")
+            logger.info(f"Счётчик: {self.count}")
+        except Exception as e:
+            logger.error(f"Ошибка при объединении городов: {e}")
+            raise
+
+    def compare_cities_from_weather(self, region_url: str, region_name: str) -> None:
+        """Сравнивает города из источника погоды с базой данных для конкретного региона.
+
+        Args:
+            region_url (str): URL региона из источника погоды.
+            region_name (str): Название региона из источника погоды.
+
+        Returns:
+            None
+        """
+        from app.data.parsing import ParseWeather
+
+        try:
+            time.sleep(2)
+            weather = ParseWeather()
+            weather_cities = weather.parse_cities(region_url)
+            self.load_regions_from_database()
+
+            check_result = self._check_names(region_name, self.input_data_regions)
+            if not check_result:
+                logger.warning(f"Регион {region_name} не найден в базе данных.")
+                return
+
+            id_region = check_result[2]
+            sql_cities_from_region = {
+                key[0]: value for key, value in self.input_data_cities.items() if key[1] == id_region
+            }
+
+            found_cities: Dict[int, Tuple[str, str]] = {}
+            not_found_cities: Dict[str, List[str]] = {}
+
+            for city, url in weather_cities.items():
+                check = self._check_names(city, {k: v for k, v in sql_cities_from_region.items()})
+                if check:
+                    found_cities[sql_cities_from_region[check[0]]] = (check[1], url)
+                    logger.debug(f"Найден город: {city} (ID: {sql_cities_from_region[check[0]]})")
+                else:
+                    not_found_cities.setdefault(region_name, []).append(city)
+
+            self.found_cities = found_cities
+            self.not_found_cities = not_found_cities
+
+        except Exception as e:
+            logger.error(f"Ошибка при сравнении городов для региона {region_name}: {e}")
+            raise
+
+
+class CompareYandex(Compare):
+    """Класс для сравнения данных из Yandex с данными из базы данных."""
+
+    def __init__(self) -> None:
+        """Инициализирует класс CompareYandex."""
+        super().__init__()
+        self.input_data_r_c: Dict[Tuple[str, str], List[int]] = {}
+        self.input_data_yandex_locations_type: Dict[str, int] = {}
+
+    def load_regions_city_location_from_database(self) -> Dict[Tuple[str, str], List[int]]:
+        """Загружает регионы, города и типы локаций из базы данных для Yandex.
+
+        Returns:
+            Dict[Tuple[str, str], List[int]]: Словарь с кортежами (название региона, название города) и списком [id_region, id_city].
+        """
+        try:
+            # Загрузка регионов
+            self.load_from_database(Region)
+            input_data_regions = self.input_data
+
+            # Загрузка городов
+            self.load_from_database(City)
+            input_data_cities = self.input_data
+
+            # Объединение регионов и городов
+            self.input_data_r_c = {
+                (region['region_name'], city['city_name']): [region['id_region'], city['id_city']]
+                for region in input_data_regions
+                for city in input_data_cities
+                if city['id_region'] == region['id_region']
+            }
+
+            # Загрузка типов локаций, связанных с Yandex
+            self.load_from_database(LocationType)
+            self.input_data_yandex_locations_type = {
+                record['name']: record['id_location_type']
+                for record in self.input_data
+                if 'yandex' in record['location_type_value'].lower()
+            }
+
+            logger.debug(
+                f"Загружено {len(self.input_data_r_c)} регионов и городов, связанных с Yandex: {len(self.input_data_yandex_locations_type)} типов локаций."
+            )
+            return self.input_data_r_c
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке регионов, городов и типов локаций из базы данных: {e}")
+            raise
