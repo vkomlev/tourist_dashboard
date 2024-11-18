@@ -6,6 +6,7 @@ import logging
 from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
 import requests
+import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
@@ -338,3 +339,31 @@ class Parse:
             else:
                 logger.warning(f"Неизвестный тип данных для ключа {key}: {type(values)}")
         return mass_final
+    
+    def fetch_xml_data(self) -> ET.Element:
+        """
+        Загружает XML-фид с указанного URL и возвращает корневой элемент.
+
+        Returns:
+            ET.Element: Корневой элемент XML-документа.
+
+        Raises:
+            ParseError: Если произошла ошибка при загрузке или парсинге XML.
+        """
+        try:
+            logger.info(f"Загрузка XML-фида по URL: {self.url}")
+            response = requests.get(self.url)
+            response.raise_for_status()
+            response.encoding = 'utf-8'
+            root = ET.fromstring(response.text)
+            logger.info("XML-фид успешно загружен и распарсен.")
+            return root
+        except requests.HTTPError as e:
+            logger.error(f"HTTP ошибка при загрузке XML-фида: {e}")
+            raise ParseError(f"HTTP ошибка: {e}") from e
+        except ET.ParseError as e:
+            logger.error(f"Ошибка парсинга XML-фида: {e}")
+            raise ParseError(f"Ошибка парсинга XML: {e}") from e
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка при загрузке XML-фида: {e}")
+            raise ParseError(f"Неизвестная ошибка: {e}") from e
