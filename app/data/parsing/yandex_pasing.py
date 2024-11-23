@@ -81,7 +81,7 @@ class ParseYandexMap(Parse):
                 # ввод запроса
                 element.send_keys(f'{region_city_loc}', Keys.ENTER)
                 logger.debug("Перешли на Яндекс.Карты.")
-                time.sleep(5)
+                time.sleep(3)
                 self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
                 nothing_found = self.get_data(tag='div', class_='nothing-found-view__header')
                 alone_location = self.get_data(tag='a', class_='card-title-view__title-link')
@@ -95,7 +95,7 @@ class ParseYandexMap(Parse):
                     dict_locations[alone_location.text.strip()] = f"https://yandex.ru{alone_location.get('href', '').strip()}"
                     logger.debug(f"Найдена одна локация: {alone_location.text.strip()} -> {dict_locations[alone_location.text.strip()]}")
                 elif mass_locations:
-                    self.soup = self.scroll_reviews(class_name='search-business-snippet-view', click=True)
+                    self.soup = self.scroll_reviews(class_name='search-business-snippet-view__title', click=True)
                     self.soup = BeautifulSoup(self.soup, 'html.parser')
                     locations = self.get_data(tag='a', class_='link-overlay', all_data=True)
                     for loc in locations:
@@ -106,6 +106,8 @@ class ParseYandexMap(Parse):
                             logger.debug(f"Найдена локация: {loc_name} -> https://yandex.ru{loc_href}")
                 else:
                     logger.warning("Неизвестная структура страницы.")
+                    self.driver.close()
+                    self.driver.quit()
                     continue
 
                 logger.info(f"Получено {len(dict_locations)} локаций для города {region_city_loc}.")
@@ -129,7 +131,7 @@ class ParseYandexMap(Parse):
         Returns:
             Optional[Dict[str, Any]]: Информация о локации или None.
         """
-        self.soup = self.get_JS_page_content(url, close_=True)
+        self.soup = self.get_js_page_content(url, close_=True)
         types = self.get_data(tag = 'div',class_='orgpage-categories-info-view')
         types = [i.text for i in types.find_all('span', {'class':'button__text'})]
         return types
@@ -137,7 +139,6 @@ class ParseYandexMap(Parse):
     def get_loc_type_td(
         self,
         url: str,
-        sql_city: str,
         full_get_info: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
@@ -153,18 +154,8 @@ class ParseYandexMap(Parse):
         """
         try:
             id_yandex = int([part for part in url.split('/') if part.isdigit()][0])
-            self.soup = self.get_js_page_content(url, by='id', what='chartTemp', run=True)
+            self.soup = self.get_js_page_content(url, click=[True, 'div.action-button-view._type_share'], close_=True)
             logger.debug(f"Получение информации о локации с ID Yandex: {id_yandex}")
-
-            # Проверка соответствия города
-            html_city = self.get_data(tag='a', class_='breadcrumbs-view__breadcrumb _outline', all_data=True)
-            city = html_city[1].get('title') if len(html_city) > 1 else ''
-            index = 3 if len(sql_city) <= 5 else 5
-            if not (city == sql_city or city[:index] == sql_city[:index]):
-                alternative_city = self.get_data(tag='a', class_='business-contacts-view__address-link').text.strip().split(' ')
-                if not (sql_city in alternative_city or sql_city[:5] in alternative_city):
-                    logger.info(f"Локация принадлежит другому городу: {alternative_city}, требуется {sql_city}")
-                    return None
 
             # Количество лайков
             element_like = self.get_data(tag='div', class_="business-header-rating-view__text _clickable")
@@ -188,11 +179,11 @@ class ParseYandexMap(Parse):
             types = [item.text.strip() for item in self.get_data(tag='div', class_='orgpage-categories-info-view').find_all('span', {'class': 'button__text'})]
 
             # Координаты
-            coordinates_div = self.soup.find('div', {'class': 'card-feature-view _view_normal _size_large _interactive _no-side-padding card-share-view__coordinates'})
-            coordinates_text = self.get_data(tag='div', class_='card-share-view__text').text.strip().split(', ') if coordinates_div else ['', '']
+            self.soup = self.soup.find('div', {'class': 'card-feature-view _view_normal _size_large _interactive _no-side-padding card-share-view__coordinates'})
+            coordinates_text = self.get_data(tag='div', class_='card-share-view__text').text.strip().split(', ') if self.soup else ['', '']
             coordinates = [coordinates_text[1], coordinates_text[0]] if len(coordinates_text) == 2 else [None, None]
 
-            loc_info = {
+            self.loc_info = {
                 'count_like': count_like,
                 'like': like,
                 'types': types,
@@ -204,8 +195,7 @@ class ParseYandexMap(Parse):
             if full_get_info:
                 self.get_location_reviews_and_photos(loc_url=url)
 
-            logger.debug(f"Информация о локации: {loc_info}")
-            return loc_info
+            logger.debug(f"Информация о локации: {self.loc_info}")
 
         except (IndexError, ValueError) as e:
             logger.error(f"Ошибка обработки данных о локации: {e}")
@@ -224,6 +214,21 @@ class ParseYandexMap(Parse):
         Returns:
             Dict[int, Dict[str, Union[int, str]]]: Словарь отзывов.
         """
+        # словарь месяцев
+        months_dict = {
+            "января": "01",
+            "февраля": "02",
+            "марта": "03",
+            "апреля": "04",
+            "мая": "05",
+            "июня": "06",
+            "июля": "07",
+            "августа": "08",
+            "сентября": "09",
+            "октября": "10",
+            "ноября": "11",
+            "декабря": "12"
+        }
         try:
             self.soup = self.scroll_reviews(
                 url_map=f"{url}reviews/",
@@ -235,14 +240,24 @@ class ParseYandexMap(Parse):
                 logger.info("Отзывов не найдено.")
                 return {}
 
-            soup = BeautifulSoup(self.soup, 'html.parser')
+            self.soup = BeautifulSoup(self.soup, 'html.parser')
             reviews = self.get_data(tag='div', class_='business-reviews-card-view__review', all_data=True)
             reviews_filter: Dict[int, Dict[str, Union[int, str]]] = {}
             for i, review in enumerate(reviews, 1):
                 try:
                     review_like = len(review.find_all('span', {'class': 'inline-image _loaded icon business-rating-badge-view__star _full'}))
                     review_text = review.find('span', {'class': 'business-review-view__body-text'}).get_text(strip=True)
-                    review_date = review.find('meta', {'itemprop': 'datePublished'}).get('content', '').split('T')[0]
+                    review_date = review.find('meta', {'itemprop': 'datePublished'})
+                    if review_date:
+                        review_date = review_date.get('content').split('T')[0]
+                    else:
+                        review_date = review.find('span', {'class': 'business-review-view__date'})
+                        review_date = review_date.text.split(' ')
+                        if len(review_date) == 2:
+                            year = '2024'
+                        else:
+                            year = review_date[2]
+                        review_date = f'{year}-{months_dict[review_date[1]]}-{review_date[0]}'
                     reviews_filter[i] = {
                         'like': review_like,
                         'text': review_text,
@@ -329,8 +344,6 @@ class ParseYandexMap(Parse):
                     self.foxi_user()
                     self.driver.get(url_map)
                     logger.debug(f"Перешли на страницу: {url_map}")
-                    time.sleep(10)
-
                     if self.click_bot():
                         continue
 
@@ -343,7 +356,7 @@ class ParseYandexMap(Parse):
                             return True
 
                 try:
-                    WebDriverWait(self.driver, 20).until(
+                    WebDriverWait(self.driver, 5).until(
                         EC.presence_of_element_located((By.CLASS_NAME, class_name))
                     )
                     logger.debug(f"Элемент с классом '{class_name}' найден на странице.")
@@ -358,7 +371,7 @@ class ParseYandexMap(Parse):
                         element = self.driver.find_element(By.CLASS_NAME, class_name)
                         ActionChains(self.driver).move_to_element(element).click().perform()
                         logger.debug(f"Кликнули по элементу с классом '{class_name}'.")
-                        time.sleep(random.uniform(2.5, 5.0))
+                        # time.sleep(random.uniform(2.5, 5.0))
 
                     reviews_section = self.driver.find_element(By.CLASS_NAME, 'scroll__container')
                     last_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
@@ -367,7 +380,7 @@ class ParseYandexMap(Parse):
                     while not_good < 3:
                         try:
                             self.scroll_to_bottom(reviews_section)
-                            time.sleep(5)
+                            time.sleep(2)
                             new_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
                             if new_height == last_height:
                                 not_good += 1

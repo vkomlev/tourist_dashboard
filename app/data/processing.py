@@ -32,7 +32,7 @@ class DataProcessor:
         self.parse_weather = ParseWeather()
         self.database = Database()
 
-    def process_yandex_locations(self, specific_region: Tuple[str, str] = ('Свердловская область', 'Новоуральск')) -> None:
+    def process_yandex_locations(self, specific_region: Tuple[str, str] = '') -> None:
         """
         Обрабатывает локации из Яндекс.Карт для указанного региона.
 
@@ -43,34 +43,31 @@ class DataProcessor:
         self.compare_yandex.load_regions_city_location_from_database()
         regions_cities = self.compare_yandex.input_data_r_c
         type_locations = self.compare_yandex.input_data_yandex_locations_type
-        while True:
-            try:
+        try:
 
-                # # Фильтрация по указанному региону и городу
-                # if specific_region not in regions_cities:
-                #     logger.error(f"Регион и город {specific_region} не найдены в базе данных.")
-                #     raise ProcessingError(f"Регион и город {specific_region} не найдены.")
-
-                value_id_r_c = regions_cities[specific_region]
-                key_name_r_c = specific_region
-
+            # # Фильтрация по указанному региону и городу
+            # if specific_region not in regions_cities:
+            #     logger.error(f"Регион и город {specific_region} не найдены в базе данных.")
+            #     raise ProcessingError(f"Регион и город {specific_region} не найдены.")
+            for key_name_r_c, value_id_r_c in regions_cities.items():
+                if specific_region and not specific_region == key_name_r_c:
+                    continue
+                skipping_loaded_types = True
                 # Перебор типов локаций
                 for type_name, type_id in type_locations.items():
                     cities_repo = CitiesRepository()
                     last_type_loc = cities_repo.check_type_loc(id_city=value_id_r_c[1], first_type=type_id)
 
-                    if int(last_type_loc) == type_id:
-                        skipping_loaded_types = True
-                    else:
+                    if skipping_loaded_types and int(last_type_loc) == type_id:
                         skipping_loaded_types = False
 
-                    if not skipping_loaded_types:
+                    if skipping_loaded_types:
                         logger.info(f"Тип локации {type_name} уже обработан для города ID {value_id_r_c[1]}. Пропускаем.")
                         continue
                     else:
                         cities_repo.load_next_type_loc(id_city=value_id_r_c[1], type_loc=type_id)
 
-                    time.sleep(random.uniform(1, 15))
+                    # time.sleep(random.uniform(1, 15))
 
                     region_city_loc = f'{key_name_r_c[0]} {key_name_r_c[1]} {type_name}'
                     logger.info(f'Начали обработку: {region_city_loc}')
@@ -103,23 +100,21 @@ class DataProcessor:
                         if bd_location and bd_location.characters['id_yandex'] == id_yandex:
                             id_serial = bd_location.id_location
                             logger.info(f'\t\t\tЛокация уже существует: {loc_name} (ID: {id_serial})')
-                            self.update_existing_location(loc_serial=id_serial, loc_url=loc_url, sql_city=key_name_r_c[1])
+                            self.update_existing_location(loc_serial=id_serial, loc_url=loc_url)
                         else:
                             logger.info(f'\t\t\tСоздание новой локации: {loc_name}')
                             self.create_new_location(
                                 loc_name=loc_name,
                                 loc_url=loc_url,
-                                id_region=value_id_r_c[0],
-                                id_city=value_id_r_c[1],
                                 locations_repo=locations_repo,
                                 reviews_repo=reviews_repo,
                                 photos_repo=photos_repo
                             )
 
-            except ProcessingError as e:
-                logger.error(f"Ошибка обработки данных: {e}")
-            except Exception as e:
-                logger.exception(f"Неизвестная ошибка при обработке локаций: {e}")
+        except ProcessingError as e:
+            logger.error(f"Ошибка обработки данных: {e}")
+        except Exception as e:
+            logger.exception(f"Неизвестная ошибка при обработке локаций: {e}")
 
     def extract_id_yandex(self, loc_url: str) -> Optional[int]:
         """
@@ -140,7 +135,7 @@ class DataProcessor:
             logger.error(f"Не удалось извлечь ID Yandex из URL: {loc_url}")
             return None
 
-    def update_existing_location(self, loc_serial: int, loc_url: str, sql_city: str) -> None:
+    def update_existing_location(self, loc_serial: int, loc_url: str) -> None:
         """
         Обновляет существующую локацию, если типы отличаются.
 
@@ -151,16 +146,10 @@ class DataProcessor:
         """
         try:
             locations_repo = LocationsRepository()
-            wrong_city = self.parse_yandex.get_loc_type_td(url=loc_url, sql_city=sql_city)
-            if wrong_city:
-                logger.warning(f'\t\t\tЛокация {loc_serial} принадлежит другому городу. Пропускаем.')
-                return
-
-            types = self.parse_yandex.loc_info.get('types', [])
+            types = self.parse_yandex.get_loc_only_type(url=loc_url)
             existing_types = locations_repo.get_json_value(
                 model_class=Location,
-                serial_id='id_location',
-                item_id=loc_serial,
+                loc_serial = loc_serial,
                 json_field='characters',
                 key='types'
             )
@@ -186,8 +175,6 @@ class DataProcessor:
         self,
         loc_name: str,
         loc_url: str,
-        id_region: int,
-        id_city: int,
         locations_repo: LocationsRepository,
         reviews_repo: ReviewRepository,
         photos_repo: PhotoRepository
@@ -204,59 +191,53 @@ class DataProcessor:
             reviews_repo (ReviewRepo): Репозиторий для отзывов.
             photos_repo (PhotoRepo): Репозиторий для фото.
         """
-        try:
-            wrong_city = self.parse_yandex.get_loc_type_td(url=loc_url, sql_city=id_city, full_get_info=True)
-            if wrong_city:
-                logger.warning(f'\t\t\tЛокация {loc_name} принадлежит другому городу. Пропускаем.')
-                return
+        while True:
+            try:
+                self.parse_yandex.get_loc_type_td(url=loc_url, full_get_info=True)
+                coordinates = self.parse_yandex.loc_info.get('coordinates', [None, None])
+                id_region_city = self.parse_yandex.coordinates_address(lat=coordinates[1], lon=coordinates[0])
+                if id_region_city == False:
+                    print(loc_name, "не совпал ни с чем из базы")
+                    continue
+                coordinates_str = f"SRID=4326;POINT({coordinates[0]} {coordinates[1]})" if all(coordinates) else "NULL"
 
-            coordinates = self.parse_yandex.loc_info.get('coordinates', [None, None])
-            coordinates_str = f"SRID=4326;POINT({coordinates[0]} {coordinates[1]})" if all(coordinates) else "NULL"
+                locations_repo.load_info_loc_yandex(
+                    location_name=loc_name, 
+                    coordinates=coordinates_str, 
+                    id_city=id_region_city[1],
+                    id_region=id_region_city[0],
+                    characters={k: v for k, v in self.parse_yandex.loc_info.items() if k != 'coordinates'}
+                    )
+                logger.info(f'\t\t\tЛокация {loc_name} добавлена в базу данных.')
 
-            location_data = {
-                'location_name': loc_name,
-                'coordinates': coordinates_str,
-                'id_city': id_city,
-                'id_region': id_region,
-                'characters': {k: v for k, v in self.parse_yandex.loc_info.items() if k != 'coordinates'}
-            }
+                # Получение ID добавленной локации
+                id_loc = locations_repo.id_loc_yandex
+                if not id_loc:
+                    logger.error(f'\t\t\tНе удалось найти добавленную локацию {loc_name} в базе данных.')
+                    return
 
-            locations_repo._add_new_record(data=location_data, table_name='locations')
-            logger.info(f'\t\t\tЛокация {loc_name} добавлена в базу данных.')
+                # Добавление отзывов
+                for review in self.parse_yandex.loc_reviews.values():
+                    reviews_repo.load_rewiew_loc_yandex(
+                        id_loc=id_loc,
+                        like=int(review.get('like', 0)),
+                        text=review.get('text', ''),
+                        data=review.get('data', '')
+                    )
+                logger.info(f'\t\t\t{len(self.parse_yandex.loc_reviews)} отзыва для локации {loc_name} добавлены.')
 
-            # Получение ID добавленной локации
-            added_location = locations_repo.get_by_fields(
-                Location,
-                id_region=id_region,
-                id_city=id_city,
-                location_name=loc_name
-            )
-            if not added_location:
-                logger.error(f'\t\t\tНе удалось найти добавленную локацию {loc_name} в базе данных.')
-                return
+                # Добавление фото
+                for photo_url in self.parse_yandex.loc_photos.values():
+                    photos_repo.load_photo_loc_yandex(
+                        id_loc=id_loc,
+                        url=photo_url
+                    )
+                logger.info(f'\t\t\t{len(self.parse_yandex.loc_photos)} фото для локации {loc_name} добавлены.')
+                break
 
-            id_loc = added_location[0].id_location
-
-            # Добавление отзывов
-            for review in self.parse_yandex.loc_reviews.values():
-                reviews_repo.loading_review_loc_yandex(
-                    id_loc=id_loc,
-                    like=int(review.get('like', 0)),
-                    text=review.get('text', ''),
-                    data=review.get('data', '')
-                )
-            logger.info(f'\t\t\tОтзывы для локации {loc_name} добавлены.')
-
-            # Добавление фото
-            for photo_url in self.parse_yandex.loc_photos.values():
-                photos_repo.loading_photo_loc_yandex(
-                    id_loc=id_loc,
-                    url=photo_url
-                )
-            logger.info(f'\t\t\tФото для локации {loc_name} добавлены.')
-
-        except Exception as e:
-            logger.error(f'\t\t\tОшибка создания локации {loc_name}: {e}')
+            except Exception as e:
+                logger.error(f'\t\t\tОшибка создания локации {loc_name}: {e}')
+                continue
 
 
 class WeatherProcessor:

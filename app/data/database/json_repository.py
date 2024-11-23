@@ -121,7 +121,7 @@ class JSONRepository(Database):
     def get_json_value(
         self,
         model_class: Type[T],
-        item_id: Any,
+        loc_serial: Any,
         json_field: str,
         key: str,
     ) -> Optional[str]:
@@ -139,11 +139,11 @@ class JSONRepository(Database):
         """
         pk_column = self._get_pk_fields(model_class)[0].name
         sql_expression = text(
-            f"SELECT {json_field}->> :key_path FROM {model_class.__tablename__} WHERE {pk_column} = :item_id"
+            f"SELECT {json_field}->> :key_path FROM {model_class.__tablename__} WHERE {pk_column} = :loc_serial"
         )
         try:
             session = self.get_session()
-            params = {"item_id": item_id, "key_path": f"{key}"}
+            params = {"loc_serial": loc_serial, "key_path": f"{key}"}
             logger.debug(f'SQL получения: {sql_expression}')
             logger.debug(f"Параметры: {params}")
             result = session.execute(sql_expression, params).scalar()
@@ -153,6 +153,6 @@ class JSONRepository(Database):
             return result
         except NoResultFound:
             logger.warning(
-                f"Запись с {pk_column}={item_id} не найдена для получения JSON значения."
+                f"Запись с {pk_column}={loc_serial} не найдена для получения JSON значения."
             )
             return None

@@ -15,6 +15,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 import undetected_chromedriver as uc
+from dadata import Dadata
+import pygetwindow as gw
 
 
 from app.config import USER_AGENTS_FILE
@@ -93,6 +95,60 @@ class Parse:
         except Exception as e:
             logger.error(f"Ошибка в методе get_data: {e}")
             raise ParseError(f"Ошибка получения данных: {e}") from e
+        
+    def coordinates_address(
+        self, 
+        lat: str, 
+        lon: str
+        ):
+        """
+        Определяет местоположение по координатам
+
+        Args:
+            lat(str): широта
+            lon(str): долгота
+        Returns:
+            [id_region, id_city] and False
+        """
+        from app.data.compare import CompareYandex
+        compare_yandex = CompareYandex()
+        compare_yandex.load_regions_city_location_from_database()
+        # список всех городов и регионов, с их id
+        regions_cities = compare_yandex.input_data_r_c
+        # токен аккаунта, отсюда https://dadata.ru/api/geolocate/
+        token = "d629466f66917babbcd62c5318cf0b8937eb9906"
+        dadata = Dadata(token)
+        result = dadata.geolocate(name="address", lat=lat, lon=lon)
+        if isinstance(result, dict):
+            result = result['unrestricted_value']
+        elif isinstance(result, list):
+            result = result[0]['unrestricted_value']
+        # сейчас result = Свердловская обл, Невьянский р-н, пгт Верх-Нейвинский, пл Революции, д 1
+        # меняем сокращения на полные слова
+        result =  result.replace(' обл', ' область').replace('Респ ', 'Республика ')
+        # убираем часть с улицей
+        result =  [i for i in result.split(', ') if 'область' in i or 'Республика' in i or 'г ' in i]
+        result = ' '.join(result)
+        id_r_c = []
+        for key in regions_cities:
+            # проверяет полное совпадение
+            if key[0] in result and key[1] in result:
+                id_r_c.append(regions_cities[key])
+            # проверяет полное совпадение у области и частичное совпадение у города
+            elif key[0] in result and key[1][:-2] in result:
+                id_r_c.append(regions_cities[key])
+            # првоеряет совпадение только города по полному и частичному
+            elif key[1] in result:
+                id_r_c.append(regions_cities[key])
+        if len(id_r_c) == 1:
+            logger.info(f'Локация находися в {result}')
+            return id_r_c[0]
+        elif len(id_r_c) > 1:
+            print(f'Несколько совпадений - всего {id_r_c}. Запрос был - {result}')
+            return False
+        else:
+            print(f'не получилось определить местоположение у : {result}')
+            return False
 
     def parse_data(self, result: BeautifulSoup, filter: Any) -> Any:
         """
@@ -144,10 +200,10 @@ class Parse:
             if run:
                 options.page_load_strategy = 'eager'
             options.add_argument("--disable-blink-features=AutomationControlled")
-            options.add_argument("--start-maximized")
-            options.add_argument(f'user-agent={user_agent}')
-
+            # options.add_argument(f'user-agent={user_agent}')
             self.driver = uc.Chrome(options=options)
+            # меняет user_agent после запуска, до не получилось
+            self.driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": user_agent})
             self.driver.maximize_window()
             # Скрываем следы автоматизации
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
@@ -162,7 +218,12 @@ class Parse:
                     get: () => ['en-US', 'en']
                 });
             """)
-            logger.debug("Браузер запущен с подмененным User-Agent.")
+            # # Получаем список всех окон и находим окно браузера
+            # windows = gw.getAllTitles()
+            # for window in windows:
+            #     if "Chrome" in window:  # Найти окно Chrome
+            #         gw.getWindowsWithTitle(window)[0].activate()  # Активировать окно
+            # logger.debug("Браузер запущен с подмененным User-Agent.")
         except Exception as e:
             logger.error(f"Ошибка при запуске браузера: {e}")
             raise ParseError(f"Ошибка запуска браузера: {e}") from e
@@ -267,15 +328,13 @@ class Parse:
 
                 self.driver.get(url)
                 logger.debug(f"Перешли на страницу: {url}")
-                time.sleep(10)
-
                 if self.click_bot():
                     continue
 
                 if run and by and what:
                     try:
                         way = {'id': By.ID, 'class': By.CLASS_NAME}
-                        WebDriverWait(self.driver, 20).until(
+                        WebDriverWait(self.driver, 10).until(
                             EC.visibility_of_element_located((way.get(by, By.ID), what))
                         )
                         logger.debug(f"Элемент {what} виден на странице.")
@@ -292,7 +351,7 @@ class Parse:
                         logger.error(f"Ошибка клика по элементу {click[1]}: {e}")
                         raise ParseError(f"Ошибка клика: {e}") from e
 
-                time.sleep(15)
+                # time.sleep(15)
                 page_source = self.driver.page_source
                 soup = BeautifulSoup(page_source, 'html.parser')
                 return soup
