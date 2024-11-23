@@ -9,7 +9,7 @@ from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import inspect
 
-from app.config import Config
+from app.config import Config_SQL
 from app.logging_config import logger
 
 Base = declarative_base()
@@ -82,7 +82,7 @@ class Database:
     """
 
     def __init__(self):
-        self.engine = create_engine(Config.SQLALCHEMY_DATABASE_URI)
+        self.engine = create_engine(Config_SQL.SQLALCHEMY_DATABASE_URI)
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.session = self.SessionLocal()
         logger.info("Создан SQLAlchemy Engine и sessionmaker.")
@@ -257,7 +257,7 @@ class Database:
         return records
 
     @staticmethod
-    def to_dict(cls, obj: Type[T]) -> Dict[str, Any]:
+    def to_dict(obj: Type[T]) -> Dict[str, Any]:
         """
         Преобразует объект модели в словарь.
 

@@ -20,7 +20,7 @@ from sqlalchemy.orm import relationship, Session
 from geoalchemy2 import Geometry  # For storing geometric data types
 from sqlalchemy.dialects.postgresql import JSONB
 
-from .config import Config
+from app.config import Config_SQL
 from app.logging_config import logger
 
 
@@ -446,10 +446,10 @@ class Photo(Base):
         return f"Фотография (ID: {self.id_photo}) для локации ID: {self.id_location}"
 
 
-class Rewiew(Base):
+class Review(Base):
     """Таблица отзывов."""
 
-    __tablename__ = 'rewiews'
+    __tablename__ = 'reviews'
 
     id_rewiews: int = Column(
         Integer,
@@ -492,7 +492,7 @@ class Rewiew(Base):
 def initialize_database() -> None:
     """Подключение к базе данных и создание таблиц."""
     try:
-        database_url = Config.SQLALCHEMY_DATABASE_URI
+        database_url = Config_SQL.SQLALCHEMY_DATABASE_URI
         engine = create_engine(database_url)
         Base.metadata.create_all(engine)
         logger.info("Таблицы успешно созданы или уже существуют.")

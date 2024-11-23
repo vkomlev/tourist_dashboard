@@ -148,6 +148,7 @@ class Parse:
             options.add_argument(f'user-agent={user_agent}')
 
             self.driver = uc.Chrome(options=options)
+            self.driver.maximize_window()
             # Скрываем следы автоматизации
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             self.driver.execute_script("window.navigator.chrome = {runtime: {}}")
@@ -169,12 +170,12 @@ class Parse:
     def load_user_agents(self) -> None:
         """Загружает список User-Agent из файла."""
         try:
-            with open(USER_AGENTS_FILE, 'r') as file:
+            with open(USER_AGENTS_FILE.file, 'r') as file:
                 self.user_agents = list(set(line.strip() for line in file))
             logger.debug(f"Загружено {len(self.user_agents)} уникальных User-Agent.")
         except FileNotFoundError:
-            logger.error(f"Файл {USER_AGENTS_FILE} не найден.")
-            raise ParseError(f"Файл {USER_AGENTS_FILE} не найден.")
+            logger.error(f"Файл {USER_AGENTS_FILE.file} не найден.")
+            raise ParseError(f"Файл {USER_AGENTS_FILE.file} не найден.")
         except Exception as e:
             logger.error(f"Ошибка при загрузке User-Agent: {e}")
             raise ParseError(f"Ошибка загрузки User-Agent: {e}") from e
@@ -233,7 +234,7 @@ class Parse:
             return False
         except Exception as e:
             logger.error(f"Ошибка в методе click_bot: {e}")
-            raise ParseError(f"Ошибка обработки CAPTCHA: {e}") from e
+            # raise ParseError(f"Ошибка обработки CAPTCHA: {e}") from e
 
     def get_js_page_content(
         self,

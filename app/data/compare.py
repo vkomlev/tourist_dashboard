@@ -28,7 +28,7 @@ class Compare:
         """
         try:
             data = self.database.get_all(model)
-            self.input_data = [Database.to_dict(record) for record in data]
+            self.input_data = [Database.to_dict(obj=record) for record in data]
             logger.debug(f"Загружено {len(self.input_data)} записей из модели {model.__tablename__}.")
             return self.input_data
         except Exception as e:

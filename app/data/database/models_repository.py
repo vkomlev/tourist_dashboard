@@ -13,7 +13,7 @@ from app.models import (
     LocationType,
     Location,
     Photo,
-    Rewiew,
+    Review,
     City,
 )
 
@@ -350,9 +350,9 @@ class LocationsRepository(JSONRepository):
             logger.error(f"Не удалось загрузить локацию Яндекс: {location_name}")
 
 
-class RewiewRepository(Database):
+class ReviewRepository(Database):
     """
-    Репозиторий для работы с моделью Rewiew.
+    Репозиторий для работы с моделью Review.
     """
 
     @manage_session
@@ -368,7 +368,7 @@ class RewiewRepository(Database):
             text (str): Текст отзыва.
             data (str): Дата отзыва.
         """
-        rewiew = Rewiew(
+        rewiew = Review(
             id_location=id_loc,
             like=like,
             text=text,
@@ -440,7 +440,7 @@ class CitiesRepository(JSONRepository):
                 return characters["last_type_loc"]
 
     @manage_session
-    def load_next_type_loc(self, id_city: int, type_loc: str) -> None:
+    def load_next_type_loc(self, id_city: int, type_loc: int) -> None:
         """
         Загружает новый тип локации для города.
 
@@ -455,7 +455,7 @@ class CitiesRepository(JSONRepository):
 
         city = city_records[0]
         characters = city.characters or {}
-        characters["last_type_loc"] = type_loc
+        characters["last_type_loc"] = f'{type_loc}'
         city.characters = characters
         self.update(city)
         logger.info(

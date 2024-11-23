@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -59,57 +60,80 @@ class ParseYandexMap(Parse):
 
     def get_locations(self, region_city_loc: str) -> Dict[str, str]:
         """
-        Получает локации по названию города.
+        Получает локации по названию региона города и локации.
 
         Args:
-            region_city_loc (str): Название города.
+            region_city_loc (str): Название региона города и локации.
 
         Returns:
             Dict[str, str]: Словарь с названиями локаций и их URL.
         """
-        try:
-            dict_locations: Dict[str, str] = {}
-            self.foxi_user()
-            self.driver.get("https://yandex.ru/maps")
-            logger.debug("Перешли на Яндекс.Карты.")
-            time.sleep(5)
+        while True:
+            try:
+                dict_locations: Dict[str, str] = {}
+                self.foxi_user()
+                self.driver.get("https://yandex.ru/maps")
+                # проверка на бота
+                if self.click_bot():
+                    continue
+                # поиск поисковой строки
+                element = self.driver.find_element(By.TAG_NAME, "input")
+                # ввод запроса
+                element.send_keys(f'{region_city_loc}', Keys.ENTER)
+                logger.debug("Перешли на Яндекс.Карты.")
+                time.sleep(5)
+                self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+                nothing_found = self.get_data(tag='div', class_='nothing-found-view__header')
+                alone_location = self.get_data(tag='a', class_='card-title-view__title-link')
+                mass_locations = self.get_data(tag='a', class_='link-overlay', all_data=True)
 
-            if self.click_bot():
-                return {}
+                if nothing_found:
+                    logger.info(f"Локации в {region_city_loc} не найдены.")
+                    return {}
 
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-            nothing_found = self.get_data(tag='div', class_='nothing-found-view__header')
-            alone_location = self.get_data(tag='a', class_='card-title-view__title-link')
-            mass_locations = self.get_data(tag='a', class_='link-overlay', all_data=True)
+                elif alone_location:
+                    dict_locations[alone_location.text.strip()] = f"https://yandex.ru{alone_location.get('href', '').strip()}"
+                    logger.debug(f"Найдена одна локация: {alone_location.text.strip()} -> {dict_locations[alone_location.text.strip()]}")
+                elif mass_locations:
+                    self.soup = self.scroll_reviews(class_name='search-business-snippet-view', click=True)
+                    self.soup = BeautifulSoup(self.soup, 'html.parser')
+                    locations = self.get_data(tag='a', class_='link-overlay', all_data=True)
+                    for loc in locations:
+                        loc_name = loc.get('aria-label', '').strip()
+                        loc_href = loc.get('href', '').strip()
+                        if loc_name and loc_href:
+                            dict_locations[loc_name] = f"https://yandex.ru{loc_href}"
+                            logger.debug(f"Найдена локация: {loc_name} -> https://yandex.ru{loc_href}")
+                else:
+                    logger.warning("Неизвестная структура страницы.")
+                    continue
 
-            if nothing_found:
-                logger.info(f"Локации в {region_city_loc} не найдены.")
-                return {}
+                logger.info(f"Получено {len(dict_locations)} локаций для города {region_city_loc}.")
+                return dict_locations
 
-            elif alone_location:
-                dict_locations[alone_location.text.strip()] = f"https://yandex.ru{alone_location.get('href', '').strip()}"
-                logger.debug(f"Найдена одна локация: {alone_location.text.strip()} -> {dict_locations[alone_location.text.strip()]}")
-            elif mass_locations:
-                self.soup = self.scroll_reviews(class_name='search-business-snippet-view', click=True)
-                soup = BeautifulSoup(self.soup, 'html.parser')
-                locations = self.get_data(tag='a', class_='link-overlay', all_data=True)
-                for loc in locations:
-                    loc_name = loc.get('aria-label', '').strip()
-                    loc_href = loc.get('href', '').strip()
-                    if loc_name and loc_href:
-                        dict_locations[loc_name] = f"https://yandex.ru{loc_href}"
-                        logger.debug(f"Найдена локация: {loc_name} -> https://yandex.ru{loc_href}")
-            else:
-                logger.warning("Неизвестная структура страницы.")
-                return {}
+            except Exception as e:
+                logger.error(f"Ошибка в методе get_locations: {e}")
+                # raise ParseError(f"Ошибка получения локаций: {e}") from e
+                continue
 
-            logger.info(f"Получено {len(dict_locations)} локаций для города {region_city_loc}.")
-            return dict_locations
+    def get_loc_only_type(
+        self, 
+        url: str
+        )-> Optional[Dict[str, Any]]:
+        """
+        Получает информацию только о типах локации.
 
-        except Exception as e:
-            logger.error(f"Ошибка в методе get_locations: {e}")
-            raise ParseError(f"Ошибка получения локаций: {e}") from e
+        Args:
+            url (str): URL локации.
 
+        Returns:
+            Optional[Dict[str, Any]]: Информация о локации или None.
+        """
+        self.soup = self.get_JS_page_content(url, close_=True)
+        types = self.get_data(tag = 'div',class_='orgpage-categories-info-view')
+        types = [i.text for i in types.find_all('span', {'class':'button__text'})]
+        return types
+    
     def get_loc_type_td(
         self,
         url: str,
@@ -117,7 +141,7 @@ class ParseYandexMap(Parse):
         full_get_info: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
-        Получает информацию о типе локации.
+        Получает информацию о локации.
 
         Args:
             url (str): URL локации.
@@ -261,7 +285,7 @@ class ParseYandexMap(Parse):
                 logger.info("Фотографий не найдено.")
                 return {1: None}
 
-            soup = BeautifulSoup(self.soup, 'html.parser')
+            self.soup = BeautifulSoup(self.soup, 'html.parser')
             photos_html = self.get_data(tag='img', class_='media-wrapper__media', all_data=True)
             dict_photos: Dict[int, Optional[str]] = {}
             for i, photo in enumerate(photos_html, 1):

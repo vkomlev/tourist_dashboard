@@ -8,7 +8,7 @@ from app.data.database.models_repository import (
     MetricValueRepository, 
     LocationTypeRepository, 
     LocationsRepository,
-    RewiewRepository,
+    ReviewRepository,
     PhotoRepository, 
     CitiesRepository, 
     )
@@ -23,7 +23,7 @@ __all__ = [
     'MetricValueRepository',
     'LocationTypeRepository',
     'LocationsRepository',
-    'RewiewRepository',
+    'ReviewRepository',
     'PhotoRepository',
     'CitiesRepository',
     ]
