@@ -19,7 +19,7 @@ from dadata import Dadata
 import pygetwindow as gw
 
 
-from app.config import USER_AGENTS_FILE
+from app.config import USER_AGENTS_FILE, DADATA_TOKEN
 
 
 logger = logging.getLogger(__name__)
@@ -104,7 +104,7 @@ class Parse:
         self, 
         lat: str, 
         lon: str
-        ):
+        )-> str:
         """
         Определяет местоположение по координатам
 
@@ -114,45 +114,61 @@ class Parse:
         Returns:
             [id_region, id_city] and False
         """
-        from app.data.compare import CompareYandex
-        compare_yandex = CompareYandex()
-        compare_yandex.load_regions_city_location_from_database()
-        # список всех городов и регионов, с их id
-        regions_cities = compare_yandex.input_data_r_c
-        # токен аккаунта, отсюда https://dadata.ru/api/geolocate/
-        token = "d629466f66917babbcd62c5318cf0b8937eb9906"
-        dadata = Dadata(token)
-        result = dadata.geolocate(name="address", lat=lat, lon=lon)
-        if isinstance(result, dict):
-            result = result['unrestricted_value']
-        elif isinstance(result, list):
-            result = result[0]['unrestricted_value']
-        # сейчас result = Свердловская обл, Невьянский р-н, пгт Верх-Нейвинский, пл Революции, д 1
-        # меняем сокращения на полные слова
-        result =  result.replace(' обл', ' область').replace('Респ ', 'Республика ')
-        # убираем часть с улицей
-        result =  [i for i in result.split(', ') if 'область' in i or 'Республика' in i or 'г ' in i]
-        result = ' '.join(result)
-        id_r_c = []
-        for key in regions_cities:
-            # проверяет полное совпадение
-            if key[0] in result and key[1] in result:
-                id_r_c.append(regions_cities[key])
-            # проверяет полное совпадение у области и частичное совпадение у города
-            elif key[0] in result and key[1][:-2] in result:
-                id_r_c.append(regions_cities[key])
-            # првоеряет совпадение только города по полному и частичному
-            elif key[1] in result:
-                id_r_c.append(regions_cities[key])
-        if len(id_r_c) == 1:
-            logger.info(f'Локация находися в {result}')
-            return id_r_c[0]
-        elif len(id_r_c) > 1:
-            print(f'Несколько совпадений - всего {id_r_c}. Запрос был - {result}')
-            return False
-        else:
-            print(f'не получилось определить местоположение у : {result}')
-            return False
+        if not (lat and lon):
+            logger.info('Метод coordinates_address. Не указаны координаты')
+            return None        
+
+        retries = 0
+
+        while retries < self.MAX_RETRIES:
+            try:
+                from app.data.compare import CompareYandex
+                compare_yandex = CompareYandex()
+                compare_yandex.load_regions_city_location_from_database()
+                # список всех городов и регионов, с их id
+                regions_cities = compare_yandex.input_data_r_c
+                # токен аккаунта, отсюда https://dadata.ru/api/geolocate/
+                token = DADATA_TOKEN
+                dadata = Dadata(token)
+                result = dadata.geolocate(name="address", lat=lat, lon=lon)
+                if isinstance(result, dict):
+                    result = result['unrestricted_value']
+                elif isinstance(result, list):
+                    result = result[0]['unrestricted_value']
+                # сейчас result = Свердловская обл, Невьянский р-н, пгт Верх-Нейвинский, пл Революции, д 1
+                # меняем сокращения на полные слова
+                result =  result.replace(' обл', ' область').replace('Респ ', 'Республика ')
+                # убираем часть с улицей
+                result =  [i for i in result.split(', ') if 'область' in i or 'Республика' in i or 'г ' in i]
+                result = ' '.join(result)
+                id_r_c = []
+                for key in regions_cities:
+                    # проверяет полное совпадение
+                    if key[0] in result and key[1] in result:
+                        id_r_c.append(regions_cities[key])
+                    # проверяет полное совпадение у области и частичное совпадение у города
+                    elif key[0] in result and key[1][:-2] in result:
+                        id_r_c.append(regions_cities[key])
+                    # првоеряет совпадение только города по полному и частичному
+                    elif key[1] in result:
+                        id_r_c.append(regions_cities[key])
+                if len(id_r_c) == 1:
+                    logger.info(f'Локация находится в {result}')
+                    return id_r_c[0]
+                elif len(id_r_c) > 1:
+                    logger.warning(f'Несколько совпадений - всего {id_r_c}. Запрос был - {result}')
+                    return None
+                else:
+                    logger.warning(f'не получилось определить местоположение у : {result}')
+                    return None
+            except ParseError as e:
+                logger.error(f'Ошибка в методе coordinates_address: {e}')
+                retries += 1
+            except Exception as e:
+                logger.error(f'Неизвестная ошибка в методе coordinates_address: {e}')
+                retries += 1
+
+
 
     def parse_data(self, result: BeautifulSoup, filter: Any) -> Any:
         """
@@ -328,7 +344,7 @@ class Parse:
             while True:
                 self.foxi_user(run=run)
                 if run:
-                    self.driver.set_page_load_timeout(10)
+                    self.driver.set_page_load_timeout(15)
 
                 self.driver.get(url)
                 logger.info(f"Метод get_js_page_content. Перешли на страницу: {url}")
@@ -347,6 +363,7 @@ class Parse:
 
                 if click[0] and click[1]:
                     try:
+                        time.sleep(random.uniform(1, 2))
                         element = self.driver.find_element(By.CSS_SELECTOR, click[1])
                         ActionChains(self.driver).move_to_element(element).click().perform()
                         time.sleep(random.uniform(2.5, 5.0))
@@ -424,7 +441,7 @@ class Parse:
                         element = self.driver.find_element(By.CLASS_NAME, class_name)
                         ActionChains(self.driver).move_to_element(element).click().perform()
                         logger.info(f"Кликнули по элементу с классом '{class_name}'.")
-                        # time.sleep(random.uniform(2.5, 5.0))
+                        time.sleep(random.uniform(1, 3))
 
                     reviews_section = self.driver.find_element(By.CLASS_NAME, 'scroll__container')
                     last_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
@@ -433,7 +450,7 @@ class Parse:
                     while not_good < self.MAX_RETRIES:
                         try:
                             self.scroll_to_bottom(reviews_section)
-                            time.sleep(2)
+                            time.sleep(6)
                             new_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
                             if new_height == last_height:
                                 not_good += 1
@@ -446,7 +463,7 @@ class Parse:
                             logger.error(f"Ошибка при прокрутке: {e}")
                             not_good += 1
 
-                    time.sleep(5)
+                    #time.sleep(5)
                     page_source = self.driver.page_source
                     logger.info("Прокрутка завершена, получаем содержимое страницы.")
                     return page_source
@@ -459,6 +476,20 @@ class Parse:
             logger.error(f"Ошибка в методе scroll_reviews: {e}")
             raise ParseError(f"Ошибка прокрутки страницы: {e}") from e
 
+    def scroll_to_bottom(self, section: webdriver.remote.webelement.WebElement) -> None:
+            """
+            Скроллит страницу до конца.
+
+            Args:
+                section (webdriver.remote.webelement.WebElement): Секция страницы для прокрутки.
+            """
+            try:
+                time.sleep(1)
+                self.driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", section)
+                logger.debug("Прокрутка до конца секции выполнена.")
+            except Exception as e:
+                logger.error(f"Ошибка при прокрутке до конца секции: {e}")
+                raise ParseError(f"Ошибка прокрутки до конца секции: {e}") from e
     @staticmethod
     def dictionary_alignment(cls, location: Dict[str, Any], mass_final: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """

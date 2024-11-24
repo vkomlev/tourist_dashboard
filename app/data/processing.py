@@ -198,7 +198,7 @@ class DataProcessor:
                 self.parse_yandex.get_loc_type_td(url=loc_url, full_get_info=True)
                 coordinates = self.parse_yandex.loc_info.get('coordinates', [None, None])
                 id_region_city = self.parse_yandex.coordinates_address(lat=coordinates[1], lon=coordinates[0])
-                if id_region_city == False:
+                if not id_region_city:
                     logger.warning (f'{loc_name} не совпал ни с чем из базы')
                     retries += 1                                   
                     continue

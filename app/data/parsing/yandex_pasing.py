@@ -68,8 +68,7 @@ class ParseYandexMap(Parse):
         Returns:
             Dict[str, str]: Словарь с названиями локаций и их URL.
         """
-        retries = 0
-        while retries < self.MAX_RETRIES:
+        while True:
             try:
                 dict_locations: Dict[str, str] = {}
                 self.foxi_user()
@@ -79,10 +78,12 @@ class ParseYandexMap(Parse):
                     continue
                 # поиск поисковой строки
                 element = self.driver.find_element(By.TAG_NAME, "input")
+                time.sleep(3)
                 # ввод запроса
                 element.send_keys(f'{region_city_loc}', Keys.ENTER)
-                logger.debug("Перешли на Яндекс.Карты.")
                 time.sleep(3)
+                logger.debug("Перешли на Яндекс.Карты.")
+                
                 self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
                 nothing_found = self.get_data(tag='div', class_='nothing-found-view__header')
                 alone_location = self.get_data(tag='a', class_='card-title-view__title-link')
@@ -109,7 +110,6 @@ class ParseYandexMap(Parse):
                     logger.warning("Неизвестная структура страницы.")
                     self.driver.close()
                     self.driver.quit()
-                    retries += 1
                     continue
 
                 logger.info(f"Получено {len(dict_locations)} локаций для города {region_city_loc}.")
@@ -118,7 +118,6 @@ class ParseYandexMap(Parse):
             except Exception as e:
                 logger.error(f"Ошибка в методе get_locations: {e}")
                 # raise ParseError(f"Ошибка получения локаций: {e}") from e
-                retries += 1
 
     def get_loc_only_type(
         self, 
@@ -157,6 +156,7 @@ class ParseYandexMap(Parse):
         try:
             id_yandex = int([part for part in url.split('/') if part.isdigit()][0])
             self.soup = self.get_js_page_content(url, click=[True, 'div.action-button-view._type_share'], close_=True)
+            temp_soup = self.soup
             logger.debug(f"Получение информации о локации с ID Yandex: {id_yandex}")
 
             # Количество лайков
@@ -181,9 +181,13 @@ class ParseYandexMap(Parse):
             types = [item.text.strip() for item in self.get_data(tag='div', class_='orgpage-categories-info-view').find_all('span', {'class': 'button__text'})]
 
             # Координаты
-            self.soup = self.soup.find('div', {'class': 'card-feature-view _view_normal _size_large _interactive _no-side-padding card-share-view__coordinates'})
-            coordinates_text = self.get_data(tag='div', class_='card-share-view__text').text.strip().split(', ') if self.soup else ['', '']
-            coordinates = [coordinates_text[1], coordinates_text[0]] if len(coordinates_text) == 2 else [None, None]
+            coordinates_text = ['', '']
+            while not coordinates_text[0] or not coordinates_text[1]:
+                self.soup = temp_soup.find('div', {'class': 'card-feature-view _view_normal _size_large _interactive _no-side-padding card-share-view__coordinates'})
+                coordinates_text = self.get_data(tag='div', class_='card-share-view__text').text.strip().split(', ') if self.soup else ['', '']
+                if not coordinates_text[0] or not coordinates_text[1]:
+                    logger.warning(f"Не удалось получить координаты для локации: {url}")
+                coordinates = [coordinates_text[1], coordinates_text[0]] if len(coordinates_text) == 2 else [None, None]
 
             self.loc_info = {
                 'count_like': count_like,
@@ -320,22 +324,7 @@ class ParseYandexMap(Parse):
         except Exception as e:
             logger.error(f"Неизвестная ошибка в методе get_location_photos: {e}")
             raise ParseError(f"Неизвестная ошибка при получении фото: {e}") from e
-
     
-
-    def scroll_to_bottom(self, section: webdriver.remote.webelement.WebElement) -> None:
-        """
-        Скроллит страницу до конца.
-
-        Args:
-            section (webdriver.remote.webelement.WebElement): Секция страницы для прокрутки.
-        """
-        try:
-            self.driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", section)
-            logger.debug("Прокрутка до конца секции выполнена.")
-        except Exception as e:
-            logger.error(f"Ошибка при прокрутке до конца секции: {e}")
-            raise ParseError(f"Ошибка прокрутки до конца секции: {e}") from e
 
     def get_locations_api(self, name_city: str, type_loc: str) -> List[Dict[str, Any]]:
         """
