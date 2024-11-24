@@ -45,6 +45,7 @@ class Parse:
         self.driver: Optional[webdriver.Chrome] = None
         self.user_agents: List[str] = []
         self.load_user_agents()
+        self.MAX_RETRIES = 3 #Количество попыток получить данные
 
     def get_data(
         self,
@@ -70,6 +71,9 @@ class Parse:
             Union[List[BeautifulSoup], BeautifulSoup, str]: Найденные элементы или текст страницы.
         """
         try:
+            if not (self.soup or url):
+                logger.warning(f"Метод get_data. Нет объектов для парсинга")
+                return None
             if not self.soup and url:
                 full_url = self.url + url
                 response = requests.get(full_url)
@@ -231,12 +235,12 @@ class Parse:
     def load_user_agents(self) -> None:
         """Загружает список User-Agent из файла."""
         try:
-            with open(USER_AGENTS_FILE.file, 'r') as file:
+            with open(USER_AGENTS_FILE, 'r') as file:
                 self.user_agents = list(set(line.strip() for line in file))
             logger.debug(f"Загружено {len(self.user_agents)} уникальных User-Agent.")
         except FileNotFoundError:
-            logger.error(f"Файл {USER_AGENTS_FILE.file} не найден.")
-            raise ParseError(f"Файл {USER_AGENTS_FILE.file} не найден.")
+            logger.error(f"Файл {USER_AGENTS_FILE} не найден.")
+            raise ParseError(f"Файл {USER_AGENTS_FILE} не найден.")
         except Exception as e:
             logger.error(f"Ошибка при загрузке User-Agent: {e}")
             raise ParseError(f"Ошибка загрузки User-Agent: {e}") from e
@@ -327,7 +331,7 @@ class Parse:
                     self.driver.set_page_load_timeout(10)
 
                 self.driver.get(url)
-                logger.debug(f"Перешли на страницу: {url}")
+                logger.info(f"Метод get_js_page_content. Перешли на страницу: {url}")
                 if self.click_bot():
                     continue
 
@@ -337,7 +341,7 @@ class Parse:
                         WebDriverWait(self.driver, 10).until(
                             EC.visibility_of_element_located((way.get(by, By.ID), what))
                         )
-                        logger.debug(f"Элемент {what} виден на странице.")
+                        logger.info(f"Элемент {what} виден на странице.")
                     except Exception as e:
                         logger.warning(f"Ошибка ожидания элемента {what}: {e}")
 
@@ -346,7 +350,7 @@ class Parse:
                         element = self.driver.find_element(By.CSS_SELECTOR, click[1])
                         ActionChains(self.driver).move_to_element(element).click().perform()
                         time.sleep(random.uniform(2.5, 5.0))
-                        logger.debug(f"Кликнули по элементу {click[1]}.")
+                        logger.info(f"Кликнули по элементу {click[1]}.")
                     except Exception as e:
                         logger.error(f"Ошибка клика по элементу {click[1]}: {e}")
                         raise ParseError(f"Ошибка клика: {e}") from e
@@ -365,6 +369,95 @@ class Parse:
                 self.driver.close()
                 self.driver.quit()
                 logger.debug("Браузер закрыт.")
+
+    def scroll(
+        self,
+        class_name: str,
+        check_none: Optional[List[Union[bool, str, str]]] = None,
+        url_map: str = '',
+        click: bool = False
+    ) -> Union[str, bool]:
+        """
+        Скроллит страницу для загрузки всех отзывов или фотографий.
+
+        Args:
+            class_name (str): Класс элементов для поиска.
+            check_none (Optional[List[Union[bool, str, str]]], optional): Параметры проверки отсутствия элементов. По умолчанию None.
+            url_map (str, optional): URL для перехода. По умолчанию ''.
+            click (bool, optional): Флаг для клика по элементу. По умолчанию False.
+
+        Returns:
+            Union[str, bool]: HTML страницы или True, если элементы отсутствуют.
+        """
+        try:
+            retries = 0
+            while retries < self.MAX_RETRIES:
+                if url_map:
+                    self.foxi_user()
+                    self.driver.get(url_map)
+                    logger.info(f"Метод scroll. Перешли на страницу: {url_map}")
+                    if self.click_bot():
+                        retries += 1
+                        continue
+
+                    if check_none and check_none[0]:
+                        soup = self.get_data(tag=check_none[1], class_=check_none[2])
+                        if soup:
+                            logger.info("Необходимые элементы отсутствуют на странице.")
+                            self.driver.close()
+                            self.driver.quit()
+                            return None
+
+                try:
+                    WebDriverWait(self.driver, 5).until(
+                        EC.presence_of_element_located((By.CLASS_NAME, class_name))
+                    )
+                    logger.info(f"Элемент с классом '{class_name}' найден на странице.")
+                except Exception as e:
+                    logger.warning(f"Элемент с классом '{class_name}' не найден: {e}")
+                    self.driver.close()
+                    self.driver.quit()
+                    return None
+
+                try:
+                    if click:
+                        element = self.driver.find_element(By.CLASS_NAME, class_name)
+                        ActionChains(self.driver).move_to_element(element).click().perform()
+                        logger.info(f"Кликнули по элементу с классом '{class_name}'.")
+                        # time.sleep(random.uniform(2.5, 5.0))
+
+                    reviews_section = self.driver.find_element(By.CLASS_NAME, 'scroll__container')
+                    last_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
+                    not_good = 0
+
+                    while not_good < self.MAX_RETRIES:
+                        try:
+                            self.scroll_to_bottom(reviews_section)
+                            time.sleep(2)
+                            new_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
+                            if new_height == last_height:
+                                not_good += 1
+                                logger.info("Высота прокрутки не изменилась.")
+                            else:
+                                not_good = 0
+                                last_height = new_height
+                                logger.info("Высота прокрутки изменилась, продолжаем прокрутку.")
+                        except Exception as e:
+                            logger.error(f"Ошибка при прокрутке: {e}")
+                            not_good += 1
+
+                    time.sleep(5)
+                    page_source = self.driver.page_source
+                    logger.info("Прокрутка завершена, получаем содержимое страницы.")
+                    return page_source
+
+                finally:
+                    self.driver.close()
+                    self.driver.quit()
+                    logger.info("Браузер закрыт после прокрутки.")
+        except Exception as e:
+            logger.error(f"Ошибка в методе scroll_reviews: {e}")
+            raise ParseError(f"Ошибка прокрутки страницы: {e}") from e
 
     @staticmethod
     def dictionary_alignment(cls, location: Dict[str, Any], mass_final: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

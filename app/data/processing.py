@@ -31,6 +31,7 @@ class DataProcessor:
         self.parse_yandex = ParseYandexMap()
         self.parse_weather = ParseWeather()
         self.database = Database()
+        self.MAX_RETRIES = 3
 
     def process_yandex_locations(self, specific_region: Tuple[str, str] = '') -> None:
         """
@@ -191,13 +192,15 @@ class DataProcessor:
             reviews_repo (ReviewRepo): Репозиторий для отзывов.
             photos_repo (PhotoRepo): Репозиторий для фото.
         """
-        while True:
+        retries = 0
+        while retries < self.MAX_RETRIES:
             try:
                 self.parse_yandex.get_loc_type_td(url=loc_url, full_get_info=True)
                 coordinates = self.parse_yandex.loc_info.get('coordinates', [None, None])
                 id_region_city = self.parse_yandex.coordinates_address(lat=coordinates[1], lon=coordinates[0])
                 if id_region_city == False:
-                    print(loc_name, "не совпал ни с чем из базы")
+                    logger.warning (f'{loc_name} не совпал ни с чем из базы')
+                    retries += 1                                   
                     continue
                 coordinates_str = f"SRID=4326;POINT({coordinates[0]} {coordinates[1]})" if all(coordinates) else "NULL"
 
@@ -237,7 +240,7 @@ class DataProcessor:
 
             except Exception as e:
                 logger.error(f'\t\t\tОшибка создания локации {loc_name}: {e}')
-                continue
+                retries += 1                                   
 
 
 class WeatherProcessor:

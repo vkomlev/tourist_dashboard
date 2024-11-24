@@ -68,7 +68,8 @@ class ParseYandexMap(Parse):
         Returns:
             Dict[str, str]: Словарь с названиями локаций и их URL.
         """
-        while True:
+        retries = 0
+        while retries < self.MAX_RETRIES:
             try:
                 dict_locations: Dict[str, str] = {}
                 self.foxi_user()
@@ -95,7 +96,7 @@ class ParseYandexMap(Parse):
                     dict_locations[alone_location.text.strip()] = f"https://yandex.ru{alone_location.get('href', '').strip()}"
                     logger.debug(f"Найдена одна локация: {alone_location.text.strip()} -> {dict_locations[alone_location.text.strip()]}")
                 elif mass_locations:
-                    self.soup = self.scroll_reviews(class_name='search-business-snippet-view__title', click=True)
+                    self.soup = self.scroll(class_name='search-business-snippet-view__title', click=True)
                     self.soup = BeautifulSoup(self.soup, 'html.parser')
                     locations = self.get_data(tag='a', class_='link-overlay', all_data=True)
                     for loc in locations:
@@ -108,6 +109,7 @@ class ParseYandexMap(Parse):
                     logger.warning("Неизвестная структура страницы.")
                     self.driver.close()
                     self.driver.quit()
+                    retries += 1
                     continue
 
                 logger.info(f"Получено {len(dict_locations)} локаций для города {region_city_loc}.")
@@ -116,7 +118,7 @@ class ParseYandexMap(Parse):
             except Exception as e:
                 logger.error(f"Ошибка в методе get_locations: {e}")
                 # raise ParseError(f"Ошибка получения локаций: {e}") from e
-                continue
+                retries += 1
 
     def get_loc_only_type(
         self, 
@@ -230,13 +232,13 @@ class ParseYandexMap(Parse):
             "декабря": "12"
         }
         try:
-            self.soup = self.scroll_reviews(
+            self.soup = self.scroll(
                 url_map=f"{url}reviews/",
                 class_name='business-reviews-card-view__space',
                 click=True,
                 check_none=[True, 'h2', 'tab-empty-view__title']
             )
-            if self.soup is True:
+            if not self.soup:
                 logger.info("Отзывов не найдено.")
                 return {}
 
@@ -290,13 +292,13 @@ class ParseYandexMap(Parse):
             Dict[int, Optional[str]]: Словарь фото.
         """
         try:
-            self.soup = self.scroll_reviews(
+            self.soup = self.scroll(
                 url_map=f"{url}gallery/",
                 class_name='media-wrapper__media',
                 click=True,
                 check_none=[True, 'h2', 'tab-empty-view__title']
             )
-            if self.soup is True:
+            if not self.soup:
                 logger.info("Фотографий не найдено.")
                 return {1: None}
 
@@ -319,92 +321,7 @@ class ParseYandexMap(Parse):
             logger.error(f"Неизвестная ошибка в методе get_location_photos: {e}")
             raise ParseError(f"Неизвестная ошибка при получении фото: {e}") from e
 
-    def scroll_reviews(
-        self,
-        class_name: str,
-        check_none: Optional[List[Union[bool, str, str]]] = None,
-        url_map: str = '',
-        click: bool = False
-    ) -> Union[str, bool]:
-        """
-        Скроллит страницу для загрузки всех отзывов или фотографий.
-
-        Args:
-            class_name (str): Класс элементов для поиска.
-            check_none (Optional[List[Union[bool, str, str]]], optional): Параметры проверки отсутствия элементов. По умолчанию None.
-            url_map (str, optional): URL для перехода. По умолчанию ''.
-            click (bool, optional): Флаг для клика по элементу. По умолчанию False.
-
-        Returns:
-            Union[str, bool]: HTML страницы или True, если элементы отсутствуют.
-        """
-        try:
-            while True:
-                if url_map:
-                    self.foxi_user()
-                    self.driver.get(url_map)
-                    logger.debug(f"Перешли на страницу: {url_map}")
-                    if self.click_bot():
-                        continue
-
-                    if check_none and check_none[0]:
-                        soup = self.get_data(tag=check_none[1], class_=check_none[2])
-                        if soup:
-                            logger.info("Необходимые элементы отсутствуют на странице.")
-                            self.driver.close()
-                            self.driver.quit()
-                            return True
-
-                try:
-                    WebDriverWait(self.driver, 5).until(
-                        EC.presence_of_element_located((By.CLASS_NAME, class_name))
-                    )
-                    logger.debug(f"Элемент с классом '{class_name}' найден на странице.")
-                except Exception as e:
-                    logger.warning(f"Элемент с классом '{class_name}' не найден: {e}")
-                    self.driver.close()
-                    self.driver.quit()
-                    continue
-
-                try:
-                    if click:
-                        element = self.driver.find_element(By.CLASS_NAME, class_name)
-                        ActionChains(self.driver).move_to_element(element).click().perform()
-                        logger.debug(f"Кликнули по элементу с классом '{class_name}'.")
-                        # time.sleep(random.uniform(2.5, 5.0))
-
-                    reviews_section = self.driver.find_element(By.CLASS_NAME, 'scroll__container')
-                    last_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
-                    not_good = 0
-
-                    while not_good < 3:
-                        try:
-                            self.scroll_to_bottom(reviews_section)
-                            time.sleep(2)
-                            new_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
-                            if new_height == last_height:
-                                not_good += 1
-                                logger.debug("Высота прокрутки не изменилась.")
-                            else:
-                                not_good = 0
-                                last_height = new_height
-                                logger.debug("Высота прокрутки изменилась, продолжаем прокрутку.")
-                        except Exception as e:
-                            logger.error(f"Ошибка при прокрутке: {e}")
-                            not_good += 1
-
-                    time.sleep(5)
-                    page_source = self.driver.page_source
-                    logger.debug("Прокрутка завершена, получаем содержимое страницы.")
-                    return page_source
-
-                finally:
-                    self.driver.close()
-                    self.driver.quit()
-                    logger.debug("Браузер закрыт после прокрутки.")
-        except Exception as e:
-            logger.error(f"Ошибка в методе scroll_reviews: {e}")
-            raise ParseError(f"Ошибка прокрутки страницы: {e}") from e
+    
 
     def scroll_to_bottom(self, section: webdriver.remote.webelement.WebElement) -> None:
         """

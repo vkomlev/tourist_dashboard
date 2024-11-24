@@ -85,21 +85,21 @@ class Database:
         self.engine = create_engine(Config_SQL.SQLALCHEMY_DATABASE_URI)
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.session = self.SessionLocal()
-        logger.info("Создан SQLAlchemy Engine и sessionmaker.")
+        logger.debug("Создан SQLAlchemy Engine и sessionmaker.")
 
     def create_tables(self) -> None:
         """
         Создает все таблицы, определенные в моделях.
         """
         Base.metadata.create_all(self.engine)
-        logger.info("Таблицы успешно созданы.")
+        logger.debug("Таблицы успешно созданы.")
 
     def drop_tables(self) -> None:
         """
         Удаляет все таблицы, определенные в моделях.
         """
         Base.metadata.drop_all(self.engine)
-        logger.info("Таблицы успешно удалены.")
+        logger.debug("Таблицы успешно удалены.")
 
     def get_session(self) -> Session:
         """
