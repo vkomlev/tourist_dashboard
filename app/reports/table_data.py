@@ -1,10 +1,10 @@
 import pandas as pd
-from app.data.database import MV_repo
+from app.data.database import MetricValueRepository
 from app.models import Region
 
 def process_tourist_count_data(n=10, top=True):
     '''Получение топ N регионов по турпотоку и формирование datafrrame Pandas'''
-    db = MV_repo()
+    db = MetricValueRepository()
     data = db.get_tourist_count_data()
 
     # Преобразование данных в DataFrame
@@ -15,7 +15,7 @@ def process_tourist_count_data(n=10, top=True):
     df_sum = df.groupby('id_region').sum().reset_index()
 
     # Получение названий регионов
-    region_names = {region.id_region: region.region_name for region in db.query(Region)}
+    region_names = {region.id_region: region.region_name for region in db.get_all(Region)}
 
     # Добавление названий регионов
     df_sum['region_name'] = df_sum['id_region'].map(region_names)
@@ -42,7 +42,7 @@ def process_tourist_count_data(n=10, top=True):
 
 def generate_heatmap_tourist_count_data(n=10):
     '''Генерация сводной таблицы для хитмапа турпотока'''
-    db = MV_repo()
+    db = MetricValueRepository()
     data = db.get_tourist_count_data()
 
     # Преобразование данных в DataFrame
@@ -53,7 +53,7 @@ def generate_heatmap_tourist_count_data(n=10):
     df_sum = df.groupby(['id_region', 'year', 'month']).sum().reset_index()
 
     # Получение названий регионов
-    region_names = {region.id_region: region.region_name for region in db.query(Region)}
+    region_names = {region.id_region: region.region_name for region in db.get_all(Region)}
     df_sum['region_name'] = df_sum['id_region'].map(region_names)
 
     # Сортировка данных и выбор топ N регионов
@@ -68,7 +68,7 @@ def generate_heatmap_tourist_count_data(n=10):
 
 def get_region_tourist_flow_data(region_id):
     '''Получение данных о турпотоке в регионе'''
-    db = MV_repo()
+    db = MetricValueRepository()
     data = db.get_tourist_count_data_by_region(region_id)
 
     df = pd.DataFrame(data, columns=['id_region', 'value', 'month', 'year'])

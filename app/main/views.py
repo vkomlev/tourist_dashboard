@@ -1,7 +1,7 @@
 import os
 import geopandas as gpd
 from flask import current_app, url_for
-from app.data.database import Sync_repo, Region_repo
+from app.data.database import SyncRepository, RegionRepository
 import folium
 import random
 from app.reports.table_data import process_tourist_count_data
@@ -27,7 +27,7 @@ def generate_map():
     if map is None:
         gdf = load_geojson()
         m = folium.Map(location=[61.5240, 105.3188], zoom_start=3)
-        sync_repo = Sync_repo()
+        sync_repo = SyncRepository()
 
         # Добавление Popup с информацией о регионе
         for _, row in gdf.iterrows():
@@ -84,7 +84,7 @@ def generate_top_popular_html(df):
 
 def get_region_details(region_id):
     '''Получение детальной информации о регионе и генерация гистограммы'''
-    db = Region_repo()
+    db = RegionRepository()
     region = db.find_region_by_id(region_id)
     if region:
         population = region.characters.get('population') if region.characters else 'Unknown'
