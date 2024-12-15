@@ -451,10 +451,10 @@ class Review(Base):
 
     __tablename__ = 'reviews'
 
-    id_rewiews: int = Column(
+    id_reviews: int = Column(
         Integer,
         primary_key=True,
-        server_default=text("nextval('rewiews_id_rewiews_seq'::regclass)"),
+        server_default=text("nextval('reviews_id_reviews_seq'::regclass)"),
         doc='Уникальный идентификатор отзыва',
     )
     id_location: int = Column(
@@ -481,11 +481,11 @@ class Review(Base):
     )
 
     def __repr__(self):
-        return (f"<Rewiew(id_rewiews={self.id_rewiews}, id_location={self.id_location}, "
+        return (f"<Rewiew(id_reviews={self.id_reviews}, id_location={self.id_location}, "
                 f"like={self.like}, data='{self.data}')>")
 
     def __str__(self):
-        return (f"Отзыв (ID: {self.id_rewiews}) для локации ID: {self.id_location} - "
+        return (f"Отзыв (ID: {self.id_reviews}) для локации ID: {self.id_location} - "
                 f"Лайков: {self.like}, Дата: {self.data}")
 
 

@@ -76,11 +76,8 @@ class ParseYandexMap(Parse):
                 # проверка на бота
                 if self.click_bot():
                     continue
-                # поиск поисковой строки
-                element = self.driver.find_element(By.TAG_NAME, "input")
-                time.sleep(3)
-                # ввод запроса
-                element.send_keys(f'{region_city_loc}', Keys.ENTER)
+                self.enter_text(by='tag', value="input", text=region_city_loc)
+                self.click_element(by='css_selector', value="button.button._view_search._size_medium")
                 time.sleep(3)
                 logger.debug("Перешли на Яндекс.Карты.")
                 
@@ -97,15 +94,18 @@ class ParseYandexMap(Parse):
                     dict_locations[alone_location.text.strip()] = f"https://yandex.ru{alone_location.get('href', '').strip()}"
                     logger.debug(f"Найдена одна локация: {alone_location.text.strip()} -> {dict_locations[alone_location.text.strip()]}")
                 elif mass_locations:
-                    self.soup = self.scroll(class_name='search-business-snippet-view__title', click=True)
+                    self.soup = self.scroll(class_name='search-list-view', click=False)
                     self.soup = BeautifulSoup(self.soup, 'html.parser')
                     locations = self.get_data(tag='a', class_='link-overlay', all_data=True)
-                    for loc in locations:
-                        loc_name = loc.get('aria-label', '').strip()
+                    logger.info(f'Найдено локаций {len(locations)}')
+                    for loc in locations: 
                         loc_href = loc.get('href', '').strip()
-                        if loc_name and loc_href:
-                            dict_locations[loc_name] = f"https://yandex.ru{loc_href}"
-                            logger.debug(f"Найдена локация: {loc_name} -> https://yandex.ru{loc_href}")
+                        id_yandex = [i for i in loc_href.split('/') if i.isdigit()]
+                        if id_yandex:
+                            loc_name = loc.get('aria-label', '').strip() +';'+ id_yandex[0]
+                            if loc_name and loc_href:
+                                dict_locations[loc_name] = f"https://yandex.ru{loc_href}"
+                                logger.debug(f"Найдена локация: {loc_name} -> https://yandex.ru{loc_href}")
                 else:
                     logger.warning("Неизвестная структура страницы.")
                     self.driver.close()
@@ -140,7 +140,6 @@ class ParseYandexMap(Parse):
     def get_loc_type_td(
         self,
         url: str,
-        full_get_info: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
         Получает информацию о локации.
@@ -197,10 +196,6 @@ class ParseYandexMap(Parse):
                 'id_yandex': id_yandex,
                 'features': features
             }
-
-            if full_get_info:
-                self.get_location_reviews_and_photos(loc_url=url)
-
             logger.debug(f"Информация о локации: {self.loc_info}")
 
         except (IndexError, ValueError) as e:
@@ -267,7 +262,7 @@ class ParseYandexMap(Parse):
                     reviews_filter[i] = {
                         'like': review_like,
                         'text': review_text,
-                        'date': review_date
+                        'data': review_date
                     }
                     logger.debug(f"Отзыв {i}: {reviews_filter[i]}")
                 except AttributeError:

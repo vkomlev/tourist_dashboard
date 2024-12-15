@@ -287,27 +287,25 @@ class LocationsRepository(JSONRepository):
 
     @manage_session
     def check_loc_yandex(
-        self, id_region: int, id_city: int, location_name: str
+        self, location_name: str, coordinates: list
     ) -> Optional[Location]:
         """
         Проверяет наличие локации в базе данных для Яндекс.
 
         Args:
-            id_region (int): Идентификатор региона.
-            id_city (int): Идентификатор города.
             location_name (str): Название локации.
-
+            coordinates (list): координаты локации
         Returns:
             Optional[Location]: Найденная локация или None.
         """
+        coordinates = f"SRID=4326;POINT({coordinates[0]} {coordinates[1]})" if all(coordinates) else "NULL"
         filters = {
-            "id_region": id_region,
-            "id_city": id_city,
             "location_name": location_name,
+            "coordinates": coordinates
         }
         location = self.get_by_fields(Location, **filters)
         logger.debug(
-            f"Проверка существования локации '{location_name}' в регионе {id_region}, городе {id_city}: {bool(location)}"
+            f"Проверка существования локации '{location_name}' по координатам {coordinates}: {bool(location)}"
         )
         return location[0] if location else None
 
@@ -330,16 +328,18 @@ class LocationsRepository(JSONRepository):
             id_region (int): Идентификатор региона.
             characters (Dict[str, Any]): Характеристики локации.
         """
+        coordinates_str = f"SRID=4326;POINT({coordinates[0]} {coordinates[1]})" if all(coordinates) else "NULL"
         location = Location(
             location_name=location_name,
-            coordinates=coordinates,
+            coordinates=coordinates_str,
             id_city=id_city,
             id_region=id_region,
             characters=characters,
         )
         self.add(location)
         existing_location = self.check_loc_yandex(
-            id_region, id_city, location_name
+            location_name = location_name,
+            coordinates = coordinates
         )
         if existing_location:
             self.id_loc_yandex = existing_location.id_location
@@ -356,7 +356,7 @@ class ReviewRepository(Database):
     """
 
     @manage_session
-    def load_rewiew_loc_yandex(
+    def load_review_loc_yandex(
         self, id_loc: int, like: int, text: str, data: str
     ) -> None:
         """
@@ -368,14 +368,14 @@ class ReviewRepository(Database):
             text (str): Текст отзыва.
             data (str): Дата отзыва.
         """
-        rewiew = Review(
+        review = Review(
             id_location=id_loc,
             like=like,
             text=text,
             data=data,
         )
-        self.add(rewiew)
-        logger.info(f"Загружен отзыв для локации {id_loc}.")
+        self.add(review)
+        logger.debug(f"Загружен отзыв для локации {id_loc}.")
 
 
 class PhotoRepository(Database):
@@ -397,7 +397,7 @@ class PhotoRepository(Database):
             url=url,
         )
         self.add(photo)
-        logger.info(f"Загружена фотография для локации {id_loc}: {url}")
+        logger.debug(f"Загружена фотография для локации {id_loc}: {url}")
 
 
 class CitiesRepository(JSONRepository):

@@ -99,12 +99,86 @@ class Parse:
         except Exception as e:
             logger.error(f"Ошибка в методе get_data: {e}")
             raise ParseError(f"Ошибка получения данных: {e}") from e
+    
+    def click_element(self, by, value):
+        """
+        Эта функция кликает на веб-элемент, используя указанный атрибут и его значение.
+
+        Parameters:
+        by (str): Тип атрибута для поиска элемента
+        'id': By.ID,
+        'name': By.NAME,
+        'class': By.CLASS_NAME,
+        'tag': By.TAG_NAME,
+        'link_text': By.LINK_TEXT,
+        'partial_link_text': By.PARTIAL_LINK_TEXT,
+        'xpath': By.XPATH,
+        'css_selector': By.CSS_SELECTOR
+        value (str): Значение атрибута для поиска элемента.
+        """
+        attribute_dict = {
+            'id': By.ID,
+            'name': By.NAME,
+            'class': By.CLASS_NAME,
+            'tag': By.TAG_NAME,
+            'link_text': By.LINK_TEXT,
+            'partial_link_text': By.PARTIAL_LINK_TEXT,
+            'xpath': By.XPATH,
+            'css_selector': By.CSS_SELECTOR
+        }
+
+        if by in attribute_dict:
+            try:
+                element = self.driver.find_element(attribute_dict[by], value)
+                ActionChains(self.driver).move_to_element(element).click().perform()
+            except:
+                logger.error(f"Элемент с атрибутом '{by}' и значением '{value}' не найден.")
+        else:
+            logger.error(f"by - '{by}' не найден в вариантах attribute_dict.")
         
+    def enter_text(self, by, value, text):
+        """
+        Эта функция вводит текст в поле ввода текста на веб-странице.
+
+        Parameters:
+        by (str): Тип атрибута для поиска поля ввода текста.
+        'id': By.ID,
+        'name': By.NAME,
+        'class': By.CLASS_NAME,
+        'tag': By.TAG_NAME,
+        'link_text': By.LINK_TEXT,
+        'partial_link_text': By.PARTIAL_LINK_TEXT,
+        'xpath': By.XPATH,
+        'css_selector': By.CSS_SELECTOR
+        value (str): Значение атрибута для поиска поля ввода текста.
+        text (str): Текст для ввода в поле ввода текста.
+        """
+        attribute_dict = {
+            'id': By.ID,
+            'name': By.NAME,
+            'class': By.CLASS_NAME,
+            'tag': By.TAG_NAME,
+            'link_text': By.LINK_TEXT,
+            'partial_link_text': By.PARTIAL_LINK_TEXT,
+            'xpath': By.XPATH,
+            'css_selector': By.CSS_SELECTOR
+        }
+
+        if by in attribute_dict:
+            try:
+                element = self.driver.find_element(attribute_dict[by], value)
+                element.clear()
+                element.send_keys(text)
+            except:
+                logger.error(f"Элемент с атрибутом '{by}' и значением '{value}' не найден.")
+        else:
+            print(f"by - '{by}' не найден в вариантах attribute_dict.")
+
     def coordinates_address(
         self, 
         lat: str, 
         lon: str
-        )-> str:
+        )-> list:
         """
         Определяет местоположение по координатам
 
@@ -112,63 +186,136 @@ class Parse:
             lat(str): широта
             lon(str): долгота
         Returns:
-            [id_region, id_city] and False
+            [id_region, id_city] or [id_region] or False
         """
         if not (lat and lon):
-            logger.info('Метод coordinates_address. Не указаны координаты')
+            logger.info(f'Метод coordinates_address. Не указаны координаты lat={lat}, lon={lon}')
             return None        
-
+        from app.data.compare import CompareYandex
+        compare_yandex = CompareYandex()
+        compare_yandex.load_regions_city_location_from_database()
+        # список всех городов и регионов, с их id
+        regions_cities = compare_yandex.input_data_r_c
         retries = 0
-
         while retries < self.MAX_RETRIES:
             try:
-                from app.data.compare import CompareYandex
-                compare_yandex = CompareYandex()
-                compare_yandex.load_regions_city_location_from_database()
-                # список всех городов и регионов, с их id
-                regions_cities = compare_yandex.input_data_r_c
-                # токен аккаунта, отсюда https://dadata.ru/api/geolocate/
-                token = DADATA_TOKEN
-                dadata = Dadata(token)
-                result = dadata.geolocate(name="address", lat=lat, lon=lon)
-                if isinstance(result, dict):
-                    result = result['unrestricted_value']
-                elif isinstance(result, list):
-                    result = result[0]['unrestricted_value']
-                # сейчас result = Свердловская обл, Невьянский р-н, пгт Верх-Нейвинский, пл Революции, д 1
-                # меняем сокращения на полные слова
-                result =  result.replace(' обл', ' область').replace('Респ ', 'Республика ')
-                # убираем часть с улицей
-                result =  [i for i in result.split(', ') if 'область' in i or 'Республика' in i or 'г ' in i]
-                result = ' '.join(result)
-                id_r_c = []
-                for key in regions_cities:
-                    # проверяет полное совпадение
-                    if key[0] in result and key[1] in result:
-                        id_r_c.append(regions_cities[key])
-                    # проверяет полное совпадение у области и частичное совпадение у города
-                    elif key[0] in result and key[1][:-2] in result:
-                        id_r_c.append(regions_cities[key])
-                    # првоеряет совпадение только города по полному и частичному
-                    elif key[1] in result:
-                        id_r_c.append(regions_cities[key])
-                if len(id_r_c) == 1:
-                    logger.info(f'Локация находится в {result}')
-                    return id_r_c[0]
-                elif len(id_r_c) > 1:
-                    logger.warning(f'Несколько совпадений - всего {id_r_c}. Запрос был - {result}')
-                    return None
+                result_dadata = self.coordinates_dadata(lat=lat, lon=lon, regions_cities=regions_cities)
+                if not result_dadata:
+                    result_geotree = self.coordinates_geotree(lat=lat, lon=lon, regions_cities=regions_cities)
+                    if not result_geotree:
+                        retries += 1
+                    else:
+                        logger.info(f'Местополежние определил метод coordinates_geotree - {result_geotree}')
+                        return result_geotree
                 else:
-                    logger.warning(f'не получилось определить местоположение у : {result}')
-                    return None
-            except ParseError as e:
+                    logger.info(f'Местополежние определил метод coordinates_dadata - {result_dadata}')
+                    return result_dadata
+            except Exception as e:
                 logger.error(f'Ошибка в методе coordinates_address: {e}')
                 retries += 1
+        return False
+
+                
+
+    def coordinates_dadata(
+            self, 
+            lat: str, 
+            lon: str, 
+            regions_cities: list
+            )-> list:
+        """
+        Определяет местоположение по координатам через API
+
+        Args:
+            lat (str): Широта
+            lon (str): Долгота 
+            regions_cities (dict): Словарь регионов и городов, с именами регионов и городов в качестве ключей и соответствующим ID в качестве значения.
+        Returns:
+            [id_region, id_city] or False
+        """
+        try:
+            # токен аккаунта, отсюда https://dadata.ru/api/geolocate/
+            token = DADATA_TOKEN
+            dadata = Dadata(token)
+            result_dadata = dadata.geolocate(name="address", lat=lat, lon=lon)
+            result =  result_dadata
+            if isinstance(result, dict):
+                result = result['unrestricted_value']
+            elif isinstance(result, list):
+                result = result[0]['unrestricted_value']
+            # сейчас result = Свердловская обл, Невьянский р-н, пгт Верх-Нейвинский, пл Революции, д 1
+            # меняем сокращения на полные слова
+            result =  result.replace(' обл', ' область').replace('Респ ', 'Республика ').replace('пгт ', 'г ')
+            # убираем часть с улицей
+            result =  [i for i in result.split(', ') if 'область' in i or 'Республика' in i or 'г ' in i]
+            result = ' '.join(result)
+            id_r_c = []
+            for key in regions_cities:
+                # проверяет полное совпадение
+                if key[0] in result and key[1] in result:
+                    id_r_c.append(regions_cities[key])
+            if len(id_r_c) == 1:
+                logger.info(f'Локация находится в {result}')
+                return id_r_c[0]
+            elif len(id_r_c) > 1:
+                logger.warning(f'Несколько совпадений - всего {id_r_c}. Запрос был - {result}')
+            else:
+                logger.warning(f'Не получилось определить местоположение у : {result}')
+            return False
+        except Exception as e:
+            logger.error(f'Не удалось определить местоположение в методе coordinates_address: {result_dadata}')
+            return False
+
+    def coordinates_geotree(
+            self, 
+            lat: str, 
+            lon: str, 
+            regions_cities: list
+            )-> list:
+        """
+        Определяет местоположение по координатам через вэб-скрапинг
+
+        Args:
+            lat (str): Широта
+            lon (str): Долгота 
+            regions_cities (dict): Словарь регионов и городов, с именами регионов и городов в качестве ключей и соответствующим ID в качестве значения.
+        Returns:
+            [id_region, id_city] or [id_region] or False
+        """
+        try:
+            try:
+                self.foxi_user()
+                self.driver.get('https://geotree.ru/coordinates')
+                self.click_bot()
+                time.sleep(1)
+                # ввод координат и нажание на кнопку поиска
+                self.enter_text(by='id', value='input_lat', text=lat)
+                self.enter_text(by='id', value='input_lon', text=lon)
+                self.click_element(by='id', value='button_coordinates')
             except Exception as e:
-                logger.error(f'Неизвестная ошибка в методе coordinates_address: {e}')
-                retries += 1
-
-
+                logger.error(f'В методе coordinates_geotree при работе с браузером произошла ошбика: {e}')
+                return False
+            finally:
+                self.driver.close()
+                self.driver.quit()
+            time.sleep(1)
+            # сбор результатов поиска
+            page_source = self.driver.page_source
+            self.soup = BeautifulSoup(page_source, 'html.parser')
+            result = self.get_data(tag='div', id='div_components_scroller')
+            result = [i.text for i in result]
+            for region_city in regions_cities:
+                if region_city[0] in result and region_city[1] in result:
+                    return regions_cities[region_city]
+            for region_city in regions_cities:
+                if region_city[0] in result:
+                    region = [regions_cities[region_city][0]]
+                    return region
+            return False
+        except:
+            logger.error(f'Ошибкак в методе coordinates_geotree: {e}')
+            return False
+                
 
     def parse_data(self, result: BeautifulSoup, filter: Any) -> Any:
         """
@@ -420,7 +567,7 @@ class Parse:
                     if check_none and check_none[0]:
                         soup = self.get_data(tag=check_none[1], class_=check_none[2])
                         if soup:
-                            logger.info("Необходимые элементы отсутствуют на странице.")
+                            logger.debug("Необходимые элементы отсутствуют на странице.")
                             self.driver.close()
                             self.driver.quit()
                             return None
@@ -429,7 +576,7 @@ class Parse:
                     WebDriverWait(self.driver, 5).until(
                         EC.presence_of_element_located((By.CLASS_NAME, class_name))
                     )
-                    logger.info(f"Элемент с классом '{class_name}' найден на странице.")
+                    logger.debug(f"Элемент с классом '{class_name}' найден на странице.")
                 except Exception as e:
                     logger.warning(f"Элемент с классом '{class_name}' не найден: {e}")
                     self.driver.close()
@@ -440,7 +587,7 @@ class Parse:
                     if click:
                         element = self.driver.find_element(By.CLASS_NAME, class_name)
                         ActionChains(self.driver).move_to_element(element).click().perform()
-                        logger.info(f"Кликнули по элементу с классом '{class_name}'.")
+                        logger.debug(f"Кликнули по элементу с классом '{class_name}'.")
                         time.sleep(random.uniform(1, 3))
 
                     reviews_section = self.driver.find_element(By.CLASS_NAME, 'scroll__container')
@@ -450,28 +597,28 @@ class Parse:
                     while not_good < self.MAX_RETRIES:
                         try:
                             self.scroll_to_bottom(reviews_section)
-                            time.sleep(6)
+                            time.sleep(3)
                             new_height = self.driver.execute_script("return arguments[0].scrollHeight", reviews_section)
                             if new_height == last_height:
                                 not_good += 1
-                                logger.info("Высота прокрутки не изменилась.")
+                                logger.debug("Высота прокрутки не изменилась.")
                             else:
                                 not_good = 0
                                 last_height = new_height
-                                logger.info("Высота прокрутки изменилась, продолжаем прокрутку.")
+                                logger.debug("Высота прокрутки изменилась, продолжаем прокрутку.")
                         except Exception as e:
                             logger.error(f"Ошибка при прокрутке: {e}")
                             not_good += 1
 
-                    #time.sleep(5)
+                    # time.sleep(3)
                     page_source = self.driver.page_source
-                    logger.info("Прокрутка завершена, получаем содержимое страницы.")
+                    logger.debug("Прокрутка завершена, получаем содержимое страницы.")
                     return page_source
 
                 finally:
                     self.driver.close()
                     self.driver.quit()
-                    logger.info("Браузер закрыт после прокрутки.")
+                    logger.debug("Браузер закрыт после прокрутки.")
         except Exception as e:
             logger.error(f"Ошибка в методе scroll_reviews: {e}")
             raise ParseError(f"Ошибка прокрутки страницы: {e}") from e

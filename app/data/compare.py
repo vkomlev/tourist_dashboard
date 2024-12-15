@@ -229,7 +229,7 @@ class CompareYandex(Compare):
         self.input_data_r_c: Dict[Tuple[str, str], List[int]] = {}
         self.input_data_yandex_locations_type: Dict[str, int] = {}
 
-    def load_regions_city_location_from_database(self) -> Dict[Tuple[str, str], List[int]]:
+    def load_regions_city_location_from_database(self, level_loc_type = 1) -> Dict[Tuple[str, str], List[int]]:
         """Загружает регионы, города и типы локаций из базы данных для Yandex.
 
         Returns:
@@ -258,6 +258,7 @@ class CompareYandex(Compare):
                 record['name']: record['id_location_type']
                 for record in self.input_data
                 if 'yandex' in record['location_type_value'].lower()
+                and int(record['location_type_key']) == level_loc_type
             }
 
             logger.debug(
