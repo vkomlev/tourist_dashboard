@@ -4,8 +4,8 @@ from flask import current_app, url_for
 from app.data.database import SyncRepository, RegionRepository
 import folium
 import random
-from app.reports.table_data import process_tourist_count_data
-from app.reports.plot import plot_region_flow_histogram
+from app.reports.table_data import Main_page_dashboard
+from app.reports.plot import Main_page_plot, Region_page_plot
 
 # Кэш для хранения GeoDataFrame
 cached_gdf, map = None, None
@@ -69,7 +69,7 @@ def generate_map():
 
 def generate_top_popular_data():
     '''Генерация таблицы с топ 10 самых популярных регионов'''
-    tourism_data = process_tourist_count_data(n=10, top=True)
+    tourism_data = Main_page_dashboard.process_tourist_count_data(n=10, top=True)
     tourism_table = generate_top_popular_html(tourism_data)
     return tourism_table
 
@@ -87,8 +87,9 @@ def get_region_details(region_id):
     db = RegionRepository()
     region = db.find_region_by_id(region_id)
     if region:
+        rpp = Region_page_plot()
         population = region.characters.get('population') if region.characters else 'Unknown'
-        plot_region_flow_histogram(region_id, region.region_name)  # Генерация гистограммы
+        rpp.plot_region_flow_histogram(region_id, region.region_name)  # Генерация гистограммы
         return {
             'region_name': region.region_name,
             'description': region.description,

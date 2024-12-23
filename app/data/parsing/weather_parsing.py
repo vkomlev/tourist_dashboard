@@ -17,7 +17,7 @@ class ParseWeather(Parse):
 
     def __init__(self) -> None:
         """Инициализирует класс ParseWeather."""
-        super().__init__(url='http://russia.pogoda360.ru/')
+        super().__init__(url='http://russia.pogoda360.ru')
         logger.info("Инициализирован ParseWeather.")
 
     def get_region(self) -> BeautifulSoup:
@@ -28,7 +28,7 @@ class ParseWeather(Parse):
             BeautifulSoup: Парсенный HTML блока регионов.
         """
         logger.debug("Получение региона из страницы.")
-        return self.get_data(tag='div', id='statesPanel')
+        return self.get_data(tag='div', id='statesPanel', url='/')
 
     def get_cities(self, url: str) -> BeautifulSoup:
         """
@@ -61,7 +61,8 @@ class ParseWeather(Parse):
             href = item.get('href', '').strip()
             if '(' in name:
                 name = name[:name.rfind('(')].strip()
-            data[name] = f'https://{self.url.split("//")[1]}{href}'
+            # data[name] = f'http://{self.url.split("//")[1]}{href}'
+            data[name] = f'{href}'
             logger.debug(f"Парсинг элемента: {name} -> {data[name]}")
         return data
 

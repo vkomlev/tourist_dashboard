@@ -82,21 +82,23 @@ class DataProcessor:
                         if not id_yandex:
                             logger.warning(f'Локация {loc_name} имеет некорректный URL: {loc_url}')
                             continue
-
                         locations_repo = LocationsRepository()
-                        reviews_repo = ReviewRepository()
-                        photos_repo = PhotoRepository()
-                        self.parse_yandex.get_loc_type_td(url=loc_url)
                         bd_location = locations_repo.check_loc_yandex(
-                            location_name=loc_name,
-                            coordinates = self.parse_yandex.loc_info.get('coordinates')
+                            # location_name=loc_name,
+                            # coordinates = self.parse_yandex.loc_info.get('coordinates'),
+                            id_yandex = id_yandex
                         )
 
+                        if bd_location and bd_location.characters.get('id_yandex') == id_yandex:
+                            logger.info(f'Локация {loc_name} - {id_yandex} уже есть')
 
-                        if bd_location and bd_location.characters['id_yandex'] == id_yandex:
-                            pass
                         else:
                             logger.info(f'Создание новой локации: {loc_name}')
+                            logger.info(f'Ссылка на локацию: {loc_url}')
+
+                            reviews_repo = ReviewRepository()
+                            photos_repo = PhotoRepository()
+
                             self.create_new_location(
                                 loc_name=loc_name,
                                 loc_url=loc_url,
@@ -188,14 +190,15 @@ class DataProcessor:
         retries = 0
         while retries < self.MAX_RETRIES:
             try:
-                self.parse_yandex.get_location_reviews_and_photos(loc_url=loc_url)
+                self.parse_yandex.get_loc_type_td(url=loc_url)
                 coordinates = self.parse_yandex.loc_info.get('coordinates', [None, None])
                 id_region_city = self.parse_yandex.coordinates_address(lat=coordinates[1], lon=coordinates[0])
                 if not id_region_city:
                     logger.warning (f'{loc_name} не совпал ни с чем из базы')
                     retries += 1                                   
                     continue
-
+                self.parse_yandex.get_location_reviews_and_photos(loc_url=loc_url)
+        
                 locations_repo.load_info_loc_yandex(
                     location_name=loc_name, 
                     coordinates=coordinates, 
@@ -248,8 +251,8 @@ class WeatherProcessor:
         Собирает погодные данные для всех городов и загружает их в базу данных.
         """
         try:
-            self.parse_weather.get_all_temperature()
-            for id_city, temperatures in self.parse_weather.full_cities_data.items():
+            full_cities_data = self.parse_weather.get_all_temperature()
+            for id_city, temperatures in full_cities_data.items():
                 self.mv_repo.fill_weather(id_city, temperatures)
                 logger.info(f'Погодные данные для города ID {id_city} загружены.')
             logger.info('Загрузка всех погодных данных завершена.')

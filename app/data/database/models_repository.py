@@ -234,7 +234,51 @@ class MetricValueRepository(Database):
                         f"Добавлен параметр {metric_id} для города {city_id}."
                     )
         logger.info(f"Обработка города {city_id} завершена.")
+        
+    @manage_session
+    def get_city_weather(
+            self,
+            id_city:int,
+            key_ratio: list
+    ) -> List[MetricValue]:
+        """
+        Получение данных о погоде в городе из таблицы MetricValue.
 
+        Args:
+            city_id (int): Идентификатор города.
+            key_ratio (list)
+                "day": 213,
+                "night": 214,
+                "rainfall": 215,
+                "water": 216,
+                    : Словарь ключей метрик
+        Return:
+            Dict[str, MetricValue]: Словарь записей MetricValue.
+        """
+        ratio = {
+            "day": 213,
+            "night": 214,
+            "rainfall": 215,
+            "water": 216,
+        }
+        records = {}
+        for key in key_ratio:
+            records[key] = (
+            self.session
+            .query(
+                MetricValue.value,
+                MetricValue.month
+            )
+            .filter(
+                MetricValue.id_metric == ratio[key],
+                MetricValue.id_city == id_city,
+            )
+            .all()
+            )
+            logger.debug(
+                f"Получено {len(records)} записей о погоде ({key}) для города {id_city}."
+            )
+        return records
 
 class LocationTypeRepository(Database):
     """
@@ -287,7 +331,10 @@ class LocationsRepository(JSONRepository):
 
     @manage_session
     def check_loc_yandex(
-        self, location_name: str, coordinates: list
+        self, 
+        # location_name: str, 
+        # coordinates: list,
+        id_yandex
     ) -> Optional[Location]:
         """
         Проверяет наличие локации в базе данных для Яндекс.
@@ -298,15 +345,20 @@ class LocationsRepository(JSONRepository):
         Returns:
             Optional[Location]: Найденная локация или None.
         """
-        coordinates = f"SRID=4326;POINT({coordinates[0]} {coordinates[1]})" if all(coordinates) else "NULL"
-        filters = {
-            "location_name": location_name,
-            "coordinates": coordinates
-        }
-        location = self.get_by_fields(Location, **filters)
-        logger.debug(
-            f"Проверка существования локации '{location_name}' по координатам {coordinates}: {bool(location)}"
-        )
+        # coordinates = f"SRID=4326;POINT({coordinates[0]} {coordinates[1]})" if all(coordinates) else "NULL"
+        # filters = {
+        #     "location_name": location_name,
+        #     "coordinates": coordinates
+        # }
+        # filters = {"characters": func.jsonb_build_object('id_yandex', id_yandex)}
+        # location = self.get_by_fields(Location, **filters)
+        # logger.debug(
+        #     f"Проверка существования локации '{location_name}' по координатам {coordinates}: {bool(location)}"
+        # )
+        location = self.session.query(Location).filter(
+            Location.characters['id_yandex'].astext == str(id_yandex)).all()
+        if len(location) > 1:
+            logger.error(f'Поиск по id_yandex - {id_yandex} в БД нашел несколько совпадений: {len(location)}!!!!!')
         return location[0] if location else None
 
     @manage_session
@@ -338,8 +390,9 @@ class LocationsRepository(JSONRepository):
         )
         self.add(location)
         existing_location = self.check_loc_yandex(
-            location_name = location_name,
-            coordinates = coordinates
+            # location_name = location_name,
+            # coordinates = coordinates
+            id_yandex=characters.get('id_yandex')
         )
         if existing_location:
             self.id_loc_yandex = existing_location.id_location
@@ -429,7 +482,7 @@ class CitiesRepository(JSONRepository):
                 characters["last_type_loc"] = first_type
                 city.characters = characters
                 self.update(city)
-                logger.info(
+                logger.debug(
                     f"Добавлено 'last_type_loc'='{first_type}' для города id={id_city}."
                 )
                 continue
@@ -458,6 +511,25 @@ class CitiesRepository(JSONRepository):
         characters["last_type_loc"] = f'{type_loc}'
         city.characters = characters
         self.update(city)
-        logger.info(
+        logger.debug(
             f"Обновлен 'last_type_loc'='{type_loc}' для города id={id_city}."
         )
+
+    @manage_session
+    def get_cities_in_region(self, id_region:int):
+        """получение списка городов по индексу региона"""
+        records = (
+            self.session
+            .query(
+                City.id_city
+            )
+            .filter(
+                City.id_region == id_region,
+            )
+            .all()
+            )
+        logger.debug(
+                f"Получено {len(records)} городов в регионе {id_region}."
+            )
+        
+        return records

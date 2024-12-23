@@ -481,7 +481,7 @@ class Review(Base):
     )
 
     def __repr__(self):
-        return (f"<Rewiew(id_reviews={self.id_reviews}, id_location={self.id_location}, "
+        return (f"<Review(id_reviews={self.id_reviews}, id_location={self.id_location}, "
                 f"like={self.like}, data='{self.data}')>")
 
     def __str__(self):
