@@ -166,8 +166,11 @@ class Parse:
 
         if by in attribute_dict:
             try:
-                element = self.driver.find_element(attribute_dict[by], value)
-                element.clear()
+                element = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((attribute_dict[by], value))
+                )
+                element.click()
+                self.driver.execute_script("arguments[0].value = '';", element)  # Очистка поля с помощью JavaScript
                 element.send_keys(text)
             except:
                 logger.error(f"Элемент с атрибутом '{by}' и значением '{value}' не найден.")

@@ -77,7 +77,11 @@ class ParseYandexMap(Parse):
                 # проверка на бота
                 if self.click_bot():
                     continue
-                self.enter_text(by='tag', value="input", text=region_city_loc)
+                # двух этапный ввод - сначала регион потом город с типом локации
+                self.enter_text(by='tag', value="input", text=region_city_loc[0])
+                self.click_element(by='css_selector', value="button.button._view_search._size_medium")
+                time.sleep(3)
+                self.enter_text(by='tag', value="input", text=' '.join(region_city_loc[1:]))
                 self.click_element(by='css_selector', value="button.button._view_search._size_medium")
                 time.sleep(3)
                 logger.debug("Перешли на Яндекс.Карты.")

@@ -66,13 +66,13 @@ class DataProcessor:
                     cities_repo.load_next_type_loc(id_city=value_id_r_c[1], type_loc=type_id)
                     # time.sleep(random.uniform(1, 15))
 
-                    region_city_loc = f'{key_name_r_c[0]} {key_name_r_c[1]} {type_name}'
-                    logger.info(f'Начали обработку: {region_city_loc}')
+                    region_city_loc = [key_name_r_c[0], key_name_r_c[1], type_name]
+                    logger.info(f'Начали обработку: {' '.join(region_city_loc)}')
 
                     # Парсинг локаций с Яндекс.Карт
                     dict_locations = self.parse_yandex.get_locations(region_city_loc)
                     if not dict_locations:
-                        logger.warning(f'Локации для {region_city_loc} не найдены.')
+                        logger.warning(f'Локации для {' '.join(region_city_loc)} не найдены.')
                         continue
 
                     for i, (loc_name, loc_url) in enumerate(dict_locations.items(), 1):
