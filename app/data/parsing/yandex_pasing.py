@@ -68,7 +68,8 @@ class ParseYandexMap(Parse):
         Returns:
             Dict[str, str]: Словарь с названиями локаций и их URL.
         """
-        while True:
+        restart = 0
+        while self.MAX_RETRIES > restart:
             try:
                 dict_locations: Dict[str, str] = {}
                 self.foxi_user()
@@ -88,11 +89,16 @@ class ParseYandexMap(Parse):
 
                 if nothing_found:
                     logger.info(f"Локации в {region_city_loc} не найдены.")
-                    return {}
+                    self.driver.close()
+                    self.driver.quit()
+                    restart += 1 
 
                 elif alone_location:
                     dict_locations[alone_location.text.strip()] = f"https://yandex.ru{alone_location.get('href', '').strip()}"
                     logger.debug(f"Найдена одна локация: {alone_location.text.strip()} -> {dict_locations[alone_location.text.strip()]}")
+                    self.driver.close()
+                    self.driver.quit()
+
                 elif mass_locations:
                     self.soup = self.scroll(class_name='search-list-view', click=False)
                     self.soup = BeautifulSoup(self.soup, 'html.parser')
@@ -102,7 +108,8 @@ class ParseYandexMap(Parse):
                         loc_href = loc.get('href', '').strip()
                         id_yandex = [i for i in loc_href.split('/') if i.isdigit()]
                         if id_yandex:
-                            loc_name = loc.get('aria-label', '').strip() +';'+ id_yandex[0]
+                            loc_name = loc.get('aria-label', '').strip()
+                            loc_name = (loc_name if loc_name else loc.text) +';'+ id_yandex[0]
                             if loc_name and loc_href:
                                 dict_locations[loc_name] = f"https://yandex.ru{loc_href}"
                                 logger.debug(f"Найдена локация: {loc_name} -> https://yandex.ru{loc_href}")
@@ -118,6 +125,8 @@ class ParseYandexMap(Parse):
             except Exception as e:
                 logger.error(f"Ошибка в методе get_locations: {e}")
                 # raise ParseError(f"Ошибка получения локаций: {e}") from e
+        return {}
+
 
     def get_loc_only_type(
         self, 
@@ -152,58 +161,65 @@ class ParseYandexMap(Parse):
         Returns:
             Optional[Dict[str, Any]]: Информация о локации или None.
         """
-        try:
-            id_yandex = int([part for part in url.split('/') if part.isdigit()][0])
-            self.soup = self.get_js_page_content(url, click=[True, 'div.action-button-view._type_share'], close_=True)
-            temp_soup = self.soup
-            logger.debug(f"Получение информации о локации с ID Yandex: {id_yandex}")
+        restart = 0
+        while self.MAX_RETRIES > restart:
+            try:
+                id_yandex = int([part for part in url.split('/') if part.isdigit()][0])
+                self.soup = self.get_js_page_content(url, click=[True, 'div.action-button-view._type_share'], close_=True)
+                temp_soup = self.soup
+                logger.debug(f"Получение информации о локации с ID Yandex: {id_yandex}")
 
-            # Количество лайков
-            element_like = self.get_data(tag='div', class_="business-header-rating-view__text _clickable")
-            count_like = element_like.text.split(' ')[0] if element_like else '0'
+                # Количество лайков
+                element_like = self.get_data(tag='div', class_="business-header-rating-view__text _clickable")
+                count_like = element_like.text.split(' ')[0] if element_like else '0'
 
-            # Средняя оценка
-            like = self.get_data(tag='span', class_="business-rating-badge-view__rating-text").text.strip()
+                # Средняя оценка
+                like = self.get_data(tag='span', class_="business-rating-badge-view__rating-text")
+                like = like.text.strip() if like else ''
 
-            # Особенности
-            features_http = self.get_data(tag='div', class_='business-features-view _wide _view_overview _orgpage')
-            features = {
-                'features_text': [item.text.strip() for item in features_http.find_all('div', {'class': 'business-features-view__bool-text'})],
-                'features_key': {
-                    item.find('span', {'class': 'business-features-view__valued-title'}).text.strip():
-                        item.find('span', {'class': 'business-features-view__valued-value'}).text.strip()
-                    for item in features_http.find_all('div', {'class': 'business-features-view__valued'})
+                # Особенности
+                features_http = self.get_data(tag='div', class_='business-features-view _wide _view_overview _orgpage')
+                features = {
+                    'features_text': [item.text.strip() for item in features_http.find_all('div', {'class': 'business-features-view__bool-text'})],
+                    'features_key': {
+                        item.find('span', {'class': 'business-features-view__valued-title'}).text.strip():
+                            item.find('span', {'class': 'business-features-view__valued-value'}).text.strip()
+                        for item in features_http.find_all('div', {'class': 'business-features-view__valued'})
+                    }
                 }
-            }
 
-            # Типы локации
-            types = [item.text.strip() for item in self.get_data(tag='div', class_='orgpage-categories-info-view').find_all('span', {'class': 'button__text'})]
+                # Типы локации
+                types = [item.text.strip() for item in self.get_data(tag='div', class_='orgpage-categories-info-view').find_all('span', {'class': 'button__text'})]
 
-            # Координаты
-            coordinates_text = ['', '']
-            while not coordinates_text[0] or not coordinates_text[1]:
+                # Координаты
+                coordinates_text = ['', '']
                 self.soup = temp_soup.find('div', {'class': 'card-feature-view _view_normal _size_large _interactive _no-side-padding card-share-view__coordinates'})
                 coordinates_text = self.get_data(tag='div', class_='card-share-view__text').text.strip().split(', ') if self.soup else ['', '']
                 if not coordinates_text[0] or not coordinates_text[1]:
                     logger.warning(f"Не удалось получить координаты для локации: {url}")
+                    restart +=1
+                    continue
                 coordinates = [coordinates_text[1], coordinates_text[0]] if len(coordinates_text) == 2 else [None, None]
 
-            self.loc_info = {
-                'count_like': count_like,
-                'like': like,
-                'types': types,
-                'coordinates': coordinates,
-                'id_yandex': id_yandex,
-                'features': features
-            }
-            logger.debug(f"Информация о локации: {self.loc_info}")
+                self.loc_info = {
+                    'count_like': count_like,
+                    'like': like,
+                    'types': types,
+                    'coordinates': coordinates,
+                    'id_yandex': id_yandex,
+                    'features': features
+                }
+                logger.debug(f"Информация о локации: {self.loc_info}")
+                break
 
-        except (IndexError, ValueError) as e:
-            logger.error(f"Ошибка обработки данных о локации: {e}")
-            raise ParseError(f"Ошибка обработки данных о локации: {e}") from e
-        except Exception as e:
-            logger.error(f"Неизвестная ошибка в методе get_loc_type_td: {e}")
-            raise ParseError(f"Неизвестная ошибка: {e}") from e
+            except (IndexError, ValueError) as e:
+                logger.error(f"Ошибка обработки данных о локации: {e}")
+                restart += 1
+                # raise ParseError(f"Ошибка обработки данных о локации: {e}") from e
+            except Exception as e:
+                logger.error(f"Неизвестная ошибка в методе get_loc_type_td: {e}")
+                restart += 1
+                # raise ParseError(f"Неизвестная ошибка: {e}") from e
 
     def get_location_reviews(self, url: str) -> Dict[int, Dict[str, Union[int, str]]]:
         """
@@ -231,14 +247,21 @@ class ParseYandexMap(Parse):
             "декабря": "12"
         }
         try:
-            self.soup = self.scroll(
-                url_map=f"{url}reviews/",
-                class_name='business-reviews-card-view__space',
-                click=True,
-                check_none=[True, 'h2', 'tab-empty-view__title']
-            )
-            if not self.soup:
-                logger.info("Отзывов не найдено.")
+            restart = 0
+            while self.MAX_RETRIES-1 > restart:
+                self.soup = self.scroll(
+                    url_map=f"{url}reviews/",
+                    class_name='business-reviews-card-view__space',
+                    click=True,
+                    check_none=[True, 'h2', 'tab-empty-view__title']
+                )
+                if self.soup:
+                    break
+                else:
+                    restart +=1
+            if not self.MAX_RETRIES-1 > restart and not self.soup:
+                logger.info("Отзывы не найдены")
+                self.loc_reviews = {}
                 return {}
 
             self.soup = BeautifulSoup(self.soup, 'html.parser')
@@ -291,14 +314,21 @@ class ParseYandexMap(Parse):
             Dict[int, Optional[str]]: Словарь фото.
         """
         try:
-            self.soup = self.scroll(
-                url_map=f"{url}gallery/",
-                class_name='media-wrapper__media',
-                click=True,
-                check_none=[True, 'h2', 'tab-empty-view__title']
-            )
-            if not self.soup:
-                logger.info("Фотографий не найдено.")
+            restart = 0
+            while self.MAX_RETRIES-1 > restart:
+                self.soup = self.scroll(
+                    url_map=f"{url}gallery/",
+                    class_name='media-wrapper__media',
+                    click=True,
+                    check_none=[True, 'h2', 'tab-empty-view__title']
+                )
+                if self.soup:
+                    break
+                else:
+                    restart +=1
+            if not self.MAX_RETRIES-1 > restart and not self.soup:
+                logger.info("Фотографии не найдены")
+                self.loc_photos = {}
                 return {1: None}
 
             self.soup = BeautifulSoup(self.soup, 'html.parser')

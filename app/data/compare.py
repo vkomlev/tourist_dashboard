@@ -103,15 +103,28 @@ class CompareRegions(Compare):
         """
         # Полное совпадение
         for sql_one in input_data.keys():
-            sql_name_parts = sql_one.split(' ')
-            if alt_name in sql_name_parts:
+            # sql_name_parts = sql_one.split(' ')
+            if alt_name.replace(' республика', '') == sql_one.replace('Республика ', '').replace(' Республика', ''):
+                logger.info(f'{sql_one} == {alt_name}')
+                return [sql_one, alt_name, input_data[sql_one]]
+            
+            elif (alt_name == 'Северная Осетия' and sql_one == 'Республика Северная Осетия - Алания') or (
+                    alt_name == 'Республика Саха (Якутия)' and sql_one == 'Республика Саха (Якутия)') or (
+                    alt_name == 'Удмуртия' and sql_one == 'Удмуртская Республика') or (
+                    alt_name == 'Карачаево-Черкесия' and sql_one == 'Карачаево-Черкесская Республика') or (
+                    alt_name == 'Кабардино-Балкария' and sql_one == 'Кабардино-Балкарская Республика') or (
+                    alt_name == 'Ханты-Мансийский автономный округ' and sql_one == 'Ханты-Мансийский автономный округ - Югра') or (
+                    alt_name == 'Кемеровская область' and sql_one == 'Кемеровская область - Кузбасс'):
+                
+                logger.info(f'{sql_one} == {alt_name}')
                 return [sql_one, alt_name, input_data[sql_one]]
 
-        # Частичное совпадение (первые 5 символов)
-        for sql_one in input_data.keys():
-            if sql_one.startswith(alt_name[:5]):
-                return [sql_one, alt_name, input_data[sql_one]]
-
+        # # Частичное совпадение (первые 5 символов)
+        # for sql_one in input_data.keys():
+        #     if sql_one.startswith(alt_name[:5]):
+        #         logger.info(f'!!!!! {sql_one} == {alt_name}')
+        #         return [sql_one, alt_name, input_data[sql_one]]
+        logger.warning(f'Не совпало {alt_name}')
         return None
 
 

@@ -123,7 +123,7 @@ class Database:
         """
         self.session.add(obj)
         self.session.commit()
-        logger.info(f"Добавлен объект: {obj}")
+        logger.debug(f"Добавлен объект: {obj}")
         return obj
 
     @manage_session

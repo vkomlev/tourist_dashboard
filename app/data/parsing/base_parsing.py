@@ -74,7 +74,7 @@ class Parse:
             if not (self.soup or url):
                 logger.warning(f"Метод get_data. Нет объектов для парсинга")
                 return None
-            if not self.soup and url:
+            if not self.soup and url :
                 full_url = self.url + url
                 response = requests.get(full_url)
                 response.raise_for_status()
@@ -248,22 +248,22 @@ class Parse:
             result =  result.replace(' обл', ' область').replace('Респ ', 'Республика ').replace('пгт ', 'г ')
             # убираем часть с улицей
             result =  [i for i in result.split(', ') if 'область' in i or 'Республика' in i or 'г ' in i]
-            result = ' '.join(result)
+            result = ' '.join(result).split(' г ')
             id_r_c = []
             for key in regions_cities:
                 # проверяет полное совпадение
                 if key[0] in result and key[1] in result:
                     id_r_c.append(regions_cities[key])
+                    if len(id_r_c) > 1:
+                        pass
             if len(id_r_c) == 1:
                 logger.info(f'Локация находится в {result}')
                 return id_r_c[0]
             elif len(id_r_c) > 1:
                 logger.warning(f'Несколько совпадений - всего {id_r_c}. Запрос был - {result}')
-            else:
-                logger.warning(f'Не получилось определить местоположение у : {result}')
             return False
         except Exception as e:
-            logger.error(f'Не удалось определить местоположение в методе coordinates_address: {result_dadata}')
+            logger.debug(f'Не удалось определить местоположение в методе coordinates_address: {result_dadata}')
             return False
 
     def coordinates_geotree(
@@ -294,13 +294,14 @@ class Parse:
                 self.click_element(by='id', value='button_coordinates')
             except Exception as e:
                 logger.error(f'В методе coordinates_geotree при работе с браузером произошла ошбика: {e}')
-                return False
-            finally:
                 self.driver.close()
                 self.driver.quit()
+                return False
             time.sleep(1)
             # сбор результатов поиска
             page_source = self.driver.page_source
+            self.driver.close()
+            self.driver.quit()
             self.soup = BeautifulSoup(page_source, 'html.parser')
             result = self.get_data(tag='div', id='div_components_scroller')
             result = [i.text for i in result]
@@ -456,6 +457,8 @@ class Parse:
                 if captcha_confirm:
                     logger.info("CAPTCHA обнаружена и обработана. Повторяем запрос.")
                     time.sleep(random.uniform(30, 60))
+                    self.driver.close()
+                    self.driver.quit()
                     return True
                 else:
                     time.sleep(10)
@@ -463,6 +466,7 @@ class Parse:
         except Exception as e:
             logger.error(f"Ошибка в методе click_bot: {e}")
             # raise ParseError(f"Ошибка обработки CAPTCHA: {e}") from e
+
 
     def get_js_page_content(
         self,
@@ -494,7 +498,7 @@ class Parse:
                     self.driver.set_page_load_timeout(15)
 
                 self.driver.get(url)
-                logger.info(f"Метод get_js_page_content. Перешли на страницу: {url}")
+                logger.debug(f"Метод get_js_page_content. Перешли на страницу: {url}")
                 if self.click_bot():
                     continue
 
@@ -504,7 +508,7 @@ class Parse:
                         WebDriverWait(self.driver, 10).until(
                             EC.visibility_of_element_located((way.get(by, By.ID), what))
                         )
-                        logger.info(f"Элемент {what} виден на странице.")
+                        logger.debug(f"Элемент {what} виден на странице.")
                     except Exception as e:
                         logger.warning(f"Ошибка ожидания элемента {what}: {e}")
 
@@ -514,7 +518,7 @@ class Parse:
                         element = self.driver.find_element(By.CSS_SELECTOR, click[1])
                         ActionChains(self.driver).move_to_element(element).click().perform()
                         time.sleep(random.uniform(2.5, 5.0))
-                        logger.info(f"Кликнули по элементу {click[1]}.")
+                        logger.debug(f"Кликнули по элементу {click[1]}.")
                     except Exception as e:
                         logger.error(f"Ошибка клика по элементу {click[1]}: {e}")
                         raise ParseError(f"Ошибка клика: {e}") from e
@@ -559,17 +563,19 @@ class Parse:
                 if url_map:
                     self.foxi_user()
                     self.driver.get(url_map)
-                    logger.info(f"Метод scroll. Перешли на страницу: {url_map}")
+                    logger.debug(f"Метод scroll. Перешли на страницу: {url_map}")
                     if self.click_bot():
                         retries += 1
                         continue
 
                     if check_none and check_none[0]:
-                        soup = self.get_data(tag=check_none[1], class_=check_none[2])
-                        if soup:
+                        page_source = self.driver.page_source
+                        self.soup = BeautifulSoup(page_source, 'html.parser')
+                        self.soup = self.get_data(tag=check_none[1], class_=check_none[2])
+                        if self.soup:
                             logger.debug("Необходимые элементы отсутствуют на странице.")
-                            self.driver.close()
-                            self.driver.quit()
+                            # self.driver.close()
+                            # self.driver.quit()
                             return None
 
                 try:
@@ -578,9 +584,9 @@ class Parse:
                     )
                     logger.debug(f"Элемент с классом '{class_name}' найден на странице.")
                 except Exception as e:
-                    logger.warning(f"Элемент с классом '{class_name}' не найден: {e}")
-                    self.driver.close()
-                    self.driver.quit()
+                    logger.error(f"Нету элемента с классом '{class_name}'")
+                    # self.driver.close()
+                    # self.driver.quit()
                     return None
 
                 try:
@@ -616,12 +622,17 @@ class Parse:
                     return page_source
 
                 finally:
-                    self.driver.close()
-                    self.driver.quit()
+                    # self.driver.close()
+                    # self.driver.quit()
                     logger.debug("Браузер закрыт после прокрутки.")
         except Exception as e:
             logger.error(f"Ошибка в методе scroll_reviews: {e}")
             raise ParseError(f"Ошибка прокрутки страницы: {e}") from e
+        
+        finally:
+            self.driver.close()
+            self.driver.quit()
+        
 
     def scroll_to_bottom(self, section: webdriver.remote.webelement.WebElement) -> None:
             """
