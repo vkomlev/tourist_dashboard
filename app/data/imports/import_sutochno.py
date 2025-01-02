@@ -1,9 +1,11 @@
 import requests
 import xml.etree.ElementTree as ET
 import pandas as pd
-from typing import Tuple, Optional
+from typing import Tuple
 from lxml import etree
 import re
+import tempfile
+import os
 
 from app.logging_config import logger
 
@@ -144,115 +146,119 @@ class ExtractSutochno:
         self.logger.debug('Извлечение данных о квартирах...')
         ns = {'y': 'http://webmaster.yandex.ru/schemas/feed/realty/2010-06'}
         data = []
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                temp_input = os.path.join(temp_dir, 'raw_apartments.xml')
+                temp_output = os.path.join(temp_dir, 'cleaned_apartments.xml')
 
-        try:
-            temp_input = 'raw_apartments.xml'
-            temp_output = 'cleaned_apartments.xml'
+                # Скачиваем и сохраняем исходный файл для потоковой очистки
+                with requests.get(self.APARTMENT_FEED_URL, stream=True, timeout=120) as response:
+                    response.raise_for_status()
+                    with open(temp_input, 'wb') as file:
+                        for chunk in response.iter_content(chunk_size=1024 * 1024):  # 1 MB
+                            file.write(chunk)
 
-            # Скачиваем и сохраняем исходный файл для потоковой очистки
-            with requests.get(self.APARTMENT_FEED_URL, stream=True, timeout=120) as response:
-                response.raise_for_status()
-                with open(temp_input, 'wb') as file:
-                    for chunk in response.iter_content(chunk_size=1024 * 1024):  # 1 MB
-                        file.write(chunk)
+                # Очистка XML-файла
+                self.recover_xml(temp_input, temp_output)
 
-            # Очистка XML-файла
-            self.recover_xml(temp_input, temp_output)
+                # Потоковая обработка XML с lxml
+                context = etree.iterparse(temp_output, events=('start', 'end'))
+                for event, elem in context:
+                    if event == "end" and elem.tag.endswith('offer'):
+                        # ID объекта
+                        offer_id = elem.attrib.get('internal-id', 'N/A')
 
-            # Потоковая обработка XML с lxml
-            context = etree.iterparse(temp_output, events=('start', 'end'))
-            for event, elem in context:
-                if event == "end" and elem.tag.endswith('offer'):
-                    # ID объекта
-                    offer_id = elem.attrib.get('internal-id', 'N/A')
+                        # Основные данные
+                        type_ = elem.find('y:type', ns).text if elem.find('y:type', ns) is not None else 'N/A'
+                        property_type = elem.find('y:property-type', ns).text if elem.find('y:property-type', ns) is not None else 'N/A'
+                        category = elem.find('y:category', ns).text if elem.find('y:category', ns) is not None else 'N/A'
+                        url = elem.find('y:url', ns).text if elem.find('y:url', ns) is not None else 'N/A'
+                        creation_date = elem.find('y:creation-date', ns).text if elem.find('y:creation-date', ns) is not None else 'N/A'
+                        last_update = elem.find('y:last-update-date', ns).text if elem.find('y:last-update-date', ns) is not None else 'N/A'
 
-                    # Основные данные
-                    type_ = elem.find('y:type', ns).text if elem.find('y:type', ns) is not None else 'N/A'
-                    property_type = elem.find('y:property-type', ns).text if elem.find('y:property-type', ns) is not None else 'N/A'
-                    category = elem.find('y:category', ns).text if elem.find('y:category', ns) is not None else 'N/A'
-                    url = elem.find('y:url', ns).text if elem.find('y:url', ns) is not None else 'N/A'
-                    creation_date = elem.find('y:creation-date', ns).text if elem.find('y:creation-date', ns) is not None else 'N/A'
-                    last_update = elem.find('y:last-update-date', ns).text if elem.find('y:last-update-date', ns) is not None else 'N/A'
+                        # Локация
+                        location = elem.find('y:location', ns)
+                        if location is not None:
+                            country = location.find('y:country', ns).text if location.find('y:country', ns) is not None else 'N/A'
+                            region = location.find('y:region', ns).text if location.find('y:region', ns) is not None else 'N/A'
+                            locality = location.find('y:locality-name', ns).text if location.find('y:locality-name', ns) is not None else 'N/A'
+                            address = location.find('y:address', ns).text if location.find('y:address', ns) is not None else 'N/A'
+                            latitude = location.find('y:latitude', ns).text if location.find('y:latitude', ns) is not None else 'N/A'
+                            longitude = location.find('y:longitude', ns).text if location.find('y:longitude', ns) is not None else 'N/A'
+                        else:
+                            country, region, locality, address, latitude, longitude = 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'
 
-                    # Локация
-                    location = elem.find('y:location', ns)
-                    if location is not None:
-                        country = location.find('y:country', ns).text if location.find('y:country', ns) is not None else 'N/A'
-                        region = location.find('y:region', ns).text if location.find('y:region', ns) is not None else 'N/A'
-                        locality = location.find('y:locality-name', ns).text if location.find('y:locality-name', ns) is not None else 'N/A'
-                        address = location.find('y:address', ns).text if location.find('y:address', ns) is not None else 'N/A'
-                        latitude = location.find('y:latitude', ns).text if location.find('y:latitude', ns) is not None else 'N/A'
-                        longitude = location.find('y:longitude', ns).text if location.find('y:longitude', ns) is not None else 'N/A'
-                    else:
-                        country, region, locality, address, latitude, longitude = 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'
+                        # Агент
+                        sales_agent = elem.find('y:sales-agent', ns)
+                        agent_name = sales_agent.find('y:name', ns).text if sales_agent is not None and sales_agent.find('y:name', ns) is not None else 'N/A'
+                        agency_id = sales_agent.find('y:agency-id', ns).text if sales_agent is not None and sales_agent.find('y:agency-id', ns) is not None else 'N/A'
 
-                    # Агент
-                    sales_agent = elem.find('y:sales-agent', ns)
-                    agent_name = sales_agent.find('y:name', ns).text if sales_agent is not None and sales_agent.find('y:name', ns) is not None else 'N/A'
-                    agency_id = sales_agent.find('y:agency-id', ns).text if sales_agent is not None and sales_agent.find('y:agency-id', ns) is not None else 'N/A'
+                        # Цена
+                        price = elem.find('y:price', ns)
+                        price_value = price.find('y:value', ns).text if price is not None and price.find('y:value', ns) is not None else 'N/A'
+                        currency = price.find('y:currency', ns).text if price is not None and price.find('y:currency', ns) is not None else 'N/A'
+                        period = price.find('y:period', ns).text if price is not None and price.find('y:period', ns) is not None else 'N/A'
 
-                    # Цена
-                    price = elem.find('y:price', ns)
-                    price_value = price.find('y:value', ns).text if price is not None and price.find('y:value', ns) is not None else 'N/A'
-                    currency = price.find('y:currency', ns).text if price is not None and price.find('y:currency', ns) is not None else 'N/A'
-                    period = price.find('y:period', ns).text if price is not None and price.find('y:period', ns) is not None else 'N/A'
+                        # Извлечение описания
+                        description = elem.find('y:description', ns).text if elem.find('y:description', ns) is not None else 'N/A'
 
-                    # Извлечение описания
-                    description = elem.find('y:description', ns).text if elem.find('y:description', ns) is not None else 'N/A'
+                        # Площадь
+                        area_element = elem.find('y:area', ns)
+                        area = area_element.find('y:value', ns).text if area_element is not None and area_element.find('y:value', ns) is not None else 'N/A'
+                        area_unit = area_element.find('y:unit', ns).text if area_element is not None and area_element.find('y:unit', ns) is not None else 'N/A'
 
-                    # Площадь
-                    area_element = elem.find('y:area', ns)
-                    area = area_element.find('y:value', ns).text if area_element is not None and area_element.find('y:value', ns) is not None else 'N/A'
-                    area_unit = area_element.find('y:unit', ns).text if area_element is not None and area_element.find('y:unit', ns) is not None else 'N/A'
+                        # Комнаты и удобства
+                        rooms = elem.find('y:rooms', ns).text if elem.find('y:rooms', ns) is not None else 'N/A'
+                        renovation = elem.find('y:renovation', ns).text if elem.find('y:renovation', ns) is not None else 'N/A'
+                        internet = elem.find('y:internet', ns).text if elem.find('y:internet', ns) is not None else 'N/A'
+                        television = elem.find('y:television', ns).text if elem.find('y:television', ns) is not None else 'N/A'
+                        parking = elem.find('y:parking', ns).text if elem.find('y:parking', ns) is not None else 'N/A'
+                        rooms_offered = elem.find('y:rooms-offered', ns).text if elem.find('y:rooms-offered', ns) is not None else 'N/A'
+                        floor = elem.find('y:floor', ns).text if elem.find('y:floor', ns) is not None else 'N/A'
+                        floors_total = elem.find('y:floors-total', ns).text if elem.find('y:floors-total', ns) is not None else 'N/A'
+                        rent_pledge = elem.find('y:rent-pledge', ns).text if elem.find('y:rent-pledge', ns) is not None else 'N/A'
 
-                    # Комнаты и удобства
-                    rooms = elem.find('y:rooms', ns).text if elem.find('y:rooms', ns) is not None else 'N/A'
-                    renovation = elem.find('y:renovation', ns).text if elem.find('y:renovation', ns) is not None else 'N/A'
-                    internet = elem.find('y:internet', ns).text if elem.find('y:internet', ns) is not None else 'N/A'
-                    television = elem.find('y:television', ns).text if elem.find('y:television', ns) is not None else 'N/A'
-                    parking = elem.find('y:parking', ns).text if elem.find('y:parking', ns) is not None else 'N/A'
-                    rooms_offered = elem.find('y:rooms-offered', ns).text if elem.find('y:rooms-offered', ns) is not None else 'N/A'
-                    floor = elem.find('y:floor', ns).text if elem.find('y:floor', ns) is not None else 'N/A'
-                    floors_total = elem.find('y:floors-total', ns).text if elem.find('y:floors-total', ns) is not None else 'N/A'
-                    rent_pledge = elem.find('y:rent-pledge', ns).text if elem.find('y:rent-pledge', ns) is not None else 'N/A'
+                        # Извлечение параметров <param>
+                        params_elements = elem.findall('y:param', ns)
+                        param_values = [f"{param.attrib.get('name', 'N/A')}: {param.text}" for param in params_elements]
+                        params_str = '; '.join(param_values) if param_values else 'N/A'
 
-                    # Извлечение параметров <param>
-                    params_elements = elem.findall('y:param', ns)
-                    param_values = [f"{param.attrib.get('name', 'N/A')}: {param.text}" for param in params_elements]
-                    params_str = '; '.join(param_values) if param_values else 'N/A'
+                        # Фотографии
+                        images = elem.findall('y:image', ns)
+                        photo_list = ', '.join([image.text for image in images if image.text]) if images else 'N/A'
 
-                    # Добавляем данные в список
-                    data.append([
-                        offer_id, type_, property_type, category, url, creation_date, last_update,
-                        country, region, locality, address, latitude, longitude,
-                        agent_name, agency_id, price_value, currency, period, description,
-                        area, area_unit, rooms, renovation, internet, television, parking, 
-                        rooms_offered, floor, floors_total, rent_pledge, params_str
-                    ])
+                        # Добавляем данные в список
+                        data.append([
+                            offer_id, type_, property_type, category, url, creation_date, last_update,
+                            country, region, locality, address, latitude, longitude,
+                            agent_name, agency_id, price_value, currency, period, description,
+                            area, area_unit, rooms, renovation, internet, television, parking, 
+                            rooms_offered, floor, floors_total, rent_pledge, params_str, photo_list
+                        ])
 
-                    # Очистка обработанных данных
-                    elem.clear()
+                        # Очистка обработанных данных
+                        elem.clear()
 
-            # Создание DataFrame
-            self.apartment_df = pd.DataFrame(data, columns=[
-                'ID', 'Тип', 'Тип собственности', 'Категория', 'Ссылка', 'Дата создания', 'Дата обновления',
-                'Страна', 'Регион', 'Населенный пункт', 'Адрес', 'Широта', 'Долгота',
-                'Имя агента', 'ID агента', 'Цена', 'Валюта', 'Период', 'Описание',
-                'Площадь', 'Ед. измерения', 'Комнаты', 'Ремонт', 'Интернет', 'Телевидение', 'Парковка', 
-                'Количество комнат', 'Этаж', 'Количество этажей', 'Сумма оплаты', 'Параметры'
-            ])
-            self.logger.debug('Данные о квартирах успешно извлечены.')
+                # Создание DataFrame
+                self.apartment_df = pd.DataFrame(data, columns=[
+                    'ID', 'Тип', 'Тип собственности', 'Категория', 'Ссылка', 'Дата создания', 'Дата обновления',
+                    'Страна', 'Регион', 'Населенный пункт', 'Адрес', 'Широта', 'Долгота',
+                    'Имя агента', 'ID агента', 'Цена', 'Валюта', 'Период', 'Описание',
+                    'Площадь', 'Ед. измерения', 'Комнаты', 'Ремонт', 'Интернет', 'Телевидение', 'Парковка', 
+                    'Количество комнат', 'Этаж', 'Количество этажей', 'Сумма оплаты', 'Параметры', 'Фотографии'
+                ])
+                self.logger.debug('Данные о квартирах успешно извлечены.')
 
-        except etree.XMLSyntaxError as e:
-            # Извлекаем номер строки с помощью новой функции
-            error_line_number = self.extract_line_number_from_error(str(e))
-            self.log_problematic_line(temp_output, error_line_number)
-            self.logger.error(f'Ошибка разбора XML: {e}')
-            raise ValueError(f'Ошибка разбора XML: {e}')
+            except etree.XMLSyntaxError as e:
+                # Извлекаем номер строки с помощью новой функции
+                error_line_number = self.extract_line_number_from_error(str(e))
+                self.log_problematic_line(temp_output, error_line_number)
+                self.logger.error(f'Ошибка разбора XML: {e}')
+                raise ValueError(f'Ошибка разбора XML: {e}')
 
-        except Exception as e:
-            self.logger.error(f'Произошла ошибка: {e}')
-            raise ValueError(f'Произошла ошибка: {e}')
+            except Exception as e:
+                self.logger.error(f'Произошла ошибка: {e}')
+                raise ValueError(f'Произошла ошибка: {e}')
 
 
 
