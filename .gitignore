@@ -50,3 +50,5 @@ config.py
 run_debug.py
 run_compare.py
 run_tests.py
+cleaned_apartments.xml
+raw_apartments.xml
