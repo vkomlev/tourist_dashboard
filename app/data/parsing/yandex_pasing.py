@@ -68,7 +68,7 @@ class ParseYandexMap(Parse):
         Returns:
             Dict[str, str]: Словарь с названиями локаций и их URL.
         """
-        restart = 0
+        restart = -3
         while self.MAX_RETRIES > restart:
             try:
                 dict_locations: Dict[str, str] = {}
@@ -121,6 +121,7 @@ class ParseYandexMap(Parse):
                     logger.warning("Неизвестная структура страницы.")
                     self.driver.close()
                     self.driver.quit()
+                    restart += 1
                     continue
 
                 logger.info(f"Получено {len(dict_locations)} локаций для города {region_city_loc}.")
@@ -128,6 +129,7 @@ class ParseYandexMap(Parse):
 
             except Exception as e:
                 logger.error(f"Ошибка в методе get_locations: {e}")
+                restart += 1
                 # raise ParseError(f"Ошибка получения локаций: {e}") from e
         return {}
 
