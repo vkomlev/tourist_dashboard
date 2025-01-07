@@ -249,6 +249,33 @@ class Region_page_dashboard(City_page_dashboard):
 
         return average_temps
     
+    def prepare_tourist_count_data(self, region_id: int) -> pd.DataFrame:
+            """
+            Получает данные о туристическом потоке по регионам и формирует датафрейм.
+
+            Args:
+                region_id (int): Идентификатор региона.
+
+            Returns:
+                pd.DataFrame: Данные о туристическом потоке, сгруппированные по годам.
+            """
+            try:
+                # Инициализация репозитория и получение данных
+                repository = MetricValueRepository()
+                data = repository.get_region_metric_value(id_region = region_id,id_metric = 2)
+
+                # Преобразуем данные в датафрейм
+                df = pd.DataFrame(data, columns=["id_region", "value", "month", "year"])
+                df['value'] = df['value'].astype(int)
+                # Группируем данные по годам
+                df_grouped = df.groupby(['year', 'month'], as_index=False).sum()
+                logger.debug(f"Подготовлены данные для гистограммы по региону {region_id}.")
+                return df_grouped
+
+            except Exception as e:
+                logger.error(f"Ошибка при подготовке данных для региона {region_id}: {e}")
+                return pd.DataFrame()
+    
     def get_region_mean_night(self, 
                          id_region:int,
                          year:int):
@@ -308,8 +335,8 @@ class Region_page_dashboard(City_page_dashboard):
         for x in filter_night['month']:
             mass_tour = sum(filter_tourist['tourist'][x-3: x])
             for y in range(x-3, x):
-                month_night = int(filter_night['night'][(x//3)-1]*(filter_tourist['tourist'][y]/mass_tour))
-                mean_night = (month_night//filter_tourist['tourist'][y]) + 1
+                month_night = float(filter_night['night'][(x//3)-1]*(filter_tourist['tourist'][y]/mass_tour))
+                mean_night = (month_night/filter_tourist['tourist'][y]) + 1
                 filter_tourist_night['Количество ночевок'].append(mean_night)
                 filter_tourist_night['Месяц'].append(month[y+1])
         df = pd.DataFrame(filter_tourist_night)
@@ -325,4 +352,10 @@ class Region_page_dashboard(City_page_dashboard):
             } 
             ).sort_values('Оценка') 
         return df
-        
+    
+    def region_overall_calculation(self, id_region):
+        # Рассчитываем общие показатели
+        region_calc = Region_calc(id_region)
+        overall_metrics = region_calc.get_overall_metrics()
+        segment_scores = region_calc.get_segment_scores()
+        return overall_metrics, segment_scores

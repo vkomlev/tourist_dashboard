@@ -7,8 +7,10 @@ import random
 import plotly.express as px
 from dash import Dash, html, dcc, Input, Output
 
-from app.reports.table_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
+from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
 from app.data.database.models_repository import MetricValueRepository
+from app.logging_config import logger
+from app.data.score.base_assessment import OverallTourismEvaluation 
 
 
 class Main_page_plot:
@@ -36,6 +38,23 @@ class Main_page_plot:
         plt.close()
 
 class Region_page_plot:
+    # Интерпретации оценок
+
+    def __init__(self): 
+        self.interpretations = { 
+            (1.0, 2.0): "Туристская инфраструктура слабо развита, требуется значительное улучшение.", 
+            (2.1, 3.0): "Средний уровень, подходит для локальных туристов, но имеет ограничения для международного туризма.", 
+            (3.1, 4.0): "Хорошая инфраструктура, пригодная для национальных и международных туристов.", 
+            (4.1, 5.0): "Высокий уровень инфраструктуры, готовый к приему большого турпотока и международных мероприятий." 
+        } 
+ 
+    # Вспомогательная функция для интерпретации оценок
+    def get_interpretation(self, rating): 
+        for (low, high), text in self.interpretations.items(): 
+            if low <= rating <= high: 
+                return text 
+        return "Нет данных."
+    
     def plot_region_flow_histogram(self, region_id, region_name):
             rpd = Region_page_dashboard()
             df = rpd.get_region_tourist_flow_data(region_id)
@@ -52,8 +71,7 @@ class Region_page_plot:
             os.makedirs(output_dir, exist_ok=True)
             plt.savefig(os.path.join(output_dir, f'histogram_flow_{region_id}.png'))
             plt.close()
-
-    
+ 
 
     def plot_region_dynamics_tourist(self, id_region, year):
         """График турпотока для нескольких годов"""
@@ -77,6 +95,8 @@ class Region_page_plot:
                           ):
         dp = Region_page_dashboard()
         df = dp.get_region_mean_night(id_region=id_region, year=year)
+        logger.debug(f"Данные для графика: {df.head(12)}")
+        logger.debug(f"Данные для графика: {df.info()}")
         fig_night = px.bar(df, x='Месяц', y='Количество ночевок', title='Количество ночевок на туриста в регионе') 
         return fig_night
     
@@ -86,6 +106,109 @@ class Region_page_plot:
         fig_segmetns = px.bar(df, x='Оценка', y='Название сегмента', title='Топ сегментов туризма') 
         return fig_segmetns
     
+    def create_tabs_layout(self, region_id: int):
+        """
+        Создает Dash layout с вкладками по годам.
+
+        Args:
+            region_id (int): Идентификатор региона.
+
+        Returns:
+            html.Div: Макет с вкладками.
+        """
+        try:
+            # Получаем данные и формируем список годов
+            rd = Region_page_dashboard()
+            df = rd.prepare_tourist_count_data(region_id=region_id)
+            years = df['year'].unique()
+
+            # Генерируем вкладки по годам
+            tabs = dcc.Tabs(
+                id='year-tabs',
+                value=str(years[0]),
+                children=[
+                    dcc.Tab(label=str(year), value=str(year)) for year in years
+                ]
+            )
+            return html.Div([
+                html.H3("Динамика турпотока по годам"),
+                tabs,
+                dcc.Graph(id='tourist-flow-chart')  # Пустой график
+            ])
+        except Exception as e:
+            logger.error(f"Ошибка при создании вкладок: {e}")
+            return html.Div([html.H3("Ошибка загрузки данных")])
+
+    def create_tourist_flow_chart(self, region_id: int, year: int) -> dict:
+        """
+        Генерирует график турпотока для выбранного года.
+
+        Args:
+            region_id (int): Идентификатор региона.
+            year (int): Год.
+
+        Returns:
+            dict: Объект figure для Plotly.
+        """
+        try:
+            # Получаем данные
+            rd = Region_page_dashboard()
+            df = rd.prepare_tourist_count_data(region_id=region_id)
+
+            # Фильтруем по году
+            df_year = df[df['year'] == year]
+
+            # Генерируем график
+            fig = px.bar(
+                df_year,
+                x='month',
+                y='value',
+                title=f"Туристический поток в {year} году",
+                labels={'value': 'Количество туристов', 'month': 'Месяц'}
+            )
+            logger.debug(f"Создан график турпотока для региона {region_id} за {year} год.")
+            return fig
+        except Exception as e:
+            logger.error(f"Ошибка при построении графика: {e}")
+            return {}
+    
+    def create_region_header(self, region_name: str):
+        return html.H2(f"Регион: {region_name}")
+
+    def create_rating_section(self, id_region):
+        rd = Region_page_dashboard()
+        overall_metrics, segment_scores = rd.region_overall_calculation(id_region)
+        fig_segments = self.plot_region_leisure_rating(id_region)
+        overall = OverallTourismEvaluation(**overall_metrics)
+        rating = overall.calculate_overall_score()
+        stars = '★' * int(rating) + '☆' * (5 - int(rating))
+        description = self.get_interpretation(rating)
+        country_rank = f"место по стране 50" 
+        macro_rank = f"Место по макрорегиону 50"  
+        return html.Div([
+            html.H2(f"Рейтинг: {rating:.1f} {stars}"),
+            dcc.Graph(figure=fig_segments),
+            html.P(description),
+            html.P(country_rank), 
+            html.P(macro_rank),
+        ],)
+
+    def create_details_section(self, id_region):
+        rd = Region_page_dashboard()
+        overall_metrics, segment_scores = rd.region_overall_calculation(id_region)
+        overall = OverallTourismEvaluation(**overall_metrics)
+        rating = overall.calculate_overall_score()
+        detail = (
+                f" Подробный расчет: \n Ttotal = 0.4 * {overall.segment_scores} + 0.2 * "
+                f" {overall.general_infra} + 0.1 * {overall.safety} +  0.1 * {overall.flow}" 
+                f"+ 0.05 * {overall.nights} + 0.05 * {overall.climate} + 0.05 * {overall.prices} + 0.05 * {overall.distance} = {rating:.2f}"
+        )
+        return html.Pre(detail)
+    
+    def create_night_count_section(self, id_region, year):
+        fig_night = self.plot_region_night(id_region, year)
+        return html.Div([dcc.Graph(figure = fig_night)])
+
 
 class City_page_plot:
     def __init__(self):
