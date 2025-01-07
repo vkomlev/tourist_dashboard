@@ -152,11 +152,12 @@ class MetricValueRepository(Database):
         logger.debug(f"Получено {len(records)} записей туристического потока.")
         return records
 
-    def get_tourist_count_data_by_region(
-        self, region_id: int
+    def get_region_metric_value(
+        self, id_region: int, id_metric: int,
     ) -> List[MetricValue]:
         """
         Получает данные туристического потока по конкретному региону.
+        Ранее назывался get_tourist_count_data_by_region
 
         Args:
             region_id (int): Идентификатор региона.
@@ -173,13 +174,13 @@ class MetricValueRepository(Database):
                 MetricValue.year,
             )
             .filter(
-                MetricValue.id_metric == 2,
-                MetricValue.id_region == region_id,
+                MetricValue.id_metric == id_metric,
+                MetricValue.id_region == id_region,
             )
             .all()
         )
         logger.debug(
-            f"Получено {len(records)} записей туристического потока для региона {region_id}."
+            f"Получено {len(records)} записей по метрике {id_metric} для региона {id_region}."
         )
         return records
 
@@ -321,6 +322,46 @@ class MetricValueRepository(Database):
         )
         return records
 
+    @manage_session
+    def get_info_loc_cit_reg(
+            self,
+            id_metric:int,
+            id_region:int = False,
+            id_city:int = False,
+            id_location:int = False
+    ) -> List[MetricValue]:
+        """
+        Получение данные для локации, города или региона по id_metric.
+        Return:
+            Dict[str, MetricValue]: Словарь записей MetricValue.
+        """
+        if not (id_region or id_city or id_location):
+            logger.warning(f"Не передано ничего для поиска, а именно: id_region, id_city, id_location ")
+            return False
+        id_start = {'id_region': id_region,
+                    'id_city': id_city,
+                    'id_location': id_location
+                    }
+        slov = {'id_region': MetricValue.id_region,
+                'id_city': MetricValue.id_city,
+                'id_location': MetricValue.id_location
+                }
+        id_over = {k:v for k,v in id_start.items() if v}
+        records= (
+        self.session
+        .query(
+            MetricValue.value
+        )
+        .filter(
+            MetricValue.id_metric == id_metric,
+            slov[list(id_over.keys())[0]] == list(id_over.values())[0]
+        )
+        .all()
+        )
+        logger.debug(
+            f"Получена информация по {id_over}"
+        )
+        return records
 class LocationTypeRepository(Database):
     """
     Репозиторий для работы с моделью LocationType.
@@ -401,6 +442,23 @@ class LocationsRepository(JSONRepository):
         if len(location) > 1:
             logger.error(f'Поиск по id_yandex - {id_yandex} в БД нашел несколько совпадений: {len(location)}!!!!!')
         return location[0] if location else None
+    
+    @manage_session
+    def get_unique_types(self)->set:
+        """
+        Извлекает все уникальные типы из локаций с id_location > 2614000.
+
+        Returns:
+            set: Множество всех уникальных типов.
+        """
+        locations = self.session.query(Location).filter(Location.id_location > 2614000).all()
+
+        types = set()
+        for location in locations:
+            location_types = location.characters.get('types', [])
+            types.update(location_types)
+        
+        return types
 
     @manage_session
     def load_info_loc_yandex(

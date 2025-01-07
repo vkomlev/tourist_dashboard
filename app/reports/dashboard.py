@@ -121,19 +121,14 @@ def create_dashboard(flask_server):
             region_name = region_info.region_name 
         except Exception: 
             return html.H2("Регион не найден"), "", ""
-# получаем рассчитаные значения по туризму региона 
+        # получаем рассчитаные значения по туризму региона 
         dp = Region_calc(id_region=id_region) 
         result_overall = dp.get_overall_metrics() 
- 
-        result_segment = dp.get_segment_scores() 
-        df = pd.DataFrame( 
-            { 
-            'Название сегмента':list(result_segment.keys()), 
-            'Оценка':list(result_segment.values()) 
-            } 
-            ).sort_values('Оценка') 
+
         # Создаем график по топу сегментов туризма 
-        fig = px.bar(df, x='Оценка', y='Название сегмента', title='Топ сегментов туризма') 
+        dp = Region_page_plot()
+        fig_segmetns = dp.plot_region_leisure_rating(id_region=id_region)
+        fig_night = dp.plot_region_night(id_region=id_region, year=2023)
         dp = OverallTourismEvaluation(**result_overall) 
         rating = dp.calculate_overall_score() 
  
@@ -160,11 +155,12 @@ def create_dashboard(flask_server):
             header,  
             html.Div([ 
                 html.H2(f"Рейтинг: {rating:.1f} {stars}"), 
-                dcc.Graph(figure=fig), 
+                dcc.Graph(figure=fig_segmetns), 
                 html.P(description), 
                 html.P(country_rank), 
                 html.P(macro_rank), 
-                html.Div(id='tabs-content') 
+                # html.Div(id='tabs-content'), 
+                dcc.Graph(figure=fig_night)
             ]), 
             detailed 
             ) 

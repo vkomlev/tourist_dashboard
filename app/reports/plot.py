@@ -2,6 +2,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
+import plotly.express as px
 import random
 import plotly.express as px
 from dash import Dash, html, dcc, Input, Output
@@ -56,8 +57,9 @@ class Region_page_plot:
     
 
     def plot_region_dynamics_tourist(self, id_region, year):
+        """График турпотока для нескольких годов"""
         dp = MetricValueRepository()
-        tur = dp.get_tourist_count_data_by_region(region_id=id_region)
+        tur = dp.get_region_metric_value(region_id=id_region)
         df = {
             'x': [i[2] for i in tur],
             'y': [i[1] for i in tur],
@@ -70,9 +72,20 @@ class Region_page_plot:
         fig = px.line(df, x='x', y='y').show()
         return fig
     
+    def plot_region_night(self, 
+                          id_region:int,
+                          year:int
+                          ):
+        dp = Region_page_dashboard()
+        df = dp.get_region_night(id_region=id_region, year=year)
+        fig_night = px.bar(df, x='месяц', y='Количество ночевок', title='Топ сегментов туризма') 
+        return fig_night
+    
     def plot_region_leisure_rating(self, id_region):
-        # перенести из дэш
-        pass
+        dp = Region_page_dashboard()
+        df = dp.get_region_leisure_rating(id_region=id_region)
+        fig_segmetns = px.bar(df, x='Оценка', y='Название сегмента', title='Топ сегментов туризма') 
+        return fig_segmetns
     
     def create_tabs_layout(self, region_id: int):
         """
