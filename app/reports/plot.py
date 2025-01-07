@@ -1,8 +1,9 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
-from app.reports.table_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard
+from app.reports.table_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
 import os
 import pandas as pd
+import random
 
 class Main_page_plot:
     @staticmethod
@@ -45,6 +46,94 @@ class Region_page_plot:
             os.makedirs(output_dir, exist_ok=True)
             plt.savefig(os.path.join(output_dir, f'histogram_flow_{region_id}.png'))
             plt.close()
+
+    def plot_region_leisure_rating(self, id_region):
+
+        leisure_data = id_region
+        # ЗАГЛУШКА
+        leisure_data = {
+            'Пляжный отдых': 4.5,
+            'Деловой': 3.8,
+            'Оздоровительный туризм': 0,
+            'Экстремальный туризм': 4.9,
+            'Паломнический': None,
+            'Познавательный': 3.2,
+            'Экологический': None,
+            'Экскурсионный': None
+        }
+
+        # Заменяем отсутствующие или равные 0 оценки на случайную из диапазона [2:4]
+        for leisure_name, rating in leisure_data.items():
+            if rating is None or rating == 0:
+                leisure_data[leisure_name] = random.choice([2, 3, 4])
+
+        # Сортируем данные по возростанию
+        sorted_leisure_data = dict(sorted(leisure_data.items(), key=lambda item: item[1]))
+
+        # Разделяем ключи и значения на два отдельных списка
+        leisure_names = list(sorted_leisure_data.keys())
+        ratings = list(sorted_leisure_data.values())
+
+        # Создаем график
+        plt.barh(leisure_names, ratings, color='skyblue')
+        plt.xlabel('Оценка')
+        plt.title('Развитость вида отдыха в Регионе')
+        plt.show()
+
+    def plot_region_results_card(self, id_region):
+        # ЗАГЛУШКА
+        results_data = {
+            'Итог 1': {
+                'Под итог 1': 312,
+                'Под итог 2': 12,
+                'Под итог 3': 312
+            },
+            'Итог 2': 456,
+            'Итог 3': 456,
+            'Итог 4': 456,
+            '':''
+        }
+
+        # Создаем пустой список для строк данных
+        data = []
+
+        # Итерируем по данным и добавляем их в список строк данных
+        for label, value in results_data.items():
+            if isinstance(value, dict):
+                data.append(f"{label}:")
+                for sub_label, sub_value in value.items():
+                    data.append(f"{''.join(['  ' for i in range(len(label))])}{sub_label} - {sub_value}")
+            else:
+                data.append(f"{label} - {value}")
+
+        # Определяем количество строк на карточке
+        num_rows = len(data) // 2 + len(data) % 2
+
+        # Определяем количество столбцов на карточке
+        num_cols = 2
+
+        # Создаем фигуру и оси с уменьшенным размером и уменьшенным расстоянием между строк и столбцами
+        fig = plt.figure(figsize=(8, num_rows * 0.5))
+        gs = fig.add_gridspec(num_rows, num_cols, hspace=0.05, wspace=0.02)
+        ax = gs.subplots(sharex=True, sharey=True)
+
+        # Итерируем по элементам и добавляем их на карточку с выравниванием по левому краю
+        row = 0
+        col = 0
+        for line in data:
+            ax[row, col].text(0.05, 0.5, line, fontsize=12, ha='left', va='center')
+            ax[row, col].axis('off')
+            row += 1
+            if row == num_rows:
+                row = 0
+                col += 1
+
+        # Добавляем заголовок
+        fig.suptitle('Результаты', fontsize=16)
+
+        # Отображаем карточку
+        plt.tight_layout()
+        plt.show()
     
 
 class City_page_plot:
@@ -128,3 +217,47 @@ class City_page_plot:
         os.makedirs(output_dir, exist_ok=True)
         plt.savefig(os.path.join(output_dir, f'histogram_city_{id_city}_temperature_water.png'))
         plt.close()
+
+    def create_layout(self, id_city):
+        """Создает визуальное представление погодных условий."""
+        # Словарь символов для каждого погодного условия
+        symbols = {
+            'warm': '☀️',  
+            'cold': '❄️', 
+            'warm_water': '🌊',
+            'rainfall': '🌧️' 
+        }
+        
+        # Получаем данные о погоде
+        df = City_page_dashboard()
+        weather_summary = df.get_city_weather_summary(id_city=id_city)
+
+        # Создаем фигуру и оси для 4 подграфиков
+        fig, axs = plt.subplots(2, 2, figsize=(10, 8))  # 2 строки, 2 столбца
+        fig.patch.set_facecolor('white')  # Устанавливаем белый фон
+
+        # Определяем условия
+        conditions = ['warm', 'cold', 'warm_water', 'rainfall']
+        colors = ['orange', 'blue', 'cyan', 'green']  # Цвета для значков
+
+        for ax, condition, color in zip(axs.flatten(), conditions, colors):
+            ax.set_facecolor('white')  # Устанавливаем белый фон для каждого подграфика
+            ax.axis('off')  # Убираем оси
+
+            # Добавляем значок слева
+            ax.text(0.2, 0.5, symbols[condition], fontsize=40, ha='center', va='center', color=color)
+
+            # Получаем соответствующие данные для каждого погодного условия
+            data = weather_summary[condition]
+
+            # Добавляем названия месяцев и значения справа от значка
+            for i, (month, value) in enumerate(data.items()):
+                ax.text(0.5, 0.5 - i * 0.1, f"{month}: {value}°C" if condition != 'rainfall' else f"{month}: {value} мм", 
+                        fontsize=12, ha='left', va='center')
+
+        # Устанавливаем общий заголовок
+        plt.suptitle('Погода', fontsize=16)
+
+        # Показываем график
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Убираем лишнее пространство
+        plt.show()

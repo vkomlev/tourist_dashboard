@@ -176,22 +176,22 @@ class City_page_dashboard(Weather_page_dashboard):
 
         # 1. Самые теплые месяцы
         city_temp_df['month_name'] = city_temp_df['month'].apply(lambda x: month_names[x - 1])
-        warm_months = city_temp_df.nlargest(3, 'day_t')[['month_name', 'day_t']]
-        weather_summary['warm_months'] = {row['month_name']: row['day_t'] for index, row in warm_months.iterrows()}
+        warm = city_temp_df.nlargest(3, 'day_t')[['month_name', 'day_t']]
+        weather_summary['warm'] = {row['month_name']: row['day_t'] for index, row in warm.iterrows()}
 
         # 2. Самые холодные месяцы
-        cold_months = city_temp_df.nsmallest(3, 'day_t')[['month_name', 'day_t']]
-        weather_summary['cold_months'] = {row['month_name']: row['day_t'] for index, row in cold_months.iterrows()}
+        cold = city_temp_df.nsmallest(3, 'day_t')[['month_name', 'day_t']]
+        weather_summary['cold'] = {row['month_name']: row['day_t'] for index, row in cold.iterrows()}
 
         # 3. Самые теплые месяцы для моря
         city_water_temp_df['month_name'] = city_water_temp_df['month'].apply(lambda x: month_names[x - 1])
-        warm_water_months = city_water_temp_df.nlargest(3, 'water')[['month_name', 'water']]
-        weather_summary['warm_water_months'] = {row['month_name']: row['water'] for index, row in warm_water_months.iterrows()}
+        warm_water = city_water_temp_df.nlargest(3, 'water')[['month_name', 'water']]
+        weather_summary['warm_water'] = {row['month_name']: row['water'] for index, row in warm_water.iterrows()}
 
         # 4. Самые дождливые месяцы
         city_rainfall_df['month_name'] = city_rainfall_df['month'].apply(lambda x: month_names[x - 1])
-        rainy_months = city_rainfall_df.nlargest(3, 'rainfall')[['month_name', 'rainfall']]
-        weather_summary['rainy_months'] = {row['month_name']: row['rainfall'] for index, row in rainy_months.iterrows()}
+        rainfall = city_rainfall_df.nlargest(3, 'rainfall')[['month_name', 'rainfall']]
+        weather_summary['rainfall'] = {row['month_name']: row['rainfall'] for index, row in rainfall.iterrows()}
         return weather_summary
 
 
@@ -247,3 +247,6 @@ class Region_page_dashboard(City_page_dashboard):
             }).reset_index()
 
         return average_temps
+    
+    # def get_region_leisure_rating(self, id_region):
+        

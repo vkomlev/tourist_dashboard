@@ -34,4 +34,3 @@ def region(id):
         return render_template('region.html', **region_details)
     else:
         return render_template('404.html'), 404
-
