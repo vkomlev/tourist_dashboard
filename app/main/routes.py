@@ -27,10 +27,10 @@ def index():
     Main_page_plot.plot_heatmap_tourist_count_data()
     return render_template('index.html', map_html=map_html, tourism_table=tourism_table)
 
-# @main.route('/region/<int:id>')
-# def region(id):
-#     region_details = get_region_details(id)
-#     if region_details:
-#         return render_template('region.html', **region_details)
-#     else:
-#         return render_template('404.html'), 404
+#@main.route('/region/<int:id>')
+#def region(id):
+#    region_details = get_region_details(id)
+#    if region_details:
+#        return render_template('region.html', **region_details)
+#    else:
+#        return render_template('404.html'), 404

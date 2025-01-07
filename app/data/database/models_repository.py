@@ -280,6 +280,47 @@ class MetricValueRepository(Database):
                 f"Получено {len(records)} записей о погоде ({key}) для города {id_city}."
             )
         return records
+    
+    @manage_session
+    def get_info_loc_cit_reg(
+            self,
+            id_metric:int,
+            id_region:int = False,
+            id_city:int = False,
+            id_location:int = False
+    ) -> List[MetricValue]:
+        """
+        Получение данные для локации, города или региона по id_metric.
+        Return:
+            Dict[str, MetricValue]: Словарь записей MetricValue.
+        """
+        if not (id_region or id_city or id_location):
+            logger.warning(f"Не передано ничего для поиска, а именно: id_region, id_city, id_location ")
+            return False
+        id_start = {'id_region': id_region,
+                    'id_city': id_city,
+                    'id_location': id_location
+                    }
+        slov = {'id_region': MetricValue.id_region,
+                'id_city': MetricValue.id_city,
+                'id_location': MetricValue.id_location
+                }
+        id_over = {k:v for k,v in id_start.items() if v}
+        records= (
+        self.session
+        .query(
+            MetricValue.value
+        )
+        .filter(
+            MetricValue.id_metric == id_metric,
+            slov[list(id_over.keys())[0]] == list(id_over.values())[0]
+        )
+        .all()
+        )
+        logger.debug(
+            f"Получена информация по {id_over}"
+        )
+        return records
 
     @manage_session
     def get_info_loc_cit_reg(

@@ -2,6 +2,7 @@ import pandas as pd
 from app.data.database import MetricValueRepository, CitiesRepository
 from app.models import Region
 from app.logging_config import logger
+from app.data.calc.base_calc import Region_calc
 
 class Main_page_dashboard:
     @staticmethod
@@ -248,32 +249,43 @@ class Region_page_dashboard(City_page_dashboard):
 
         return average_temps
     
-    def get_region_night(self, id_region:int):
+    def get_region_night(self, 
+                         id_region:int,
+                         year:int):
         """структуризация данных для графика среднего количества ночевок"""
         dp = MetricValueRepository()
         night = dp.get_region_metric_value(
                 id_region=id_region,
                 id_metric=3
                 )
-        filter_night = {'value':[],
-                        'month':[],
+        night = [i for i in night if int(i[3]) == year]
+        filter_night = {'Количество ночевок':[],
+                        'месяц':[],
                         'year':[]
                         }
         for i in range(len(night)):
             long = len(night)
             if i != long - 1:
-                filter_night['value'].append(
+                filter_night['Количество ночевок'].append(
                     int(night[long-1-i][1])-
                     int(night[long-2-i][1]))
-                filter_night['month'].append(night[long-1-i][2])
+                filter_night['месяц'].append(night[long-1-i][2])
                 filter_night['year'].append(night[long-1-i][3])
             else:
-                filter_night['value'].append(night[0][1])
-                filter_night['month'].append(night[0][2])
+                filter_night['Количество ночевок'].append(int(night[0][1]))
+                filter_night['месяц'].append(night[0][2])
                 filter_night['year'].append(night[0][3])
-        df = pd.DataFrame(filter_night).sort_values('month')
-        print(df)
-        return
+        df = pd.DataFrame(filter_night).sort_values('месяц')
+        return df
     
-    # def get_region_leisure_rating(self, id_region):
+    def get_region_leisure_rating(self, id_region):
+        dp = Region_calc(id_region=id_region) 
+        result_segment = dp.get_segment_scores() 
+        df = pd.DataFrame( 
+            { 
+            'Название сегмента':list(result_segment.keys()), 
+            'Оценка':list(result_segment.values()) 
+            } 
+            ).sort_values('Оценка') 
+        return df
         

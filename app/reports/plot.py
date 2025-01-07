@@ -1,12 +1,15 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
-from app.reports.table_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
-from app.data.database import MetricValueRepository
 import os
 import pandas as pd
 import plotly.express as px
 import random
+import plotly.express as px
 from dash import Dash, html, dcc, Input, Output
+
+from app.reports.table_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
+from app.data.database.models_repository import MetricValueRepository
+
 
 class Main_page_plot:
     @staticmethod
@@ -50,20 +53,12 @@ class Region_page_plot:
             plt.savefig(os.path.join(output_dir, f'histogram_flow_{region_id}.png'))
             plt.close()
 
-    def plot_region_leisure_rating(self, id_region):
-        # перенести из дэш
-        pass
+    
 
-    def plot_region_dynamics_tourist(self, 
-                                     id_region:int, 
-                                     year:int
-                                     ):
+    def plot_region_dynamics_tourist(self, id_region, year):
         """График турпотока для нескольких годов"""
         dp = MetricValueRepository()
-        # Запрашиваем данные по турпотоку
-        tur = dp.get_region_metric_value(
-            id_region=id_region, 
-            id_metric= 2)
+        tur = dp.get_region_metric_value(region_id=id_region)
         df = {
             'x': [i[2] for i in tur],
             'y': [i[1] for i in tur],
@@ -75,103 +70,21 @@ class Region_page_plot:
         # df = df['x'].to_dict()|df['y'].to_dict()
         fig = px.line(df, x='x', y='y').show()
         return fig
-
+    
     def plot_region_night(self, 
-                          id_region:int
+                          id_region:int,
+                          year:int
                           ):
         dp = Region_page_dashboard()
-        df = dp.get_region_night(id_region=id_region)
-        
-
-
-    # def plot_region_leisure_rating(self, id_region):
-    #     # Не используется уже
-    #     leisure_data = id_region
-    #     # ЗАГЛУШКА
-    #     leisure_data = {
-    #         'Пляжный отдых': 4.5,
-    #         'Деловой': 3.8,
-    #         'Оздоровительный туризм': 0,
-    #         'Экстремальный туризм': 4.9,
-    #         'Паломнический': None,
-    #         'Познавательный': 3.2,
-    #         'Экологический': None,
-    #         'Экскурсионный': None
-    #     }
-
-    #     # Заменяем отсутствующие или равные 0 оценки на случайную из диапазона [2:4]
-    #     for leisure_name, rating in leisure_data.items():
-    #         if rating is None or rating == 0:
-    #             leisure_data[leisure_name] = random.choice([2, 3, 4])
-
-    #     # Сортируем данные по возростанию
-    #     sorted_leisure_data = dict(sorted(leisure_data.items(), key=lambda item: item[1]))
-
-    #     # Разделяем ключи и значения на два отдельных списка
-    #     leisure_names = list(sorted_leisure_data.keys())
-    #     ratings = list(sorted_leisure_data.values())
-
-    #     # Создаем график
-    #     plt.barh(leisure_names, ratings, color='skyblue')
-    #     plt.xlabel('Оценка')
-    #     plt.title('Развитость вида отдыха в Регионе')
-    #     plt.show()
-
-    # def plot_region_results_card(self, id_region):
-    #     # Не используется уже
-    #     # ЗАГЛУШКА
-    #     results_data = {
-    #         'Итог 1': {
-    #             'Под итог 1': 312,
-    #             'Под итог 2': 12,
-    #             'Под итог 3': 312
-    #         },
-    #         'Итог 2': 456,
-    #         'Итог 3': 456,
-    #         'Итог 4': 456,
-    #         '':''
-    #     }
-
-    #     # Создаем пустой список для строк данных
-    #     data = []
-
-    #     # Итерируем по данным и добавляем их в список строк данных
-    #     for label, value in results_data.items():
-    #         if isinstance(value, dict):
-    #             data.append(f"{label}:")
-    #             for sub_label, sub_value in value.items():
-    #                 data.append(f"{''.join(['  ' for i in range(len(label))])}{sub_label} - {sub_value}")
-    #         else:
-    #             data.append(f"{label} - {value}")
-
-    #     # Определяем количество строк на карточке
-    #     num_rows = len(data) // 2 + len(data) % 2
-
-    #     # Определяем количество столбцов на карточке
-    #     num_cols = 2
-
-    #     # Создаем фигуру и оси с уменьшенным размером и уменьшенным расстоянием между строк и столбцами
-    #     fig = plt.figure(figsize=(8, num_rows * 0.5))
-    #     gs = fig.add_gridspec(num_rows, num_cols, hspace=0.05, wspace=0.02)
-    #     ax = gs.subplots(sharex=True, sharey=True)
-
-    #     # Итерируем по элементам и добавляем их на карточку с выравниванием по левому краю
-    #     row = 0
-    #     col = 0
-    #     for line in data:
-    #         ax[row, col].text(0.05, 0.5, line, fontsize=12, ha='left', va='center')
-    #         ax[row, col].axis('off')
-    #         row += 1
-    #         if row == num_rows:
-    #             row = 0
-    #             col += 1
-
-    #     # Добавляем заголовок
-    #     fig.suptitle('Результаты', fontsize=16)
-
-    #     # Отображаем карточку
-    #     plt.tight_layout()
-    #     plt.show()
+        df = dp.get_region_night(id_region=id_region, year=year)
+        fig_night = px.bar(df, x='месяц', y='Количество ночевок', title='Топ сегментов туризма') 
+        return fig_night
+    
+    def plot_region_leisure_rating(self, id_region):
+        dp = Region_page_dashboard()
+        df = dp.get_region_leisure_rating(id_region=id_region)
+        fig_segmetns = px.bar(df, x='Оценка', y='Название сегмента', title='Топ сегментов туризма') 
+        return fig_segmetns
     
 
 class City_page_plot:
