@@ -1,12 +1,12 @@
-from dash import Dash, html, dcc, Input, Output 
+from dash import Dash, html, dcc, Input, Output, State 
 import plotly.express as px 
 import pandas as pd 
-from dash.dependencies import State 
+
 from app.logging_config import logger 
 from app.data.database.models_repository import RegionRepository 
 from app.data.calc.base_calc import Region_calc 
 from app.data.score.base_assessment import OverallTourismEvaluation 
-from app.reports.plot import Region_page_plot 
+from app.reports.plot import Region_page_plot
  
  
 # Интерпретации оценок 
@@ -39,22 +39,62 @@ def create_dashboard(flask_server):
     ) 
  
     # Макет с поддержкой динамического URL 
-    app_dash.layout = html.Div([ 
-        dcc.Location(id='url', refresh=False),  # Добавляем поддержку URL 
-        html.H1("Комплексная оценка туристской отрасли регионов"), 
+    app_dash.layout = html.Div([
+        dcc.Location(id='url', refresh=False),
+        html.H1("Комплексная оценка туристской отрасли регионов"),
+
+        # Вывод динамического региона
+        html.Div(id='dynamic-region-header'),
+
+        # Блок оценки
+        html.Div(id='rating-display'),
+
+        # Детальный расчет
+        html.Div(id='detailed-calculation', style={'margin-top': '20px'}),
+
+        # Добавляем новый блок для динамики турпотока
+        html.Div(id='tourist-flow-section', style={'margin-top': '20px'})
+    ])
  
-        # Вывод динамического региона 
-        html.Div(id='dynamic-region-header'), 
- 
-        # Блок оценки 
-        html.Div(id='rating-display'), 
- 
-        # Детальный расчет 
-        html.Div(id='detailed-calculation', style={'margin-top': '20px'}), 
- 
-    ]) 
- 
- 
+    @app_dash.callback(
+        Output('tourist-flow-section', 'children'),
+        Input('url', 'pathname')
+    )
+    def load_tourist_flow_section(pathname):
+        """
+        Загружает секцию с вкладками для графиков турпотока.
+        """
+        try:
+            # Извлекаем ID региона из URL
+            path_parts = pathname.split('/')
+            id_region = int(path_parts[-1]) if path_parts[-1].isdigit() else 0
+            rplot = Region_page_plot()
+            return rplot.create_tabs_layout(id_region)
+        except Exception as e:
+            logger.error(f"Ошибка загрузки секции турпотока: {e}")
+            return html.Div("Ошибка загрузки данных")
+
+    @app_dash.callback(
+        Output('tourist-flow-chart', 'figure'),
+        Input('year-tabs', 'value'),
+        State('url', 'pathname')
+    )
+    def update_tourist_flow_chart(selected_year, pathname):
+        """
+        Ленивая загрузка графиков по выбранному году.
+        """
+        try:
+            # Получаем ID региона
+            path_parts = pathname.split('/')
+            id_region = int(path_parts[-1]) if path_parts[-1].isdigit() else 0
+
+            # Загружаем график
+            rplot = Region_page_plot()
+            return rplot.create_tourist_flow_chart(id_region, int(selected_year))
+        except Exception as e:
+            logger.error(f"Ошибка обновления графика турпотока: {e}")
+            return {}
+
     # Функция обратного вызова для обработки URL и извлечения параметра ID 
     @app_dash.callback( 
         [Output('dynamic-region-header', 'children'), 

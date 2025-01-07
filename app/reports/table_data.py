@@ -248,5 +248,32 @@ class Region_page_dashboard(City_page_dashboard):
 
         return average_temps
     
+    def prepare_tourist_count_data(self, region_id: int) -> pd.DataFrame:
+            """
+            Получает данные о туристическом потоке по регионам и формирует датафрейм.
+
+            Args:
+                region_id (int): Идентификатор региона.
+
+            Returns:
+                pd.DataFrame: Данные о туристическом потоке, сгруппированные по годам.
+            """
+            try:
+                # Инициализация репозитория и получение данных
+                repository = MetricValueRepository()
+                data = repository.get_tourist_count_data_by_region(region_id)
+
+                # Преобразуем данные в датафрейм
+                df = pd.DataFrame(data, columns=["id_region", "value", "month", "year"])
+                df['value'] = df['value'].astype(int)
+                # Группируем данные по годам
+                df_grouped = df.groupby(['year', 'month'], as_index=False).sum()
+                logger.debug(f"Подготовлены данные для гистограммы по региону {region_id}.")
+                return df_grouped
+
+            except Exception as e:
+                logger.error(f"Ошибка при подготовке данных для региона {region_id}: {e}")
+                return pd.DataFrame()
+    
     # def get_region_leisure_rating(self, id_region):
         

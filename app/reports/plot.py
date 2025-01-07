@@ -8,6 +8,7 @@ from dash import Dash, html, dcc, Input, Output
 
 from app.reports.table_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
 from app.data.database.models_repository import MetricValueRepository
+from app.logging_config import logger
 
 
 class Main_page_plot:
@@ -73,6 +74,71 @@ class Region_page_plot:
         # перенести из дэш
         pass
     
+    def create_tabs_layout(self, region_id: int):
+        """
+        Создает Dash layout с вкладками по годам.
+
+        Args:
+            region_id (int): Идентификатор региона.
+
+        Returns:
+            html.Div: Макет с вкладками.
+        """
+        try:
+            # Получаем данные и формируем список годов
+            rd = Region_page_dashboard()
+            df = rd.prepare_tourist_count_data(region_id=region_id)
+            years = df['year'].unique()
+
+            # Генерируем вкладки по годам
+            tabs = dcc.Tabs(
+                id='year-tabs',
+                value=str(years[0]),
+                children=[
+                    dcc.Tab(label=str(year), value=str(year)) for year in years
+                ]
+            )
+            return html.Div([
+                html.H3("Динамика турпотока по годам"),
+                tabs,
+                dcc.Graph(id='tourist-flow-chart')  # Пустой график
+            ])
+        except Exception as e:
+            logger.error(f"Ошибка при создании вкладок: {e}")
+            return html.Div([html.H3("Ошибка загрузки данных")])
+
+    def create_tourist_flow_chart(self, region_id: int, year: int) -> dict:
+        """
+        Генерирует график турпотока для выбранного года.
+
+        Args:
+            region_id (int): Идентификатор региона.
+            year (int): Год.
+
+        Returns:
+            dict: Объект figure для Plotly.
+        """
+        try:
+            # Получаем данные
+            rd = Region_page_dashboard()
+            df = rd.prepare_tourist_count_data(region_id=region_id)
+
+            # Фильтруем по году
+            df_year = df[df['year'] == year]
+
+            # Генерируем график
+            fig = px.bar(
+                df_year,
+                x='month',
+                y='value',
+                title=f"Туристический поток в {year} году",
+                labels={'value': 'Количество туристов', 'month': 'Месяц'}
+            )
+            logger.debug(f"Создан график турпотока для региона {region_id} за {year} год.")
+            return fig
+        except Exception as e:
+            logger.error(f"Ошибка при построении графика: {e}")
+            return {}
 
 class City_page_plot:
     def __init__(self):
