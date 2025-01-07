@@ -5,27 +5,27 @@ import pandas as pd
 from app.logging_config import logger 
 from app.data.database.models_repository import RegionRepository 
 from app.data.calc.base_calc import Region_calc 
-from app.data.score.base_assessment import OverallTourismEvaluation 
+
 from app.reports.plot import Region_page_plot
  
  
-# Интерпретации оценок 
-interpretations = { 
-    (1.0, 2.0): "Туристская инфраструктура слабо развита, требуется значительное улучшение.", 
-    (2.1, 3.0): "Средний уровень, подходит для локальных туристов, но имеет ограничения для международного туризма.", 
-    (3.1, 4.0): "Хорошая инфраструктура, пригодная для национальных и международных туристов.", 
-    (4.1, 5.0): "Высокий уровень инфраструктуры, готовый к приему большого турпотока и международных мероприятий." 
-} 
- 
- 
-# Вспомогательная функция для интерпретации 
-def get_interpretation(rating): 
-    for (low, high), text in interpretations.items(): 
-        if low <= rating <= high: 
-            return text 
-    return "Нет данных." 
- 
- 
+def extract_region_id(pathname: str) -> int:
+    """
+    Извлекает идентификатор региона из URL.
+
+    Args:
+        pathname (str): Путь URL.
+
+    Returns:
+        int: Идентификатор региона.
+    """
+    try:
+        path_parts = pathname.split('/')
+        return int(path_parts[-1]) if path_parts[-1].isdigit() else 0
+    except Exception as e:
+        logger.error(f"Ошибка извлечения ID региона: {e}")
+        return 0
+     
 def create_dashboard(flask_server): 
     """ 
     Создание Dash-дэшборда с поддержкой динамических URL. 
@@ -50,11 +50,49 @@ def create_dashboard(flask_server):
         html.Div(id='rating-display'),
 
         # Детальный расчет
+        html.Div(id='score-calculation', style={'margin-top': '20px'}),
+
+        # Детальный расчет
         html.Div(id='detailed-calculation', style={'margin-top': '20px'}),
 
         # Добавляем новый блок для динамики турпотока
-        html.Div(id='tourist-flow-section', style={'margin-top': '20px'})
+        html.Div(id='tourist-flow-section', style={'margin-top': '20px'}),
+
+        # Добавляем блок количества ночевок
+        html.Div(id='tourist-nights-section', style={'margin-top': '20px'})
     ])
+
+    @app_dash.callback(
+        Output('score-calculation', 'children'),
+        Input('url', 'pathname')
+    )
+    def load_score_calc_section(pathname):
+        """
+        Загружает секцию с посегментным графиком оценок.
+        """
+        try:
+            region_id = extract_region_id(pathname)
+            rplot = Region_page_plot()
+            return rplot.create_rating_section(region_id)
+        except Exception as e:
+            logger.error(f"Ошибка загрузки секции рейтинга: {e}")
+            return html.Div("Ошибка загрузки данных")
+    
+    @app_dash.callback(
+        Output('detailed-calculation', 'children'),
+        Input('url', 'pathname')
+    )
+    def load_detailed_calc_section(pathname):
+        """
+        Загружает секцию с посегментным графиком оценок.
+        """
+        try:
+            region_id = extract_region_id(pathname)
+            rplot = Region_page_plot()
+            return rplot.create_details_section(region_id)
+        except Exception as e:
+            logger.error(f"Ошибка загрузки секции рейтинга: {e}")
+            return html.Div("Ошибка загрузки данных")
  
     @app_dash.callback(
         Output('tourist-flow-section', 'children'),
@@ -65,13 +103,28 @@ def create_dashboard(flask_server):
         Загружает секцию с вкладками для графиков турпотока.
         """
         try:
-            # Извлекаем ID региона из URL
-            path_parts = pathname.split('/')
-            id_region = int(path_parts[-1]) if path_parts[-1].isdigit() else 0
+            region_id = extract_region_id(pathname)
             rplot = Region_page_plot()
-            return rplot.create_tabs_layout(id_region)
+            return rplot.create_tabs_layout(region_id)
         except Exception as e:
             logger.error(f"Ошибка загрузки секции турпотока: {e}")
+            return html.Div("Ошибка загрузки данных")
+    
+    @app_dash.callback(
+        Output('tourist-nights-section', 'children'),
+        Input('url', 'pathname')
+    )
+    def load_tourist_nights_section(pathname):
+        """
+        Загружает секцию с вкладками для графиков количества ночевок.
+        """
+        try:
+            region_id = extract_region_id(pathname)
+            year = 2023
+            rplot = Region_page_plot()
+            return rplot.create_night_count_section(region_id, year)
+        except Exception as e:
+            logger.error(f"Ошибка загрузки секции ночевок: {e}")
             return html.Div("Ошибка загрузки данных")
 
     @app_dash.callback(
@@ -95,74 +148,39 @@ def create_dashboard(flask_server):
             logger.error(f"Ошибка обновления графика турпотока: {e}")
             return {}
 
+
     # Функция обратного вызова для обработки URL и извлечения параметра ID 
     @app_dash.callback( 
-        [Output('dynamic-region-header', 'children'), 
-         Output('rating-display', 'children'), 
-         Output('detailed-calculation', 'children')], 
+        Output('dynamic-region-header', 'children'), 
         Input('url', 'pathname')  # Получаем текущий URL 
     ) 
-    def update_dashboard(pathname): 
-        """ 
-        Обработчик для динамических URL с поддержкой ID региона. 
-        """ 
-        # Извлекаем ID из URL 
-        try: 
-            # Разделяем URL, чтобы получить id 
-            path_parts = pathname.split('/') 
-            id_region = int(path_parts[-1]) if path_parts[-1].isdigit() else 0 
-            logger.debug(f'region_id = {id_region}') 
- 
-            # Проверяем, существует ли такой регион 
-            dp = RegionRepository() 
-            region_info = dp.find_region_by_id(id_region=id_region) 
-            if not region_info: 
-                raise ValueError("Регион не найден") 
-            region_name = region_info.region_name 
-        except Exception: 
-            return html.H2("Регион не найден"), "", ""
-        # получаем рассчитаные значения по туризму региона 
-        dp = Region_calc(id_region=id_region) 
-        result_overall = dp.get_overall_metrics() 
+    
+    def update_dashboard_header(pathname):
+        """
+        Обработчик для динамических URL с поддержкой ID региона.
+        """
+        try:
+            # Извлекаем ID региона
+            region_id = extract_region_id(pathname)
+            logger.debug(f'region_id = {region_id}')
 
-        # Создаем график по топу сегментов туризма 
-        dp = Region_page_plot()
-        fig_segmetns = dp.plot_region_leisure_rating(id_region=id_region)
-        fig_night = dp.plot_region_night(id_region=id_region, year=2023)
-        dp = OverallTourismEvaluation(**result_overall) 
-        rating = dp.calculate_overall_score() 
- 
-        # Генерация звезд 
-        stars = '★' * int(rating) + '☆' * (5 - int(rating)) 
- 
-        # Описание и позиции 
-        description = get_interpretation(rating) 
-        country_rank = f"место по стране 50" 
-        macro_rank = f"Место по хз 50" 
- 
-        # Пример расчета 
-        detailed = html.Pre(f""" 
-        Подробный расчет: 
-        Ttotal = 0.4 * {dp.segment_scores} +  0.2 * {dp.general_infra} + 0.1 * {dp.safety} +  0.1 * {dp.flow} + 0.05 * {dp.nights} + 0.05 * {dp.climate} + 0.05 * {dp.prices} + 0.05 * {dp.distance} 
-               = {rating:.2f} 
-        """) 
- 
-        # Заголовок региона 
-        header = html.H2(f"Регион: {region_name}") 
- 
- 
-        return ( 
-            header,  
-            html.Div([ 
-                html.H2(f"Рейтинг: {rating:.1f} {stars}"), 
-                dcc.Graph(figure=fig_segmetns), 
-                html.P(description), 
-                html.P(country_rank), 
-                html.P(macro_rank), 
-                # html.Div(id='tabs-content'), 
-                dcc.Graph(figure=fig_night)
-            ]), 
-            detailed 
-            ) 
+            # Получаем данные региона
+            region_repo = RegionRepository()
+            region_info = region_repo.find_region_by_id(region_id)
+
+            if not region_info:
+                raise ValueError("Регион не найден")
+            region_name = region_info.region_name
+
+
+            # Формируем контент
+            rplot = Region_page_plot()
+            header = rplot.create_region_header(region_name)
+
+            return header
+
+        except Exception as e:
+            logger.error(f"Ошибка обновления дашборда: {e}")
+            return html.H2("Регион не найден"), "", ""
  
     return app_dash

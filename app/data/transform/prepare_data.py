@@ -262,7 +262,7 @@ class Region_page_dashboard(City_page_dashboard):
             try:
                 # Инициализация репозитория и получение данных
                 repository = MetricValueRepository()
-                data = repository.get_tourist_count_data_by_region(region_id)
+                data = repository.get_region_metric_value(id_region = region_id,id_metric = 2)
 
                 # Преобразуем данные в датафрейм
                 df = pd.DataFrame(data, columns=["id_region", "value", "month", "year"])
@@ -315,4 +315,10 @@ class Region_page_dashboard(City_page_dashboard):
             } 
             ).sort_values('Оценка') 
         return df
-        
+    
+    def region_overall_calculation(self, id_region):
+        # Рассчитываем общие показатели
+        region_calc = Region_calc(id_region)
+        overall_metrics = region_calc.get_overall_metrics()
+        segment_scores = region_calc.get_segment_scores()
+        return overall_metrics, segment_scores

@@ -4,7 +4,7 @@ from flask import current_app, url_for
 from app.data.database import SyncRepository, RegionRepository
 import folium
 import random
-from app.reports.table_data import Main_page_dashboard
+from app.data.transform.prepare_data import Main_page_dashboard
 from app.reports.plot import Main_page_plot, Region_page_plot
 
 # Кэш для хранения GeoDataFrame

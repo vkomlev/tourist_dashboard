@@ -3,7 +3,7 @@ from app.data.processing import DataProcessor,WeatherProcessor
 # from app.data.database import LocationsRepository
 # from app.data.database.models_repository import LocationsRepository, MetricValueRepository
 from app.reports.plot import City_page_plot, Region_page_plot
-from app.reports.table_data import Region_page_dashboard
+from app.data.transform.prepare_data import Region_page_dashboard
 from app.data.calc.base_calc import Region_calc
 # from app.data.score.base_assessment import WellnessTourismEvaluation, OverallTourismEvaluation
 # import pandas as pd
