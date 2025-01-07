@@ -12,7 +12,7 @@ from app.data.calc.base_calc import Region_calc
 # dp.process_yandex_locations(specific_region=('Челябинская область',), level_loc_type = 1, restart=True)
 
 dp = Region_page_dashboard()
-dp.get_region_night(150)
+dp.get_region_mean_night(id_region=150, year=2023)
 
 # dp = City_page_plot()
 # dp.create_layout(5848)

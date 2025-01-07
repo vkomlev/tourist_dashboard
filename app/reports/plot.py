@@ -76,8 +76,8 @@ class Region_page_plot:
                           year:int
                           ):
         dp = Region_page_dashboard()
-        df = dp.get_region_night(id_region=id_region, year=year)
-        fig_night = px.bar(df, x='месяц', y='Количество ночевок', title='Топ сегментов туризма') 
+        df = dp.get_region_mean_night(id_region=id_region, year=year)
+        fig_night = px.bar(df, x='Месяц', y='Количество ночевок', title='Количество ночевок на туриста в регионе') 
         return fig_night
     
     def plot_region_leisure_rating(self, id_region):

@@ -249,33 +249,70 @@ class Region_page_dashboard(City_page_dashboard):
 
         return average_temps
     
-    def get_region_night(self, 
+    def get_region_mean_night(self, 
                          id_region:int,
                          year:int):
-        """структуризация данных для графика среднего количества ночевок"""
+        """Получение данных для графика среднего количества ночевок"""
+        month ={1: 'Январь', 
+                2: 'Февраль', 
+                3: 'Март', 
+                4: 'Апрель', 
+                5: 'Май', 
+                6: 'Июнь', 
+                7: 'Июль', 
+                8: 'Август', 
+                9: 'Сентябрь', 
+                10: 'Октябрь', 
+                11: 'Ноябрь', 
+                12: 'Декабрь'}
+        # получаем количество ночевок и преобразуем в словарь
         dp = MetricValueRepository()
         night = dp.get_region_metric_value(
                 id_region=id_region,
                 id_metric=3
                 )
         night = [i for i in night if int(i[3]) == year]
-        filter_night = {'Количество ночевок':[],
-                        'месяц':[],
-                        'year':[]
+        filter_night = {'night':[],
+                        'month':[]
                         }
         for i in range(len(night)):
             long = len(night)
             if i != long - 1:
-                filter_night['Количество ночевок'].append(
+                filter_night['night'].insert(
+                    0,
                     int(night[long-1-i][1])-
                     int(night[long-2-i][1]))
-                filter_night['месяц'].append(night[long-1-i][2])
-                filter_night['year'].append(night[long-1-i][3])
+                filter_night['month'].insert(0, night[long-1-i][2])
             else:
-                filter_night['Количество ночевок'].append(int(night[0][1]))
-                filter_night['месяц'].append(night[0][2])
-                filter_night['year'].append(night[0][3])
-        df = pd.DataFrame(filter_night).sort_values('месяц')
+                filter_night['night'].insert(0, int(night[0][1]))
+                filter_night['month'].insert(0, night[0][2])
+        # получаем турпоток и преобразуем в словарь
+        # через турпоток сделать процентное отношение к ночевкам и так разделить их по месячно
+        tourist = dp.get_region_metric_value(
+                id_region=id_region,
+                id_metric=2
+                )
+        filter_tourist = {'tourist':[],
+                          'month':[]
+                          }
+        tourist = [i for i in tourist if int(i[3]) == year]
+        for i in tourist:
+            filter_tourist['tourist'].append(int(i[1]))
+            filter_tourist['month'].append(i[2])
+
+        # распределяем количество ночевок по месяцам, основываясь на распеределии турпотока
+        # в процентах по сезонам
+        filter_tourist_night = {'Количество ночевок':[],
+                                'Месяц':[]
+                                }
+        for x in filter_night['month']:
+            mass_tour = sum(filter_tourist['tourist'][x-3: x])
+            for y in range(x-3, x):
+                month_night = int(filter_night['night'][(x//3)-1]*(filter_tourist['tourist'][y]/mass_tour))
+                mean_night = (month_night//filter_tourist['tourist'][y]) + 1
+                filter_tourist_night['Количество ночевок'].append(mean_night)
+                filter_tourist_night['Месяц'].append(month[y+1])
+        df = pd.DataFrame(filter_tourist_night)
         return df
     
     def get_region_leisure_rating(self, id_region):
