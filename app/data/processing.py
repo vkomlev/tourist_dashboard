@@ -197,7 +197,13 @@ class DataProcessor:
                     logger.warning (f'{loc_name} не совпал ни с чем из базы')
                     retries += 1                                   
                     continue
-                self.parse_yandex.get_location_reviews_and_photos(loc_url=loc_url)
+                
+                reviews = True if self.parse_yandex.loc_info['count_reviews'] != '0' else False
+                photos = True if self.parse_yandex.loc_info['count_gallery'] != '0' else False
+                self.parse_yandex.get_location_reviews_and_photos(loc_url=loc_url,
+                                                                  reviews= reviews,
+                                                                  photos= photos
+                                                                  )
         
                 locations_repo.load_info_loc_yandex(
                     location_name=loc_name, 
@@ -231,6 +237,7 @@ class DataProcessor:
                         url=photo_url
                     )
                 logger.info(f'{len(self.parse_yandex.loc_photos)} фото для локации {loc_name} добавлены.')
+
                 break
 
             except Exception as e:

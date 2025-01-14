@@ -8,11 +8,11 @@ from app.data.calc.base_calc import Region_calc
 # from app.data.score.base_assessment import WellnessTourismEvaluation, OverallTourismEvaluation
 # import pandas as pd
 
-# dp = DataProcessor()
-# dp.process_yandex_locations(specific_region=('Челябинская область',), level_loc_type = 1, restart=True)
+dp = DataProcessor()
+dp.process_yandex_locations(specific_region=('Свердловская область',), level_loc_type = 1, restart=True)
 
-dp = Region_page_dashboard()
-dp.get_region_mean_night(id_region=150, year=2023)
+# dp = Region_page_dashboard()
+# dp.get_region_mean_night(id_region=150, year=2023)
 
 # dp = City_page_plot()
 # dp.create_layout(5848)

@@ -336,7 +336,7 @@ class Region_page_dashboard(City_page_dashboard):
             mass_tour = sum(filter_tourist['tourist'][x-3: x])
             for y in range(x-3, x):
                 month_night = float(filter_night['night'][(x//3)-1]*(filter_tourist['tourist'][y]/mass_tour))
-                mean_night = (month_night/filter_tourist['tourist'][y]) + 1
+                mean_night = (month_night/filter_tourist['tourist'][y])
                 filter_tourist_night['Количество ночевок'].append(mean_night)
                 filter_tourist_night['Месяц'].append(month[y+1])
         df = pd.DataFrame(filter_tourist_night)

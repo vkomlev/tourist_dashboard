@@ -96,7 +96,7 @@ class Region_page_plot:
         dp = Region_page_dashboard()
         df = dp.get_region_mean_night(id_region=id_region, year=year)
         logger.debug(f"Данные для графика: {df.head(12)}")
-        logger.debug(f"Данные для графика: {df.info()}")
+        # logger.debug(f"Данные для графика: {df.info()}")
         fig_night = px.bar(df, x='Месяц', y='Количество ночевок', title='Количество ночевок на туриста в регионе') 
         return fig_night
     

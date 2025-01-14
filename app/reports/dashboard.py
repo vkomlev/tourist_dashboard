@@ -84,7 +84,7 @@ def create_dashboard(flask_server):
     )
     def load_detailed_calc_section(pathname):
         """
-        Загружает секцию с посегментным графиком оценок.
+        Загружает секцию с рассчетами туризма.
         """
         try:
             region_id = extract_region_id(pathname)
@@ -154,7 +154,6 @@ def create_dashboard(flask_server):
         Output('dynamic-region-header', 'children'), 
         Input('url', 'pathname')  # Получаем текущий URL 
     ) 
-    
     def update_dashboard_header(pathname):
         """
         Обработчик для динамических URL с поддержкой ID региона.

@@ -51,8 +51,13 @@ class ParseYandexMap(Parse):
         try:
             if reviews:
                 self.get_location_reviews(loc_url)
+            else:
+                self.loc_reviews = {}
+
             if photos:
                 self.get_location_photos(loc_url)
+            else:
+                self.loc_photos = {}
             logger.debug(f"Получены отзывы и фото для локации: {loc_url}")
         except ParseError as e:
             logger.error(f"Ошибка при получении отзывов и фото: {e}")
@@ -177,7 +182,18 @@ class ParseYandexMap(Parse):
 
                 # Количество лайков
                 element_like = self.get_data(tag='div', class_="business-header-rating-view__text _clickable")
-                count_like = element_like.text.split(' ')[0] if element_like else '0'
+                element_like = element_like.text.split(' ')[0] if element_like else '0'
+                count_like = element_like if element_like != 'Написать' else '0'
+
+                # Количество фото
+                element_gallery = self.get_data(tag='div', class_="tabs-select-view__title _name_gallery")
+                element_gallery = element_gallery['aria-label'].split(', ') if element_gallery else False
+                count_gallery = element_gallery[1] if element_gallery and element_gallery[1] != '' else '0'
+
+                # Количество отзывов
+                element_reviews = self.get_data(tag='div', class_="tabs-select-view__title _name_reviews")
+                element_reviews = element_reviews['aria-label'].split(', ') if element_reviews else False
+                count_reviews = element_reviews[1] if element_reviews and element_reviews[1] != '' else '0'
 
                 # Средняя оценка
                 like = self.get_data(tag='span', class_="business-rating-badge-view__rating-text")
@@ -208,11 +224,13 @@ class ParseYandexMap(Parse):
                 coordinates = [coordinates_text[1], coordinates_text[0]] if len(coordinates_text) == 2 else [None, None]
 
                 self.loc_info = {
-                    'count_like': count_like,
-                    'like': like,
-                    'types': types,
-                    'coordinates': coordinates,
                     'id_yandex': id_yandex,
+                    'types': types,
+                    'like': like,
+                    'count_like': count_like,
+                    'count_gallery': count_gallery,
+                    'count_reviews': count_reviews,
+                    'coordinates': coordinates,
                     'features': features
                 }
                 logger.debug(f"Информация о локации: {self.loc_info}")
