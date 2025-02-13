@@ -371,6 +371,10 @@ class Parse:
             if run:
                 options.page_load_strategy = 'eager'
             options.add_argument("--disable-blink-features=AutomationControlled")
+            # Указывается точная версия ChromeDriver, зависит от версии гугла на компе. 
+            # При не совместимости будут вылеты браузера.
+            options.add_argument("--version=113")
+            # options.add_argument("--disable-dev-shm-usage")
             # options.add_argument(f'user-agent={user_agent}')
             self.driver = uc.Chrome(options=options)
             # меняет user_agent после запуска, до не получилось

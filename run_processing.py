@@ -9,7 +9,7 @@ from app.data.calc.base_calc import Region_calc
 # import pandas as pd
 
 dp = DataProcessor()
-dp.process_yandex_locations(specific_region=('Челябинская область',), level_loc_type = 1, restart=True)
+dp.process_yandex_locations(specific_region=('Челябинская область',), level_loc_type = 1, restart=False)
 
 # dp = Region_page_dashboard()
 # dp.get_region_mean_night(id_region=150, year=2023)
