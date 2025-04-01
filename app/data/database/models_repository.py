@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 from sqlalchemy.exc import NoResultFound
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import func
 
 from app.logging_config import logger
 from app.data.database import Database, manage_session, JSONRepository
@@ -15,6 +17,7 @@ from app.models import (
     Photo,
     Review,
     City,
+    Metric
 )
 
 
@@ -125,11 +128,68 @@ class RegionRepository(Database):
         logger.debug(f"Найден регион с id_region={id_region}: {region is not None}")
         return region
 
+class MetricRepository(Database):
+    """
+    Репозиторий для работы с моделью Metric.
+    """
+
+    def get_id_type_location(self, metric_name:str):
+        """
+        Получение id метрики
+        """
+        records = (
+            self.get_session()
+            .query(
+                Metric.id_metrics
+            )
+            .filter(Metric.metric_name == metric_name,
+                    # Metric.metric_description == metric_description
+                    )
+            .scalar()
+        )
+        logger.debug(f"")
+        if not records:
+            logger.error(f"MetricRepository - get_id_type_location - не нашлось id при metric_name = {metric_name}")
+        return records
 
 class MetricValueRepository(Database):
     """
     Репозиторий для работы с моделью MetricValue.
     """
+
+    def get_value_location(self, id_metric:str, id_region:str = '', id_city:str = ''):
+        """
+        Получение метрик одного типа по id_metric и региону/городу
+        """
+        records = None
+        if id_region:
+            records = (
+                self.get_session()
+                .query(
+                    MetricValue.id_location,
+                    MetricValue.value
+                )
+                .filter(MetricValue.id_metric == int(id_metric),
+                        MetricValue.id_region == int(id_region)
+                        )
+                .all()
+            )
+        elif id_city:
+            records = (
+                self.get_session()
+                .query(
+                    MetricValue.id_location,
+                    MetricValue.value
+                )
+                .filter(MetricValue.id_metric == int(id_metric),
+                        MetricValue.id_city == int(id_city)
+                        )
+                .all()
+            )
+        logger.debug(f"")
+        if not records:
+            logger.error(f"MetricRepository - get_id_type_location - не нашлось ни одной метрики при id_metric = {id_metric}, id_r = {id_region}, id_c = {id_city}")
+        return records
 
     def get_tourist_count_data(self) -> List[MetricValue]:
         """
@@ -290,7 +350,7 @@ class MetricValueRepository(Database):
             id_location:int = False
     ) -> List[MetricValue]:
         """
-        Получение данные для локации, города или региона по id_metric.
+        Получение данных для локации, города или региона по id_metric.
         Return:
             Dict[str, MetricValue]: Словарь записей MetricValue.
         """
@@ -322,46 +382,6 @@ class MetricValueRepository(Database):
         )
         return records
 
-    @manage_session
-    def get_info_loc_cit_reg(
-            self,
-            id_metric:int,
-            id_region:int = False,
-            id_city:int = False,
-            id_location:int = False
-    ) -> List[MetricValue]:
-        """
-        Получение данные для локации, города или региона по id_metric.
-        Return:
-            Dict[str, MetricValue]: Словарь записей MetricValue.
-        """
-        if not (id_region or id_city or id_location):
-            logger.warning(f"Не передано ничего для поиска, а именно: id_region, id_city, id_location ")
-            return False
-        id_start = {'id_region': id_region,
-                    'id_city': id_city,
-                    'id_location': id_location
-                    }
-        slov = {'id_region': MetricValue.id_region,
-                'id_city': MetricValue.id_city,
-                'id_location': MetricValue.id_location
-                }
-        id_over = {k:v for k,v in id_start.items() if v}
-        records= (
-        self.session
-        .query(
-            MetricValue.value
-        )
-        .filter(
-            MetricValue.id_metric == id_metric,
-            slov[list(id_over.keys())[0]] == list(id_over.values())[0]
-        )
-        .all()
-        )
-        logger.debug(
-            f"Получена информация по {id_over}"
-        )
-        return records
 class LocationTypeRepository(Database):
     """
     Репозиторий для работы с моделью LocationType.
@@ -500,6 +520,52 @@ class LocationsRepository(JSONRepository):
             )
         else:
             logger.error(f"Не удалось загрузить локацию Яндекс: {location_name}")
+
+    @manage_session
+    def get_locations_by_type(self, type_location: str) -> list[dict]:
+        """
+        Ищет локации по типу в JSON-поле characters.
+
+        Args:
+            type_location (str): Тип локации для поиска
+
+        Returns:
+            list[dict]: Список словарей с данными локаций
+        """
+        try:
+            # Формируем запрос с проверкой JSON-поля
+            query = (
+                self.session.query(
+                    self.model.id_location,
+                    self.model.id_city,
+                    self.model.id_region,
+                    self.model.characters
+                )
+                .filter(
+                    # self.model.characters.has_key('types'),  # Проверка наличия ключа
+                    # func.jsonb_array_length(self.model.characters['types']) > 0,  # Проверка наличия элементов
+                    self.model.characters['types'].cast(JSONB).contains([type_location])  # Поиск в массиве
+                )
+            )
+
+            result = []
+            for loc in query.all():
+                # Извлекаем данные из JSON-поля
+                characters = loc.characters or {}
+                result.append({
+                    'id_location': loc.id_location,
+                    'id_city': loc.id_city,
+                    'id_region': loc.id_region,
+                    'like': characters.get('like'),
+                    'count_reviews': characters.get('count_reviews')
+                })
+
+            logger.info(f"Найдено {len(result)} локаций типа '{type_location}'")
+            return result
+
+        except Exception as e:
+            logger.error(f"Ошибка при поиске локаций: {str(e)}")
+            return []
 
 
 class ReviewRepository(Database):

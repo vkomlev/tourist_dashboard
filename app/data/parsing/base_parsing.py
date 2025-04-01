@@ -295,6 +295,8 @@ class Parse:
                 self.enter_text(by='id', value='input_lat', text=lat)
                 self.enter_text(by='id', value='input_lon', text=lon)
                 self.click_element(by='id', value='button_coordinates')
+                time.sleep(1)
+                self.click_element(by='id', value='button_coordinates')
             except Exception as e:
                 logger.error(f'В методе coordinates_geotree при работе с браузером произошла ошбика: {e}')
                 self.driver.close()
@@ -311,10 +313,14 @@ class Parse:
             for region_city in regions_cities:
                 if region_city[0] in result and region_city[1] in result:
                     return regions_cities[region_city]
-            for region_city in regions_cities:
-                if region_city[0] in result:
+                
+                elif region_city[0] in result:
                     region = [regions_cities[region_city][0]]
                     return region
+                
+                elif ' и '.join(region_city) in result:
+                    return regions_cities[region_city]
+                
             return False
         except:
             logger.error(f'Ошибкак в методе coordinates_geotree: {e}')

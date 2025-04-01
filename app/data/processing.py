@@ -199,10 +199,10 @@ class DataProcessor:
                     continue
                 
                 reviews = True if self.parse_yandex.loc_info['count_reviews'] != '0' else False
-                photos = True if self.parse_yandex.loc_info['count_gallery'] != '0' else False
+                # photos = True if self.parse_yandex.loc_info['count_gallery'] != '0' else False
                 self.parse_yandex.get_location_reviews_and_photos(loc_url=loc_url,
                                                                   reviews= reviews,
-                                                                  photos= photos
+                                                                  photos= False
                                                                   )
         
                 locations_repo.load_info_loc_yandex(

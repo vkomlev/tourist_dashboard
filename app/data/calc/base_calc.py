@@ -1,5 +1,5 @@
 from app.logging_config import logger
-from app.data.database.models_repository import MetricValueRepository
+from app.data.database.models_repository import MetricValueRepository,MetricRepository
 import random
 
 class Calc:
@@ -81,3 +81,30 @@ class Region_calc(Calc):
         # df = {'name':name_metrics, 'value': final}
         return dict(zip(name_metrics, final))
         # return [name_metrics, final]
+
+    def get_like_type_location(self, name:list, id_region:str = '', id_city:str = '')-> dict:
+        """
+        Получение оценки типа локаций по конкретному региону/городу
+            name - назваине типа локации, который нужен из БД
+            region_id - id региона по которому нужно выдать оценку
+            city_id - id города по которому нужно выдать оценку
+        """
+        if not (id_region or id_city):
+            logger.error(f"Region_calc - get_like_type_location - не заданы id ни регоина ни города")
+            return []
+        metric_name = "Средняя оценка " + name
+        M = MetricRepository() 
+        id_metric = M.get_id_type_location(metric_name=metric_name)
+        if id_metric:
+            MV = MetricValueRepository()
+            mass_value = MV.get_value_location(id_metric=id_metric,
+                                  id_city=id_city,
+                                  id_region=id_region)
+            return mass_value
+        else:
+            logger.error(f"Region_calc - get_like_type_location - не нашлось id_metric по metric_name = {metric_name}")
+
+    
+
+    
+
