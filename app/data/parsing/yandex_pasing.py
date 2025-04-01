@@ -102,12 +102,6 @@ class ParseYandexMap(Parse):
                     self.driver.quit()
                     restart += 1 
 
-                elif alone_location:
-                    dict_locations[alone_location.text.strip()] = f"https://yandex.ru{alone_location.get('href', '').strip()}"
-                    logger.debug(f"Найдена одна локация: {alone_location.text.strip()} -> {dict_locations[alone_location.text.strip()]}")
-                    self.driver.close()
-                    self.driver.quit()
-
                 elif mass_locations:
                     self.soup = self.scroll(class_name='search-list-view', click=False)
                     self.soup = BeautifulSoup(self.soup, 'html.parser')
@@ -122,6 +116,13 @@ class ParseYandexMap(Parse):
                             if loc_name and loc_href:
                                 dict_locations[loc_name] = f"https://yandex.ru{loc_href}"
                                 logger.debug(f"Найдена локация: {loc_name} -> https://yandex.ru{loc_href}")
+
+                elif alone_location:
+                    dict_locations[alone_location.text.strip()] = f"https://yandex.ru{alone_location.get('href', '').strip()}"
+                    logger.debug(f"Найдена одна локация: {alone_location.text.strip()} -> {dict_locations[alone_location.text.strip()]}")
+                    self.driver.close()
+                    self.driver.quit()
+                    
                 else:
                     logger.warning("Неизвестная структура страницы.")
                     self.driver.close()
