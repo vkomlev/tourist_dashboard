@@ -8,6 +8,9 @@ from sqlalchemy.exc import  OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import inspect
+import functools
+from typing import Any, Callable, TypeVar
+
 
 from app.config import Config_SQL
 from app.logging_config import logger
@@ -46,31 +49,60 @@ def retry_on_failure(retries: int = 5, delay: int = 2):
     return decorator
 
 
-def manage_session(func):
+# def manage_session(func):
+#     """
+#     Декоратор для автоматического управления сессией SQLAlchemy.
+
+#     Открывает сессию перед вызовом функции и закрывает после завершения.
+#     В случае ошибки откатывает транзакцию.
+
+#     Args:
+#         func (Callable): Функция, для которой применяется декоратор.
+#     """
+
+#     def wrapper(self, *args, **kwargs):
+#         try:
+#             result = func(self, *args, **kwargs)
+#             return result
+#         except Exception as e:
+#             self.session.rollback()
+#             logger.error(f"Ошибка в методе {func.__name__}: {e}")
+#             raise
+#         finally:
+#             self.session.close()
+#             logger.debug("Сессия закрыта.")
+
+#     return wrapper
+
+def manage_session(func: Callable[..., T]) -> Callable[..., T]:
     """
     Декоратор для автоматического управления сессией SQLAlchemy.
-
     Открывает сессию перед вызовом функции и закрывает после завершения.
-    В случае ошибки откатывает транзакцию.
-
-    Args:
-        func (Callable): Функция, для которой применяется декоратор.
+    В случае любых ошибок откатывает транзакцию, а для
+    UnicodeDecodeError пытается декодировать сообщение из cp1251.
     """
-
-    def wrapper(self, *args, **kwargs):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs) -> T:
         try:
-            result = func(self, *args, **kwargs)
-            return result
+            return func(self, *args, **kwargs)
+        except UnicodeDecodeError as e:
+            # Откатываем транзакцию
+            self.session.rollback()
+            # e.object — это исходный bytes-объект с сообщением от сервера
+            raw: bytes = e.object if hasattr(e, "object") else b""
+            # Пытаемся декодировать правильно — из CP1251
+            msg = raw.decode("cp1251", errors="replace")
+            logger.error(f"Ошибка декодирования ответа от БД: {msg}")
+            # Бросаем своё, более понятное исключение
+            # raise DatabaseDecodeError(f"Ошибка декодирования ответа от БД: {msg}") from None
         except Exception as e:
             self.session.rollback()
             logger.error(f"Ошибка в методе {func.__name__}: {e}")
-            raise
+            # raise
         finally:
             self.session.close()
             logger.debug("Сессия закрыта.")
-
     return wrapper
-
 
 class Database:
     """
@@ -285,7 +317,8 @@ class Database:
         """
         query = self.session.query(model)
         for key, value in kwargs.items():
-            query = query.filter(getattr(model, key) == value)
+            if value:
+                query = query.filter(getattr(model, key) == value)
         results = query.all()
         logger.debug(
             f"Получено {len(results)} записей из {model.__tablename__} по фильтрам {kwargs}."

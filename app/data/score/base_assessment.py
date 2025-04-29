@@ -1,5 +1,15 @@
 import numpy as np
 import pandas as pd
+from app.logging_config import logger
+from app.data.database.models_repository import (LocationsRepository, 
+                                                 MetricValueRepository, 
+                                                 MetricRepository
+                                                 )
+from app.data.parsing.perplexity_parsing import ParsePerplexity
+from app.data.imports.import_json import import_json_file
+from app.data.calc.base_calc import Region_calc
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 class OverallTourismEvaluation:
     def __init__(self, segment_scores=3, general_infra=3, safety=3, flow=3, nights=3, climate=3, prices=3, distance=3):
@@ -51,30 +61,176 @@ class OverallTourismEvaluation:
 
 
 class TourismEvaluation:
-    def __init__(self, data, weights, segment_weights):
+    def __init__(self):
         """
         Базовый класс для оценки туризма.
-
-        :param data: DataFrame с информацией об объектах инфраструктуры.
-        :param weights: Веса для оценки объектов.
-        :param segment_weights: Веса для расчета комплексной оценки сегмента.
         """
-        self.data = data
-        self.weights = weights
-        self.segment_weights = segment_weights
+        pass
 
-    def evaluate_object(self, row):
-        """Рассчитывает оценку для одного объекта."""
-        if row.empty:
-            score = 3
-        else:
-            score = sum(row[col] * self.weights[col] for col in self.weights)
-        return round(score, 2)
 
-    def evaluate_all_objects(self):
-        """Добавляет оценку для всех объектов в DataFrame."""
-        self.data['score'] = self.data.apply(self.evaluate_object, axis=1)
-        return self.data
+
+    def get_like_locations_full(self, name_segment):
+        """
+        Оценка типов локаций lvl1 и lvl2 у сегмента
+        """
+        logger.info('Инициализация get_like_locations - оценка локаций и количеств локаций')
+        segments = import_json_file(file_path=r'app\files\segments.json')
+        lvl1 = segments[name_segment]['lvl1']
+        self.calculate_like_locations_lvl1(lvl1)
+        lvl2 = segments[name_segment]['lvl2']
+        lvl2 = lvl2 + [i for i in lvl1.keys()]
+        self.calculate_like_locations_lvl2(lvl2)
+        logger.info("Оценка окончена")
+
+
+    def calculate_like_locations_lvl1(self, types_locations):
+        """
+        Оценка важных локаций из списка types_locations
+        """
+        for type_location in types_locations:
+            logger.info(f'Обработка важного типа локации {type_location}')
+            l = LocationsRepository()
+            # получении списка локаций одного типа
+            df = l.get_locations_by_type(type_location=type_location)
+            # преобразование столбца и получение перцентилей
+            df = pd.DataFrame(df)
+            df['count_reviews'] = pd.to_numeric(df['count_reviews'])
+            percentiles = df['count_reviews'].quantile([i*0.01 for i in range(1,101)])
+            percentiles = [percentiles[i*0.01] for i in range(1,101)]
+            # обработка каждой локации
+            for index, row in df.iterrows():
+                # Проверка на существование оценки локации и её давность
+                m = MetricValueRepository()
+                info_loc = m.get_info_metricvalue(id_metric=236, 
+                                       id_location=row.id_location,
+                                       id_city=int(row.id_city) if not pd.isna(row.id_city) else '',
+                                       id_region=int(row.id_region) if not pd.isna(row.id_region) else ''
+                                       )
+                if info_loc:
+                    if self.check_limit_month(date=info_loc[0].modify_time):
+                        logger.info(f"Посчитано для id_loc - {row.id_location} и = {info_loc[0].value}, пропускаем")
+                        continue
+                logger.info(f'Обработка локации {row.id_location} с оценкой яндекс {row.like} и кол. отзывов {row.count_reviews}')
+                p = ParsePerplexity()
+                r = Region_calc('')
+                # получение оценки яндекс
+                like_yandex = row.like.replace(',', '.') if row.like else 0
+                # получение оценки количества отзывов
+                like_count_reviews = self.get_tour_flow_rating(x=row.count_reviews, pcts=percentiles)
+                # получение отзывов для их оценки
+                reviews = r.get_reviews_top50(id_location=row.id_location)
+                if reviews:
+                    reviews = ';'.join([review["text"] for review in reviews])
+                    text = types_locations[type_location]
+                    text = f'{text} {reviews}'.replace('\n', ' ').replace('  ', ' ')
+                    # отправка отзывов в бота
+                    like_reviews = p.analyze_text_with_perplexity(request_bot=text)
+                if not like_reviews:
+                    like_reviews = 0
+                # подсчет итоговой оценки
+                logger.info(f'0.35 * {float(like_yandex)} + 0.35 * {float(like_reviews)} + 0.3 * {float(like_count_reviews)}')
+                like = 0.35 * float(like_yandex) + 0.35 * float(like_reviews) + 0.3 * float(like_count_reviews)
+                like = str(round(like,2))
+                logger.info(f'Для локации {row.id_location} типа {type_location} итоговая оценка {like}')
+                m.loading_info(id_mv=info_loc[0].id_mv if info_loc else '',
+                                id_metric=236, 
+                                id_location=row.id_location,
+                                id_city=int(row.id_city) if pd.isna(row.id_city) else '',
+                                id_region=int(row.id_region) if pd.isna(row.id_region) else '',
+                                value=like
+                            )
+
+    def calculate_like_locations_lvl2(self, types_locations):
+        """
+        Оценка не важных локаций из списка types_locations, по их количеству при помощи перцентиля
+        """
+        l = LocationsRepository()
+        m = MetricValueRepository()
+        for type_location in types_locations:
+            logger.info(f'Обработка не важного типа локации {type_location}')
+            # получении списка локаций одного типа
+            df = l.get_locations_by_type(type_location=type_location)
+            # преобразование столбца и получение перцентилей
+            df = pd.DataFrame(df)
+            # Группировка по городам
+            df_cities = df.groupby('id_city').size().reset_index(name='count_locations')
+            # Определение перцентиля
+            percentiles_cities = df_cities['count_locations'].quantile([i*0.01 for i in range(1,101)])
+            percentiles_cities = [percentiles_cities[i*0.01] for i in range(1,101)]
+
+            # Группировка по регионам 
+            df_regions = df.groupby('id_region').size().reset_index(name='count_locations')
+            # Определение перцентиля
+            percentiles_regions = df_regions['count_locations'].quantile([i*0.01 for i in range(1,101)])
+            percentiles_regions = [percentiles_regions[i*0.01] for i in range(1,101)]
+            # цикл для очередной оценки, сначала города, потом регионы
+            for id in ['city', 'region']:
+                logger.info(f"Обработка для {id}")
+                place = df_cities if id =='city' else df_regions
+                for index, row in place.iterrows():
+                    info_locations = m.get_info_metricvalue(
+                                            id_metric=239,
+                                            id_city=int(row.id_city) if not pd.isna(row.id_city) else '',
+                                            id_region=int(row.id_region) if not pd.isna(row.id_region) else '',
+                                            type_location=type_location
+                                            )
+                    if info_locations:
+                        # проверка на давность рассчитанной метрики
+                        if self.check_limit_month(date=info_locations[0].modify_time):
+                            logger(f"Посчитано для {id}-{row.id_city if id == "city" else row.id_region} пропускаем")
+                            continue
+                    # Оценка и загрузка/обноление полученного значения
+                    like_count_locations = self.get_tour_flow_rating(x=row.count_locations, 
+                                                                    pcts=percentiles_cities 
+                                                                    if id =='city' else percentiles_regions)
+                    like_count_locations = str(like_count_locations)
+                    logger.info(f'Оценка для {id}-{row.id_city if id == "city" else row.id_region} = {like_count_locations}')
+                    m.loading_info( id_mv=info_locations[0][-1] if info_locations else '',
+                                    id_metric=239, 
+                                    type_location=type_location,
+                                    id_city=int(row.id_city) if not pd.isna(row.id_city) else '',
+                                    id_region=int(row.id_region) if not pd.isna(row.id_region) else '',
+                                    value=like_count_locations
+                        )
+
+                    
+    def get_tour_flow_rating(self, x: float, pcts: list) -> float:
+        """
+        Возвращает рейтинг в диапазоне [1.0; 5.0] с одним знаком после запятой
+        по расширенной перцентильной шкале.
+        """
+        # 1. Если x меньше первого перцентиля
+        if x < pcts[0]:
+            return 1.0
+        
+        # 2. Если x больше последнего перцентиля
+        if x > pcts[-1]:
+            return 5.0
+        
+        # 3. Иначе ищем, в какой промежуток попадает x
+        for i in range(len(pcts) - 1):
+            if pcts[i] <= x < pcts[i+1]:
+                # 4. Доля внутри интервала
+                alpha = (x - pcts[i]) / (pcts[i+1] - pcts[i])
+                
+                # 5. Индекс процентиля i + alpha
+                # 6. Переводим в шкалу 1..5:
+                rating = 1 + 4 * ((i + alpha) / 99.0)
+                
+                # 7. Округляем
+                return round(rating, 2)
+        
+        # На всякий случай, если x == pcts[-1]
+        return 5.0
+    
+    def check_limit_month(self, date):
+        date = datetime(date.year, date.month, date.day)
+        current_date = datetime.now().date()
+        difference = relativedelta(current_date, date)
+        if difference.months != 0:
+            return False
+        return True
+    
 
     def calculate_segment_score(self, climate_score: float, num_objects: int):
         """Рассчитывает комплексную оценку сегмента.
@@ -89,6 +245,104 @@ class TourismEvaluation:
             self.segment_weights['climate'] * climate_score
         )
         return round(total_score, 2)
+
+    def calculation_segment_parts(self, id_city='', id_region=''):
+        """
+        Рассчет составных частей, оценки сегмента
+        """
+        try:
+            if id_region and id_city:
+                logger.error("Указаны сразу регион и город, должно быть что-то одно")
+                return False
+            logger.info("Запуск рассчета составных частей оценки сегмента - calculation_segment_parts")
+            segments = import_json_file(file_path=r'app\files\segments.json')
+            calc = Region_calc(id_city=id_city, id_region=id_region)
+            for name_segment, loc in segments.items():
+                dictionary = calc.get_segment_calc(segment={name_segment:loc})
+                # Средняя оценка основных локаций
+                o = np.mean([v for k, v in dictionary[name_segment]['lvl1'].items()])
+                o = round(o, 2)
+                # Средняя оценка количества основных локаций
+                n = np.mean([v for k, v in dictionary[name_segment]['count']['lvl1'].items()])
+                n = round(n, 2)
+                # Средняя оценка количества дополнительных локаций
+                l = np.mean([v for k, v in dictionary[name_segment]['count']['lvl2'].items()])
+                l = round(l, 2)
+                # Оценка погоды
+                w = dictionary['like_weather']
+                m = MetricRepository()
+                mv = MetricValueRepository()
+                logger.info(f'Рассчитаны значения для оценки сегмента {name_segment}')
+                calculated_values = {'o':o, 'n':n, 'l':l, 'w':w}
+                for name_value in calculated_values:
+                    # Определение id метрики
+                    id_metric = m.get_id_type_location(metric_name=f'{name_segment}_{name_value}')
+                    metric = mv.get_info_metricvalue(id_metric=id_metric,
+                                                    id_city=id_city,
+                                                    id_region=id_region)
+                    id_mv = metric[0].id_mv if metric else ''
+                    mv.loading_info(id_mv=id_mv,
+                                    id_metric=id_metric,
+                                    id_city=int(id_city) if id_city else '',
+                                    id_region=int(id_region) if id_region else '',
+                                    value=str(calculated_values[name_value]))
+        except:
+            logger.error(f'id_city={id_city}, id_region={id_region}, o={o}, n={n}, l={l}, w={w}')
+
+    def calculating_segments_score(self, id_city='', id_region=''):
+        """
+        Рассчет оценки сегментов
+        """
+        try:
+            logger.info(f'Рассчет оценки сегментов для id_city={id_city}, id_region={id_region}')
+            segments = import_json_file(file_path=r'app\files\segments.json')
+            calc = Region_calc(id_city=id_city, id_region=id_region)
+            m = MetricRepository()
+            mv = MetricValueRepository()
+            for segment_name in segments:
+                if segment_name == 'complex':
+                    continue
+                values = calc.get_like_segment(segment_name=segment_name)
+                if segment_name == 'sports':
+                    segment_like = 0.65 * values['o'] + 0.35 * (
+                                    0.7 * values['n'] + 0.3 * values['l'])
+                else:
+                    segment_like = 0.5 * values['o'] + 0.3 * values['w'] + 0.2 * (
+                        0.7 * values['n'] + 0.3 * values['l'])
+                segment_like = round(segment_like, 2)       
+                id_metric = m.get_id_type_location(metric_name=f'segment_{segment_name}')
+                if id_metric:
+                    metrics = mv.get_info_metricvalue(id_metric=id_metric,
+                                                    id_city=id_city,
+                                                    id_region=id_region)
+                    if id_region and metrics:
+                        metrics = [i for i in metrics if not i.id_city]
+                    if len(metrics) >= 2:
+                        logger.error(f'Найдено несколько значений для метрики {id_metric}, id_r={id_region}, id_c={id_city}')
+                    id_mv = metrics[0].id_mv if metrics else ''
+                    mv.loading_info(id_mv=id_mv,
+                                    id_metric=id_metric,
+                                    id_city=int(id_city) if id_city else '',
+                                    id_region=int(id_region) if id_region else '',
+                                    value=str(segment_like))
+                else:
+                    logger.error(f'Не найдено id_metric, проверить в БД таблице метрик')
+        except:
+            logger.error('Ошбика при оценке сегмента')
+        
+            
+
+
+
+
+
+
+
+
+
+            
+
+
 
 
 class WellnessTourismEvaluation(TourismEvaluation):

@@ -14,11 +14,14 @@ from sqlalchemy import (
     ForeignKey,
     Sequence,
     text,
+    DateTime
 )
+import datetime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, Session
 from geoalchemy2 import Geometry  # For storing geometric data types
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped
 
 from app.config import Config_SQL
 from app.logging_config import logger
@@ -341,6 +344,9 @@ class MetricValue(Base):
         ForeignKey('locations.id_location', ondelete='CASCADE'),
         doc='Идентификатор локации',
     )
+    create_time: Mapped[Optional[datetime.datetime]] = Column(DateTime(True), server_default=text('now()'))
+    modify_time: Mapped[Optional[datetime.datetime]] = Column(DateTime(True), server_default=text('now()'))
+    type_location: Mapped[Optional[str]] = Column(String)
 
     metric: 'Metric' = relationship(
         'Metric',
