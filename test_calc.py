@@ -4,8 +4,12 @@ from app.data.database.models_repository import LocationsRepository
 import time
 
 
-r = Region_calc(id_region='')
-r.get_weather_calc(id_city=5845, segment='beach')
+r = Region_calc(id_region='150')
+x = r.get_distance_cities()
+print(x)
+# x = r.get_tur_night()
+# for i in x:
+#     print(x[i])
 
 
 # # не рабочая, нужно цикл с сегментами добавить

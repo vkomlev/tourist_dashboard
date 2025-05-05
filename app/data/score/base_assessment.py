@@ -10,6 +10,8 @@ from app.data.imports.import_json import import_json_file
 from app.data.calc.base_calc import Region_calc
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from shapely import wkb
+from geoalchemy2.shape import to_shape
 
 class OverallTourismEvaluation:
     def __init__(self, segment_scores=3, general_infra=3, safety=3, flow=3, nights=3, climate=3, prices=3, distance=3):
@@ -102,9 +104,9 @@ class TourismEvaluation:
                 # Проверка на существование оценки локации и её давность
                 m = MetricValueRepository()
                 info_loc = m.get_info_metricvalue(id_metric=236, 
-                                       id_location=row.id_location,
-                                       id_city=int(row.id_city) if not pd.isna(row.id_city) else '',
-                                       id_region=int(row.id_region) if not pd.isna(row.id_region) else ''
+                                        id_location=row.id_location,
+                                        id_city=int(row.id_city) if 'id_city' in row and (not pd.isna(row.id_city)) else '',
+                                        id_region=int(row.id_region) if 'id_region' in row and (not pd.isna(row.id_region)) else '',
                                        )
                 if info_loc:
                     if self.check_limit_month(date=info_loc[0].modify_time):
@@ -135,8 +137,8 @@ class TourismEvaluation:
                 m.loading_info(id_mv=info_loc[0].id_mv if info_loc else '',
                                 id_metric=236, 
                                 id_location=row.id_location,
-                                id_city=int(row.id_city) if pd.isna(row.id_city) else '',
-                                id_region=int(row.id_region) if pd.isna(row.id_region) else '',
+                                id_city=int(row.id_city) if 'id_city' in row and (not pd.isna(row.id_city)) else '',
+                                id_region=int(row.id_region) if 'id_region' in row and (not pd.isna(row.id_region)) else '',
                                 value=like
                             )
 
@@ -170,15 +172,15 @@ class TourismEvaluation:
                 for index, row in place.iterrows():
                     info_locations = m.get_info_metricvalue(
                                             id_metric=239,
-                                            id_city=int(row.id_city) if not pd.isna(row.id_city) else '',
-                                            id_region=int(row.id_region) if not pd.isna(row.id_region) else '',
+                                            id_city=int(row.id_city) if 'id_city' in row and (not pd.isna(row.id_city)) else '',
+                                            id_region=int(row.id_region) if 'id_region' in row and (not pd.isna(row.id_region)) else '',
                                             type_location=type_location
                                             )
-                    if info_locations:
-                        # проверка на давность рассчитанной метрики
-                        if self.check_limit_month(date=info_locations[0].modify_time):
-                            logger(f"Посчитано для {id}-{row.id_city if id == "city" else row.id_region} пропускаем")
-                            continue
+                    # if info_locations:
+                    #     # проверка на давность рассчитанной метрики
+                    #     if self.check_limit_month(date=info_locations[0].modify_time):
+                    #         logger(f"Посчитано для {id}-{row.id_city if id == "city" else row.id_region} пропускаем")
+                    #         continue
                     # Оценка и загрузка/обноление полученного значения
                     like_count_locations = self.get_tour_flow_rating(x=row.count_locations, 
                                                                     pcts=percentiles_cities 
@@ -188,8 +190,8 @@ class TourismEvaluation:
                     m.loading_info( id_mv=info_locations[0][-1] if info_locations else '',
                                     id_metric=239, 
                                     type_location=type_location,
-                                    id_city=int(row.id_city) if not pd.isna(row.id_city) else '',
-                                    id_region=int(row.id_region) if not pd.isna(row.id_region) else '',
+                                    id_city=int(row.id_city) if 'id_city' in row and (not pd.isna(row.id_city)) else '',
+                                    id_region=int(row.id_region) if 'id_region' in row and (not pd.isna(row.id_region)) else '',
                                     value=like_count_locations
                         )
 
@@ -329,6 +331,148 @@ class TourismEvaluation:
                     logger.error(f'Не найдено id_metric, проверить в БД таблице метрик')
         except:
             logger.error('Ошбика при оценке сегмента')
+    
+    def calculating_complex_parts(self, id_region, id_city=''):
+        '''
+        Рассчет и загрузкасоставных частей комплексной оценки
+        '''
+        logger.info(f"Рассчет составных частей комплексной оценки для id_r = {id_region}, id_c = {id_city}")
+        # self.calculating_complex_tur_nig(id_region=id_region,
+        #                                  id_city=id_city)
+        self.calculating_complex_distance(id_region=id_region,
+                                         id_city=id_city)
+        if id_city:
+            self.calculating_complex_segments(id_city=id_city)
+        else:
+            self.calculating_complex_segments(id_region=id_region)
+        
+
+    def calculating_complex_tur_nig(self, id_region, id_city=''):
+        """
+        Рассчет оценки суммарного турпотока и количества ночевок для регоина
+        """
+        try:
+            r = Region_calc(id_region = id_region)
+            mv = MetricValueRepository()
+            t_n= r.get_tur_night()
+            metrics = {'tur':283, 'night':284}
+            for key, df in t_n.items():
+                percentiles = df['value'].quantile([i*0.01 for i in range(1,101)])
+                percentiles = [percentiles[i*0.01] for i in range(1,101)]
+                value = df[df['id_region'] == id_region].value
+                like_count = self.get_tour_flow_rating(x=float(value), 
+                                                        pcts=percentiles
+                                                        )
+                like_count = round(like_count, 2)
+                metric = mv.get_info_metricvalue(id_metric=metrics[key],
+                                                id_city=id_city,
+                                                id_region=id_region
+                                                )
+                id_mv = metric[0].id_mv if metric else ''
+                mv.loading_info(id_mv = id_mv,
+                                id_metric=metrics[key],
+                                id_city=id_city,
+                                id_region=id_region,
+                                value = like_count
+                                )
+                logger.info(f'Добавлена метрика {key} со значением {like_count}')
+        except Exception as e:
+            logger.error(f'Ошибка в методе calculating_complex_tur_nig: {e}')
+
+    def calculating_complex_distance(self, id_region, id_city=''):
+        """
+        Рассчет оценки расстояния от столицы региона
+        """
+        try:
+            if id_city:
+                r = Region_calc(id_region = id_region)
+                distance = r.get_distance_cities()
+                # получение координат столицы
+                wkb_element = distance['capital'][0].coordinates
+                point = to_shape(wkb_element)
+                longitude_capital, latitude_capital = point.x, point.y
+                mass = []
+                for city in distance['cities']:
+                    point = to_shape(city.coordinates)
+                    longitude_city, latitude_city = point.x, point.y
+                    longitude = (longitude_city - longitude_capital)**2
+                    latitude = (latitude_city - latitude_capital)**2
+                    length = (longitude + latitude)**0.5
+                    mass.append(length)
+                mass.sort()
+                df =  pd.DataFrame({'length':mass})
+                percentiles = df['length'].quantile([i*0.01 for i in range(1,101)])
+                percentiles = [percentiles[i*0.01] for i in range(1,101)]
+                city = [i for i in distance['cities'] if i.id_city == id_city][0]
+                point = to_shape(city.coordinates)
+                longitude_city, latitude_city = point.x, point.y
+                longitude = (longitude_city - longitude_capital)**2
+                latitude = (latitude_city - latitude_capital)**2
+                length = (longitude + latitude)**0.5
+                
+                pcts = percentiles
+                x = length
+                # 1. Если x меньше первого перцентиля
+                if x <= pcts[0]:
+                    like_distance = 5.0
+                
+                # 2. Если x больше последнего перцентиля
+                elif x >= pcts[-1]:
+                    like_distance = 1.0
+                
+                # 3. Иначе ищем, в какой промежуток попадает x
+                else:
+                    for i in range(len(pcts) - 1):
+                        if pcts[i] <= x < pcts[i+1]:
+                            # 4. Доля внутри интервала
+                            alpha = (x - pcts[i]) / (pcts[i+1] - pcts[i])
+                            
+                            # 5. Индекс процентиля i + alpha
+                            # 6. Переводим в шкалу 1..5:
+                            rating = 7 - 4 * ((i + alpha) / 99.0)
+                            
+                            # 7. Округляем
+                            like_distance = round(rating, 2)
+                like_distance = self.get_tour_flow_rating(x=length, 
+                                                        pcts=percentiles
+                                                        )
+
+            else:
+                like_distance = 5
+            like_distance = round(like_distance, 2)
+            mv = MetricValueRepository()
+            metric = mv.get_info_metricvalue(id_metric = 285,
+                                            id_region = id_region,
+                                            id_city = id_city)
+            id_mv = metric[0].id_mv if metric else ''
+            mv.loading_info(id_mv = id_mv,
+                            id_metric = 285,
+                            id_region = id_region,
+                            id_city = id_city,
+                            value = like_distance)
+        except Exception as e:
+            logger.error(f'Ошибка в методе calculating_complex_distance: {e}')
+    
+    def calculating_complex_segments(self, id_region='', id_city=''):
+        """
+        Рассчет средней оценки сегментов для региона
+        """
+        r = Region_calc(id_city=id_city, id_region=id_region)
+        mv = MetricValueRepository()
+        segments = r.get_like_segments()
+        like = np.mean([float(segments[i]) for i in segments]) if segments else 1 
+        like = round(like, 2)
+        metric = mv.get_info_metricvalue(id_metric = 217,
+                                        id_region = id_region,
+                                        id_city = id_city)
+        id_mv = metric[0].id_mv if metric else ''
+        mv.loading_info(id_mv = id_mv,
+                        id_metric = 217,
+                        id_region = id_region,
+                        id_city = id_city,
+                        value = like)
+
+        
         
             
 

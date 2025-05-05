@@ -155,6 +155,7 @@ class Database:
         """
         self.session.add(obj)
         self.session.commit()
+        # self.session.close()
         logger.debug(f"Добавлен объект: {obj}")
         return obj
 
@@ -168,6 +169,7 @@ class Database:
         """
         self.session.add_all(objs)
         self.session.commit()
+        self.session.close()
         logger.info(f"Добавлено {len(objs)} объектов.")
 
     @manage_session
@@ -182,6 +184,7 @@ class Database:
             List[T]: Список записей модели.
         """
         results = self.session.query(model).all()
+        self.session.close()
         logger.debug(f"Запрошено {len(results)} записей из {model.__tablename__}.")
         return results
 
@@ -283,6 +286,7 @@ class Database:
             .filter(getattr(model, name_column) == name_value)
             .all()
         )
+        self.session.close()
         logger.debug(
             f"Поиск по имени - модель: {model.__tablename__}, {name_column}: {name_value}. Найдено: {len(records)}"
         )
@@ -320,6 +324,7 @@ class Database:
             if value:
                 query = query.filter(getattr(model, key) == value)
         results = query.all()
+        self.session.close()
         logger.debug(
             f"Получено {len(results)} записей из {model.__tablename__} по фильтрам {kwargs}."
         )
@@ -342,6 +347,8 @@ class Database:
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при обновлении объекта {obj}: {e}")
             raise
+        finally:
+            self.session.close()
 
     @staticmethod
     def get_model_by_tablename(tablename: str) -> Optional[Type[T]]:

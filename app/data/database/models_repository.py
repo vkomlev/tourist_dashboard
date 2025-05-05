@@ -362,11 +362,13 @@ class MetricValueRepository(Database):
             if id_mv:
                 mv.id_mv = id_mv
                 self.update(obj=mv)
+                self.session.close()
             
             else:
                 self.add(obj=mv)
+                self.session.close()
                 metric = self.get_info_metricvalue(**kwargs)[0]
-                logger.info(f"Добавлена новая метрика {metric.id_mv}")
+                logger.info(f"Добавлена значение Метрики: N/A - Value: {metric.value} (ID: {metric.id_mv})")
         except Exception as e:
             logger.error(f'Ошибка в loading_info: {e}')
     
@@ -376,6 +378,7 @@ class MetricValueRepository(Database):
         Получение данных из БД
         """
         result = self.get_by_fields(model=MetricValue, **kwargs)
+        self.session.close()
         return result
         
 
@@ -719,8 +722,8 @@ class CitiesRepository(JSONRepository):
         return records
     
     @manage_session
-    def get_cities_full(self):
+    def get_cities_full(self, **kwargs):
         """
         Получение полного списка id городов
         """
-        return self.get_by_fields(model=City)
+        return self.get_by_fields(model=City, **kwargs)

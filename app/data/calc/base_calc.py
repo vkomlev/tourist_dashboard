@@ -203,7 +203,7 @@ class Region_calc(Calc):
             df = pd.DataFrame(mass)
             df_weather = df[['id_region', 'id_city', 'value', 'month']]
             count_month = 0
-            like_month = [20, 30]
+            like_month = [23, 32]
             for index, month in df_weather.iterrows():
                 if month.value and re.match(r"\d+\.*\d*", month.value) and like_month[0] <= float(month.value) <= like_month[1]:
                         count_month += 1
@@ -226,7 +226,7 @@ class Region_calc(Calc):
         """
         try:
             id_metric = [216, 213]
-            like_month = [[20, 40], [20, 35]]
+            like_month = [[20, 40], [23, 35]]
             temperature = {}
             for i in range(len(id_metric)):
                 m = MetricValueRepository()
@@ -244,10 +244,10 @@ class Region_calc(Calc):
                             if like_month[1][0] <= float(temperature[1][index]['value']) <= like_month[1][1]:
                                 count_month += 1
             # Оценка количества теплых месяцев
-            like = {0:2, 1:3, 2:4, 3:5}
+            like = {0:1, 1:2, 2:3, 3:4, 4:5}
             if count_month in like:
                 return like[count_month]
-            elif count_month > 3:
+            elif count_month > 4:
                 return 5
             logger.warning(f"""В get_weather_calc_beach не выбран ни один из вариантов, 
                            количество месяцев = {count_month}""")
@@ -360,27 +360,63 @@ class Region_calc(Calc):
         except Exception as e:
             logger.error(f'Ошибка в get_like_segment: {e}')
 
-            
+    def get_tur_night(self):
+        """
+        Получение сумарного турпотока и количества ночевок в регионах, для их оценки
+        """
+        try:
+            mv = MetricValueRepository()
+            metrics = {'tur': 2, 'night': 3}
+            result = {}
+            for metric, id in metrics.items():
+                mass = mv.get_info_metricvalue(id_metric=id)
+                mass = [i.__dict__ for i in  mass]
+                df = pd.DataFrame(mass)
+                df = df[['id_region', 'value']]
+                df['value'] = pd.to_numeric(df['value'], errors='coerce')
+                result[metric] = df.groupby('id_region', as_index=False).agg({'value': 'sum'})
+            return result
+        except Exception as e:
+            logger.error(f'Ошибка в методе get_like_segments: {e}')
 
+    def get_distance_cities(self):
+        """
+        Получение списка городов из региона, для дальнейшего рассчета расстояния
+        """
+        try:
+            r = RegionRepository()
+            c = CitiesRepository()
+            region = r.find_region_by_id(id_region=self.id_region)
+            capital = c.get_cities_full(id_city=region.capital)
+            cities = c.get_cities_full(id_region=self.id_region)
+            return{'cities': cities, 'capital': capital}
+        except Exception as e:
+            logger.error(f'Ошибка в методе get_distance_cities: {e}')
 
-
-            
-    
-
-# Комфорт дневная температура +20 - +30
-# Комфорт темп вода +23 +26
-
-# Считаем кол. месяцев с комф темп. воды  
-# 3 и более - 5
-# 2 - 4
-# 1 - 3
-# 0 - 2
-
-# Комф. темп. воздуха
-# 6 месяцев и более  - 5
-# 5 м - 4.5
-# 4 м. - 4
-# 3м  - 3.5
-# 2м. - 3
-# 1 м - 2.5
-# 0 м - 2
+    def get_like_segments(self):
+        """
+        Получение оценки сегмента для региона
+        """
+        try:
+            metrics = {
+                'beach':274,
+                'health':275,
+                'business':276,
+                'pilgrimage':277,
+                'educational':278,
+                'family':279,
+                'sports':280,
+                'eco_hiking':281,
+            }
+            mv = MetricValueRepository()
+            segments = {}
+            for metric, id_metric in metrics.items():
+                value = mv.get_info_metricvalue(
+                    id_metric = id_metric,
+                    id_city = self.id_city,
+                    id_region = self.id_region
+                )
+                segments[metric] = float(value[0].value) if value else ''
+            return segments
+        except Exception as e:
+            logger.error(f'Ошибка в методе get_like_segments: {e}')

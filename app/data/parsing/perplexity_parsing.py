@@ -40,12 +40,12 @@ class ParsePerplexity(Parse):
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-extensions')
 
-        if self.user_id != 0:
-            user_directory = os.path.join(self.create_file_profile(), f'user_{self.user_id}')
-            if not os.path.exists(user_directory):
-                os.makedirs(user_directory)
+        # if self.user_id != 0:
+        #     user_directory = os.path.join(self.create_file_profile(), f'user_{self.user_id}')
+        #     if not os.path.exists(user_directory):
+        #         os.makedirs(user_directory)
 
-            options.add_argument(f"user-data-dir={user_directory}")
+        #     options.add_argument(f"user-data-dir={user_directory}")
 
         driver = uc.Chrome(options=options)
 
