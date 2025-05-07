@@ -4,7 +4,6 @@ import os
 import pandas as pd
 import plotly.express as px
 import random
-import plotly.express as px
 from dash import Dash, html, dcc, Input, Output
 
 from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard

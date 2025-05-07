@@ -9,4 +9,5 @@ __all__ = [
     'ParseError', 
     'ParseWeather', 
     'ParseYandexMap',
+    'ParsePerplexity'
     ]

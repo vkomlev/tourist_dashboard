@@ -127,12 +127,18 @@ class RegionRepository(Database):
         )
         logger.debug(f"Найден регион с id_region={id_region}: {region is not None}")
         return region
+    
+    @manage_session
+    def full_region_by_id(self) -> Optional[Region]:
+        regions = self.get_by_fields(model=Region)
+        return [i.id_region for i in regions]
 
 class MetricRepository(Database):
     """
     Репозиторий для работы с моделью Metric.
     """
 
+    @manage_session
     def get_id_type_location(self, metric_name:str):
         """
         Получение id метрики
@@ -157,6 +163,7 @@ class MetricValueRepository(Database):
     Репозиторий для работы с моделью MetricValue.
     """
 
+    @manage_session
     def get_value_location(self, id_metric:str, id_region:str = '', id_city:str = ''):
         """
         Получение метрик одного типа по id_metric и региону/городу
@@ -191,6 +198,7 @@ class MetricValueRepository(Database):
             logger.error(f"MetricRepository - get_id_type_location - не нашлось ни одной метрики при id_metric = {id_metric}, id_r = {id_region}, id_c = {id_city}")
         return records
 
+    @manage_session
     def get_tourist_count_data(self) -> List[MetricValue]:
         """
         Получает данные туристического потока по регионам.
@@ -212,6 +220,7 @@ class MetricValueRepository(Database):
         logger.debug(f"Получено {len(records)} записей туристического потока.")
         return records
 
+    @manage_session
     def get_region_metric_value(
         self, id_region: int, id_metric: int,
     ) -> List[MetricValue]:
@@ -267,7 +276,6 @@ class MetricValueRepository(Database):
                 if not metric_id:
                     logger.warning(f"Неизвестный тип метрики: {d_n_r_w}")
                     continue
-
                 mv = MetricValue(
                     id_city=city_id,
                     id_metric=metric_id,
@@ -342,45 +350,39 @@ class MetricValueRepository(Database):
         return records
     
     @manage_session
-    def get_info_loc_cit_reg(
-            self,
-            id_metric:int,
-            id_region:int = False,
-            id_city:int = False,
-            id_location:int = False
-    ) -> List[MetricValue]:
+    def loading_info(self, id_mv = '', **kwargs):
         """
-        Получение данных для локации, города или региона по id_metric.
-        Return:
-            Dict[str, MetricValue]: Словарь записей MetricValue.
+        Загружает расчитанные значения по локациям в БД
         """
-        if not (id_region or id_city or id_location):
-            logger.warning(f"Не передано ничего для поиска, а именно: id_region, id_city, id_location ")
-            return False
-        id_start = {'id_region': id_region,
-                    'id_city': id_city,
-                    'id_location': id_location
-                    }
-        slov = {'id_region': MetricValue.id_region,
-                'id_city': MetricValue.id_city,
-                'id_location': MetricValue.id_location
-                }
-        id_over = {k:v for k,v in id_start.items() if v}
-        records= (
-        self.session
-        .query(
-            MetricValue.value
-        )
-        .filter(
-            MetricValue.id_metric == id_metric,
-            slov[list(id_over.keys())[0]] == list(id_over.values())[0]
-        )
-        .all()
-        )
-        logger.debug(
-            f"Получена информация по {id_over}"
-        )
-        return records
+        try:
+            mv = MetricValue()
+            for key, value in kwargs.items():
+                if value:
+                    setattr(mv, key, value)
+            if id_mv:
+                mv.id_mv = id_mv
+                self.update(obj=mv)
+                self.session.close()
+            
+            else:
+                self.add(obj=mv)
+                self.session.close()
+                metric = self.get_info_metricvalue(**kwargs)[0]
+                logger.info(f"Добавлена значение Метрики: N/A - Value: {metric.value} (ID: {metric.id_mv})")
+        except Exception as e:
+            logger.error(f'Ошибка в loading_info: {e}')
+    
+    @manage_session
+    def get_info_metricvalue(self, **kwargs):
+        """
+        Получение данных из БД
+        """
+        result = self.get_by_fields(model=MetricValue, **kwargs)
+        self.session.close()
+        return result
+        
+
+    
 
 class LocationTypeRepository(Database):
     """
@@ -560,7 +562,7 @@ class LocationsRepository(JSONRepository):
                     'count_reviews': characters.get('count_reviews')
                 })
 
-            logger.info(f"Найдено {len(result)} локаций типа '{type_location}'")
+            logger.debug(f"Найдено {len(result)} локаций типа '{type_location}'")
             return result
 
         except Exception as e:
@@ -594,6 +596,26 @@ class ReviewRepository(Database):
         )
         self.add(review)
         logger.debug(f"Загружен отзыв для локации {id_loc}.")
+
+    @manage_session
+    def get_reviews(self, id_location: str) -> list[dict]:
+        """
+        Ищет отзывы по id_locations.
+        """
+
+        query = (
+            self.session.query(
+                Review.id_location,
+                Review.text,
+                Review.data
+            )
+            .filter(
+                Review.id_location == id_location
+            )
+        )
+
+        return query
+
 
 
 class PhotoRepository(Database):
@@ -698,3 +720,10 @@ class CitiesRepository(JSONRepository):
             )
         
         return records
+    
+    @manage_session
+    def get_cities_full(self, **kwargs):
+        """
+        Получение полного списка id городов
+        """
+        return self.get_by_fields(model=City, **kwargs)

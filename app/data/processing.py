@@ -267,7 +267,6 @@ class WeatherProcessor:
             logger.error(f"Ошибка при обработке погодных данных: {e}")
             raise ProcessingError(f"Ошибка обработки погодных данных: {e}") from e
 
-
 class SyncProcessor:
     """Класс для синхронизации данных."""
 
@@ -290,3 +289,5 @@ class SyncProcessor:
         except Exception as e:
             logger.error(f"Ошибка при синхронизации регионов и городов: {e}")
             raise ProcessingError(f"Ошибка синхронизации: {e}") from e
+        
+
