@@ -3,6 +3,9 @@ from app.data.imports.import_json import import_json_file
 from app.data.database.models_repository import RegionRepository, CitiesRepository
 import time
 
+t = TourismEvaluation()
+t.calculating_complex_distance(id_region=169)
+
 # # Оценка сегмента
 # start_time = time.time()
 # t = TourismEvaluation()
@@ -31,14 +34,14 @@ import time
 # print(f"Время выполнения: {execution_time:.2f} секунд")
 
 
-# Оценка важных и не важных локаций 
-start_time = time.time()
-segments = import_json_file(file_path=r'app\files\segments.json')
-for i in segments:
-    t = TourismEvaluation()
-    t.get_like_locations_full(i)
-end_time = time.time()
-execution_time = end_time - start_time
-print(f"Время выполнения: {execution_time:.2f} секунд")
+# # Оценка важных и не важных локаций 
+# start_time = time.time()
+# segments = import_json_file(file_path=r'app\files\segments.json')
+# for i in segments:
+#     t = TourismEvaluation()
+#     t.get_like_locations_full(i)
+# end_time = time.time()
+# execution_time = end_time - start_time
+# print(f"Время выполнения: {execution_time:.2f} секунд")
 
 
