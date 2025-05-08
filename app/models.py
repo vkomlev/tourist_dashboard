@@ -499,6 +499,7 @@ def initialize_database() -> None:
     """Подключение к базе данных и создание таблиц."""
     try:
         database_url = Config_SQL.SQLALCHEMY_DATABASE_URI
+        logger.debug(f"Строка подключения: {database_url}")
         engine = create_engine(database_url)
         Base.metadata.create_all(engine)
         logger.info("Таблицы успешно созданы или уже существуют.")

@@ -114,8 +114,9 @@ class Database:
     """
 
     def __init__(self):
+        logger.debug(f"Строка подключения: {Config_SQL.SQLALCHEMY_DATABASE_URI}")
         self.engine = create_engine(Config_SQL.SQLALCHEMY_DATABASE_URI)
-        self.SessionLocal = sessionmaker(bind=self.engine)
+        self.SessionLocal = sessionmaker(bind=self.engine, autoflush=False, autocommit=False)
         self.session = self.SessionLocal()
         logger.debug("Создан SQLAlchemy Engine и sessionmaker.")
 

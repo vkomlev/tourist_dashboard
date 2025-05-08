@@ -3,13 +3,17 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import plotly.express as px
+import dash_bootstrap_components as dbc
 import random
 from dash import Dash, html, dcc, Input, Output
+from typing import List, Optional, Tuple
 
 from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
 from app.data.database.models_repository import MetricValueRepository
 from app.logging_config import logger
 from app.data.score.base_assessment import OverallTourismEvaluation 
+from app.data.metric_codes import METRIC_CODE_MAP, get_metric_code
+from app.data.database.models_repository import MetricValueRepository
 
 
 class Main_page_plot:
@@ -54,159 +58,142 @@ class Region_page_plot:
                 return text 
         return "Нет данных."
     
-    def plot_region_flow_histogram(self, region_id, region_name):
-            rpd = Region_page_dashboard()
-            df = rpd.get_region_tourist_flow_data(region_id)
-
-            plt.figure(figsize=(12, 8))
-            plt.bar(df['period'], df['value'], color='blue')
-            plt.xlabel('Период (год-месяц)')
-            plt.ylabel('Турпоток')
-            plt.title(f'Турпоток по региону: {region_name}')
-            plt.xticks(rotation=90)
-
-            # Сохранение графика
-            output_dir = os.path.join(os.getcwd(), 'app', 'static', 'images')
-            os.makedirs(output_dir, exist_ok=True)
-            plt.savefig(os.path.join(output_dir, f'histogram_flow_{region_id}.png'))
-            plt.close()
- 
-
-    def plot_region_dynamics_tourist(self, id_region, year):
-        """График турпотока для нескольких годов"""
-        dp = MetricValueRepository()
-        tur = dp.get_region_metric_value(region_id=id_region)
-        df = {
-            'x': [i[2] for i in tur],
-            'y': [i[1] for i in tur],
-            'month': [i[2] for i in tur],
-            'year': [i[3] for i in tur]
-              }
-        df = pd.DataFrame(df)
-        df = df[df['year'] == int(year)].sort_values('month')
-        # df = df['x'].to_dict()|df['y'].to_dict()
-        fig = px.line(df, x='x', y='y').show()
-        return fig
-    
-    def plot_region_night(self, 
-                          id_region:int,
-                          year:int
-                          ):
-        dp = Region_page_dashboard()
-        df = dp.get_region_mean_night(id_region=id_region, year=year)
-        logger.debug(f"Данные для графика: {df.head(12)}")
-        # logger.debug(f"Данные для графика: {df.info()}")
-        fig_night = px.bar(df, x='Месяц', y='Количество ночевок', title='Количество ночевок на туриста в регионе') 
-        return fig_night
-    
-    def plot_region_leisure_rating(self, id_region):
-        dp = Region_page_dashboard()
-        df = dp.get_region_leisure_rating(id_region=id_region)
-        fig_segmetns = px.bar(df, x='Оценка', y='Название сегмента', title='Топ сегментов туризма') 
-        return fig_segmetns
-    
-    def create_tabs_layout(self, region_id: int):
+    def fetch_latest_value(self,
+        repo: MetricValueRepository,
+        id_metric: int,
+        id_region: int
+    ) -> Optional[float]:
         """
-        Создает Dash layout с вкладками по годам.
+        Возвращает последнее числовое значение метрики для заданного региона.
 
         Args:
-            region_id (int): Идентификатор региона.
+            repo: экземпляр MetricValueRepository.
+            id_metric: код метрики.
+            id_region: ID региона.
 
         Returns:
-            html.Div: Макет с вкладками.
+            Последнее значение value в виде float, или None.
         """
         try:
-            # Получаем данные и формируем список годов
-            rd = Region_page_dashboard()
-            df = rd.prepare_tourist_count_data(region_id=region_id)
-            years = df['year'].unique()
+            mvs = repo.get_info_metricvalue(id_metric=id_metric, id_region=id_region)
+            if not mvs:
+                return None
+            raw = mvs[-1].value
+            return float(raw) if raw is not None else None
+        except Exception as e:
+            logger.warning("Ошибка при fetch_latest_value(metric=%s, region=%s): %s",
+                        id_metric, id_region, e)
+            return None
 
-            # Генерируем вкладки по годам
-            tabs = dcc.Tabs(
-                id='year-tabs',
-                value=str(years[0]),
-                children=[
-                    dcc.Tab(label=str(year), value=str(year)) for year in years
-                ]
+
+    def _choose_card_color(self, val: Optional[float]) -> str:
+        """
+        Выбирает цвет карточки по значению:
+         - None → secondary (серый)
+         - < 3.0 → danger (красный)
+         - 3.0–4.0 → warning (желтый)
+         - > 4.0 → success (зелёный)
+        """
+        if val is None:
+            return "secondary"
+        if val < 3.0:
+            return "danger"
+        if val < 4.0:
+            return "warning"
+        return "success"
+
+    def make_kpi_cards(self, region_id: int, repo: MetricValueRepository) -> List[dbc.Col]:
+        """
+        Формирует список карточек KPI для всех метрик из METRIC_CODE_MAP
+        с цветовой градацией оценки.
+        """
+        cards: List[dbc.Col] = []
+        for key, (code, rus_name) in METRIC_CODE_MAP.items():
+            val = self.fetch_latest_value(repo, code, region_id)
+            display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
+            color = self._choose_card_color(val)
+
+            card = dbc.Card(
+                [
+                    dbc.CardHeader(rus_name, className="text-white"),
+                    dbc.CardBody(html.H4(display, className="card-title text-white")),
+                ],
+                color=color,
+                inverse=True,  # делает фон карточки цветным, текст светлым
+                className="mb-3 shadow-sm",
             )
-            return html.Div([
-                html.H3("Динамика турпотока по годам"),
-                tabs,
-                dcc.Graph(id='tourist-flow-chart')  # Пустой график
+            cards.append(dbc.Col(card, xs=12, sm=6, md=4, lg=3))
+        return cards
+
+
+    def make_flow_figure(self, region_id: int, repo: MetricValueRepository) -> dict:
+        """
+        Строит Plotly-figure с абсолютным турпотоком по месяцам за последний год.
+
+        Args:
+            region_id: ID региона.
+            repo: репозиторий для доступа к metric_values.
+
+        Returns:
+            Словарь-figure для dcc.Graph.
+        """
+        ABS_FLOW_CODE = 2
+        try:
+            mvs = repo.get_info_metricvalue(id_metric=ABS_FLOW_CODE, id_region=region_id)
+            df = pd.DataFrame([
+                {"year": mv.year, "month": mv.month, "value": float(mv.value)}
+                for mv in mvs if mv.year is not None and mv.month is not None and mv.value is not None
             ])
+            if df.empty:
+                return {}
+            last_year = int(df["year"].max())
+            df = df[df["year"] == last_year].sort_values("month")
+            fig = px.bar(
+                df,
+                x="month",
+                y="value",
+                title=f"Турпоток (абс.) за {last_year} год",
+                labels={"value": "Туристы, чел.", "month": "Месяц"}
+            )
+            return fig.to_dict()
         except Exception as e:
-            logger.error(f"Ошибка при создании вкладок: {e}")
-            return html.Div([html.H3("Ошибка загрузки данных")])
+            logger.error("Ошибка при построении flow_figure для региона %s: %s", region_id, e)
+            return {}
 
-    def create_tourist_flow_chart(self, region_id: int, year: int) -> dict:
+
+    def make_nights_figure(self, region_id: int, repo: MetricValueRepository) -> dict:
         """
-        Генерирует график турпотока для выбранного года.
+        Строит Plotly-figure с абсолютными ночёвками по месяцам за последний год.
 
         Args:
-            region_id (int): Идентификатор региона.
-            year (int): Год.
+            region_id: ID региона.
+            repo: репозиторий для доступа к metric_values.
 
         Returns:
-            dict: Объект figure для Plotly.
+            Словарь-figure для dcc.Graph.
         """
+        ABS_NIGHTS_CODE = 3
         try:
-            # Получаем данные
-            rd = Region_page_dashboard()
-            df = rd.prepare_tourist_count_data(region_id=region_id)
-
-            # Фильтруем по году
-            df_year = df[df['year'] == year]
-
-            # Генерируем график
-            fig = px.bar(
-                df_year,
-                x='month',
-                y='value',
-                title=f"Туристический поток в {year} году",
-                labels={'value': 'Количество туристов', 'month': 'Месяц'}
+            mvs = repo.get_info_metricvalue(id_metric=ABS_NIGHTS_CODE, id_region=region_id)
+            df = pd.DataFrame([
+                {"year": mv.year, "month": mv.month, "value": float(mv.value)}
+                for mv in mvs if mv.year is not None and mv.month is not None and mv.value is not None
+            ])
+            if df.empty:
+                return {}
+            last_year = int(df["year"].max())
+            df = df[df["year"] == last_year].sort_values("month")
+            fig = px.line(
+                df,
+                x="month",
+                y="value",
+                title=f"Ночёвки (абс.) за {last_year} год",
+                labels={"value": "Ночёвки, чел.-дней", "month": "Месяц"}
             )
-            logger.debug(f"Создан график турпотока для региона {region_id} за {year} год.")
-            return fig
+            return fig.to_dict()
         except Exception as e:
-            logger.error(f"Ошибка при построении графика: {e}")
+            logger.error("Ошибка при построении nights_figure для региона %s: %s", region_id, e)
             return {}
-    
-    def create_region_header(self, region_name: str):
-        return html.H2(f"Регион: {region_name}")
-
-    def create_rating_section(self, id_region):
-        rd = Region_page_dashboard()
-        overall_metrics, segment_scores = rd.region_overall_calculation(id_region)
-        fig_segments = self.plot_region_leisure_rating(id_region)
-        overall = OverallTourismEvaluation(**overall_metrics)
-        rating = overall.calculate_overall_score()
-        stars = '★' * int(rating) + '☆' * (5 - int(rating))
-        description = self.get_interpretation(rating)
-        country_rank = f"место по стране 50" 
-        macro_rank = f"Место по макрорегиону 50"  
-        return html.Div([
-            html.H2(f"Рейтинг: {rating:.1f} {stars}"),
-            dcc.Graph(figure=fig_segments),
-            html.P(description),
-            html.P(country_rank), 
-            html.P(macro_rank),
-        ],)
-
-    def create_details_section(self, id_region):
-        rd = Region_page_dashboard()
-        overall_metrics, segment_scores = rd.region_overall_calculation(id_region)
-        overall = OverallTourismEvaluation(**overall_metrics)
-        rating = overall.calculate_overall_score()
-        detail = (
-                f" Подробный расчет: \n Ttotal = 0.4 * {overall.segment_scores} + 0.2 * "
-                f" {overall.general_infra} + 0.1 * {overall.safety} +  0.1 * {overall.flow}" 
-                f"+ 0.05 * {overall.nights} + 0.05 * {overall.climate} + 0.05 * {overall.prices} + 0.05 * {overall.distance} = {rating:.2f}"
-        )
-        return html.Pre(detail)
-    
-    def create_night_count_section(self, id_region, year):
-        fig_night = self.plot_region_night(id_region, year)
-        return html.Div([dcc.Graph(figure = fig_night)])
 
 
 class City_page_plot:

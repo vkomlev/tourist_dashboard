@@ -1,185 +1,135 @@
-from dash import Dash, html, dcc, Input, Output, State 
-import plotly.express as px 
-import pandas as pd 
+# app/reports/dashboard.py
 
-from app.logging_config import logger 
-from app.data.database.models_repository import RegionRepository 
-from app.data.calc.base_calc import Region_calc 
+import io
+import logging
+from typing import Dict, Optional
 
-from app.reports.plot import Region_page_plot
- 
- 
-def extract_region_id(pathname: str) -> int:
-    """
-    Извлекает идентификатор региона из URL.
+import pandas as pd
+from dash import Dash, html, dcc, Input, Output, State
+import dash_bootstrap_components as dbc
+from flask import Flask
 
-    Args:
-        pathname (str): Путь URL.
+from app.data.metric_codes import get_metric_code
+from app.data.database.models_repository import MetricValueRepository, RegionRepository
+from app.reports.plot import (
+    Region_page_plot
+)
 
-    Returns:
-        int: Идентификатор региона.
-    """
-    try:
-        path_parts = pathname.split('/')
-        return int(path_parts[-1]) if path_parts[-1].isdigit() else 0
-    except Exception as e:
-        logger.error(f"Ошибка извлечения ID региона: {e}")
-        return 0
-     
-def create_dashboard(flask_server): 
-    """ 
-    Создание Dash-дэшборда с поддержкой динамических URL. 
-    """ 
-    # Создаем приложение Dash 
-    app_dash = Dash( 
-        __name__, 
-        server=flask_server, 
-        url_base_pathname=f'/region/', 
-        suppress_callback_exceptions=True  # Добавляем обработку динамических компонентов 
-    ) 
- 
-    # Макет с поддержкой динамического URL 
-    app_dash.layout = html.Div([
-        dcc.Location(id='url', refresh=False),
-        html.H1("Комплексная оценка туристской отрасли регионов"),
+logger = logging.getLogger(__name__)
 
-        # Вывод динамического региона
-        html.Div(id='dynamic-region-header'),
 
-        # Блок оценки
-        html.Div(id='rating-display'),
-
-        # Детальный расчет
-        html.Div(id='score-calculation', style={'margin-top': '20px'}),
-
-        # Детальный расчет
-        html.Div(id='detailed-calculation', style={'margin-top': '20px'}),
-
-        # Добавляем новый блок для динамики турпотока
-        html.Div(id='tourist-flow-section', style={'margin-top': '20px'}),
-
-        # Добавляем блок количества ночевок
-        html.Div(id='tourist-nights-section', style={'margin-top': '20px'})
-    ])
-
-    @app_dash.callback(
-        Output('score-calculation', 'children'),
-        Input('url', 'pathname')
+def create_dashboard(server: Flask) -> Dash:
+    """Создает единый Dash-приложение с маршрутизацией страниц."""
+    external_stylesheets = [dbc.themes.BOOTSTRAP]
+    app_dash = Dash(
+        __name__,
+        server=server,
+        url_base_pathname="/dashboard/",
+        external_stylesheets=external_stylesheets,
+        suppress_callback_exceptions=True,
     )
-    def load_score_calc_section(pathname):
-        """
-        Загружает секцию с посегментным графиком оценок.
-        """
-        try:
-            region_id = extract_region_id(pathname)
-            rplot = Region_page_plot()
-            return rplot.create_rating_section(region_id)
-        except Exception as e:
-            logger.error(f"Ошибка загрузки секции рейтинга: {e}")
-            return html.Div("Ошибка загрузки данных")
-    
-    @app_dash.callback(
-        Output('detailed-calculation', 'children'),
-        Input('url', 'pathname')
-    )
-    def load_detailed_calc_section(pathname):
-        """
-        Загружает секцию с рассчетами туризма.
-        """
-        try:
-            region_id = extract_region_id(pathname)
-            rplot = Region_page_plot()
-            return rplot.create_details_section(region_id)
-        except Exception as e:
-            logger.error(f"Ошибка загрузки секции рейтинга: {e}")
-            return html.Div("Ошибка загрузки данных")
- 
-    @app_dash.callback(
-        Output('tourist-flow-section', 'children'),
-        Input('url', 'pathname')
-    )
-    def load_tourist_flow_section(pathname):
-        """
-        Загружает секцию с вкладками для графиков турпотока.
-        """
-        try:
-            region_id = extract_region_id(pathname)
-            rplot = Region_page_plot()
-            return rplot.create_tabs_layout(region_id)
-        except Exception as e:
-            logger.error(f"Ошибка загрузки секции турпотока: {e}")
-            return html.Div("Ошибка загрузки данных")
-    
-    @app_dash.callback(
-        Output('tourist-nights-section', 'children'),
-        Input('url', 'pathname')
-    )
-    def load_tourist_nights_section(pathname):
-        """
-        Загружает секцию с вкладками для графиков количества ночевок.
-        """
-        try:
-            region_id = extract_region_id(pathname)
-            year = 2023
-            rplot = Region_page_plot()
-            return rplot.create_night_count_section(region_id, year)
-        except Exception as e:
-            logger.error(f"Ошибка загрузки секции ночевок: {e}")
-            return html.Div("Ошибка загрузки данных")
-
-    @app_dash.callback(
-        Output('tourist-flow-chart', 'figure'),
-        Input('year-tabs', 'value'),
-        State('url', 'pathname')
-    )
-    def update_tourist_flow_chart(selected_year, pathname):
-        """
-        Ленивая загрузка графиков по выбранному году.
-        """
-        try:
-            # Получаем ID региона
-            path_parts = pathname.split('/')
-            id_region = int(path_parts[-1]) if path_parts[-1].isdigit() else 0
-
-            # Загружаем график
-            rplot = Region_page_plot()
-            return rplot.create_tourist_flow_chart(id_region, int(selected_year))
-        except Exception as e:
-            logger.error(f"Ошибка обновления графика турпотока: {e}")
-            return {}
-
-
-    # Функция обратного вызова для обработки URL и извлечения параметра ID 
-    @app_dash.callback( 
-        Output('dynamic-region-header', 'children'), 
-        Input('url', 'pathname')  # Получаем текущий URL 
-    ) 
-    def update_dashboard_header(pathname):
-        """
-        Обработчик для динамических URL с поддержкой ID региона.
-        """
-        try:
-            # Извлекаем ID региона
-            region_id = extract_region_id(pathname)
-            logger.debug(f'region_id = {region_id}')
-
-            # Получаем данные региона
-            region_repo = RegionRepository()
-            region_info = region_repo.find_region_by_id(region_id)
-
-            if not region_info:
-                raise ValueError("Регион не найден")
-            region_name = region_info.region_name
-
-
-            # Формируем контент
-            rplot = Region_page_plot()
-            header = rplot.create_region_header(region_name)
-
-            return header
-
-        except Exception as e:
-            logger.error(f"Ошибка обновления дашборда: {e}")
-            return html.H2("Регион не найден"), "", ""
- 
+    app_dash.layout = dbc.Container([
+        dcc.Location(id="url", refresh=False),
+        html.Div(id="page-content")
+    ], fluid=True)
+    register_callbacks(app_dash)
     return app_dash
+
+
+def register_callbacks(app_dash: Dash) -> None:
+    """Регистрирует коллбеки для роутинга и экспорта."""
+
+    @app_dash.callback(
+        Output("page-content", "children"),
+        Input("url", "pathname"),
+    )
+    def display_page(pathname: str):
+        parts = pathname.rstrip("/").split("/")
+        if len(parts) >= 4 and parts[2] == "region":
+            try:
+                region_id = int(parts[3])
+                return create_region_layout(region_id)
+            except ValueError:
+                return page_not_found()
+        return page_not_found()
+
+    @app_dash.callback(
+        Output("download-dataframe-xlsx", "data"),
+        Input("btn-download", "n_clicks"),
+        State("url", "pathname"),
+        prevent_initial_call=True,
+    )
+    def download_metrics(n_clicks: int, pathname: str):
+        """
+        Формирует и отдает Excel-файл с последними KPI-метриками региона.
+        """
+        buffer = io.BytesIO()
+        repo = MetricValueRepository()
+        parts = pathname.rstrip("/").split("/")
+        entity_field = f"id_{parts[2]}"
+        entity_id = int(parts[3])
+
+        # Только относительные KPI (те, что в METRIC_CODE_MAP)
+        metric_keys = list(get_metric_code.__self__.keys())  # словарь METRIC_CODE_MAP
+        records: Dict[str, Optional[float]] = {}
+
+        for key in metric_keys:
+            try:
+                code, rus_name = get_metric_code(key)
+                mvs = repo.get_info_metricvalue(id_metric=code, **{entity_field: entity_id})
+                if mvs:
+                    records[rus_name] = float(mvs[-1].value)
+                else:
+                    records[rus_name] = None
+            except Exception as e:
+                logger.warning("Не удалось экспортировать %s: %s", key, e)
+                records[rus_name] = None
+
+        df = pd.DataFrame([records])
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False, sheet_name="Metrics")
+        buffer.seek(0)
+        filename = f"{parts[2]}_{entity_id}_metrics.xlsx"
+        return dcc.send_bytes(buffer.read(), filename)
+
+
+def page_not_found():
+    """Заглушка для нераспознанных URL."""
+    return dbc.Alert("Страница не найдена", color="danger")
+
+
+def create_region_layout(region_id: int):
+    """
+    Компоновка дашборда региона.
+    Собирает KPI, графики абсолютных значений и кнопку экспорта.
+    """
+    repo = MetricValueRepository()
+    region_repo = RegionRepository()
+    rpp = Region_page_plot()
+    # Пытаемся получить экземпляр региона
+    region = region_repo.find_region_by_id(region_id)
+    region_name = region.region_name if region else f"#{region_id}"
+    # KPI
+    cards = rpp.make_kpi_cards(region_id, repo)
+
+    # Графики
+    flow_fig = rpp.make_flow_figure(region_id, repo)
+    nights_fig = rpp.make_nights_figure(region_id, repo)
+
+    return dbc.Container([
+        dbc.Row(
+            dbc.Col(html.H2(f"Дашборд региона: {region_name}"), width=12),
+            className="my-3"
+        ),
+
+        dbc.Row(cards, className="mb-4"),
+        dbc.Row([
+            dbc.Col(dcc.Graph(figure=flow_fig), md=6),
+            dbc.Col(dcc.Graph(figure=nights_fig), md=6),
+        ], className="mb-4"),
+        dbc.Row([
+            dbc.Col(dbc.Button("Скачать метрики в Excel", id="btn-download", color="primary"),
+                    width="auto"),
+            dcc.Download(id="download-dataframe-xlsx")
+        ], justify="start"),
+    ], fluid=True)
