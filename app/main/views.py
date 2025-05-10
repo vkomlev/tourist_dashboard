@@ -41,7 +41,12 @@ def generate_map():
                 else:
                     image_html = ''
                 
-                popup_content = f"<b>{region_name}</b><br><a href='/region/{region_id}' target='_blank'>Подробнее</a>{image_html}"
+                popup_content = (
+                    f"<b>{region_name}</b><br>"
+                    f"<a href='/dashboard/region/{region_id}' target='_blank'>Подробнее</a>"
+                    f"{image_html}"
+                    )
+
                 popup = folium.Popup(popup_content, max_width=300)
                 color = "#{:06x}".format(random.randint(0, 0xFFFFFF))  # Генерация случайного цвета
                 folium.GeoJson(
