@@ -1,5 +1,7 @@
 from app.data.processing import DataProcessor,WeatherProcessor
-# from app.data.parsing.base_parsing import Parse
+from app.data.parsing.base_parsing import Parse
+from app.data.parsing.sutochno_parsing import ParseSutochnoXML
+from time import sleep
 # from app.data.database import LocationsRepository
 # from app.data.database.models_repository import LocationsRepository, MetricValueRepository
 # from app.reports.plot import City_page_plot, Region_page_plot
@@ -9,8 +11,18 @@ from app.data.processing import DataProcessor,WeatherProcessor
 # import pandas as pd
 
 
-dp = DataProcessor()
-dp.process_yandex_locations(specific_region=('Челябинская область',), level_loc_type = 1, restart=False)
+files_path = [r'C:\Works\tourist_dashboard\app\files\hotels_info.xlsx', 
+             r'C:\Works\tourist_dashboard\app\files\realty_info.xlsx']
+for file_path in files_path:
+    s = ParseSutochnoXML(file_path=file_path,
+                         sheet_name='Sheet1')
+    s.get_hotels_realty()
+    sleep(10)
+
+
+# Сбор локаций
+# dp = DataProcessor()
+# dp.process_yandex_locations(specific_region=('Челябинская область',), level_loc_type = 1, restart=False)
 
 # dp = Region_page_dashboard()
 # dp.get_region_mean_night(id_region=150, year=2023)

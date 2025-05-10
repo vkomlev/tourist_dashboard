@@ -386,9 +386,8 @@ class Region_calc(Calc):
         try:
             r = RegionRepository()
             c = CitiesRepository()
-            region = r.find_region_by_id(id_region=self.id_region)
-            capital = c.get_cities_full(id_city=region.capital)
-            cities = c.get_cities_full(id_region=self.id_region)
+            capital = c.get_cities_full(id_city=5178)
+            cities = c.get_cities_full()
             return{'cities': cities, 'capital': capital}
         except Exception as e:
             logger.error(f'Ошибка в методе get_distance_cities: {e}')
@@ -416,7 +415,36 @@ class Region_calc(Calc):
                     id_city = self.id_city,
                     id_region = self.id_region
                 )
-                segments[metric] = float(value[0].value) if value else ''
+                segments[metric] = float(value[0].value) if value else 0
             return segments
         except Exception as e:
             logger.error(f'Ошибка в методе get_like_segments: {e}')
+
+    def get_like_parts_complex(self):
+        """
+        Получение оценок составных частей комплексной оценки
+        """
+        try:
+            metrics = {
+                'complex_t':217,
+                'complex_o':218,
+                'complex_n':240,
+                'complex_l':241,
+                'complex_tru':283,
+                'complex_night':284,
+                'complex_distance':285,
+                'complex_price':286,
+            }
+            mv = MetricValueRepository()
+            metric_value = {}
+            for metric, id_metric in metrics.items():
+                value = mv.get_info_metricvalue(
+                    id_metric = id_metric,
+                    id_city = self.id_city,
+                    id_region = self.id_region
+                )
+                metric_value[metric] = float(value[0].value) if value else 0
+            return metric_value
+        except Exception as e:
+            logger.error(f'Ошибка в методе get_like_segments: {e}')
+

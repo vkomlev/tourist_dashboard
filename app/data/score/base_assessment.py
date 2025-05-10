@@ -3,7 +3,8 @@ import pandas as pd
 from app.logging_config import logger
 from app.data.database.models_repository import (LocationsRepository, 
                                                  MetricValueRepository, 
-                                                 MetricRepository
+                                                 MetricRepository,
+                                                 RegionRepository
                                                  )
 from app.data.parsing.perplexity_parsing import ParsePerplexity
 from app.data.imports.import_json import import_json_file
@@ -127,8 +128,10 @@ class TourismEvaluation:
                     text = f'{text} {reviews}'.replace('\n', ' ').replace('  ', ' ')
                     # отправка отзывов в бота
                     like_reviews = p.analyze_text_with_perplexity(request_bot=text)
-                if not like_reviews:
-                    like_reviews = 0
+                    if not like_reviews:
+                        like_reviews = 0
+                else:
+                   like_reviews = 0 
                 # подсчет итоговой оценки
                 logger.info(f'0.35 * {float(like_yandex)} + 0.35 * {float(like_reviews)} + 0.3 * {float(like_count_reviews)}')
                 like = 0.35 * float(like_yandex) + 0.35 * float(like_reviews) + 0.3 * float(like_count_reviews)
@@ -334,17 +337,19 @@ class TourismEvaluation:
     
     def calculating_complex_parts(self, id_region, id_city=''):
         '''
-        Рассчет и загрузкасоставных частей комплексной оценки
+        Рассчет и загрузка составных составных частей комплексной оценки
         '''
         logger.info(f"Рассчет составных частей комплексной оценки для id_r = {id_region}, id_c = {id_city}")
-        # self.calculating_complex_tur_nig(id_region=id_region,
-        #                                  id_city=id_city)
+        self.calculating_complex_tur_nig(id_region=id_region,
+                                         id_city=id_city)
         self.calculating_complex_distance(id_region=id_region,
                                          id_city=id_city)
         if id_city:
             self.calculating_complex_segments(id_city=id_city)
+            self.calculating_complex_price(id_city=id_city)
         else:
             self.calculating_complex_segments(id_region=id_region)
+            self.calculating_complex_price(id_region=id_region)
         
 
     def calculating_complex_tur_nig(self, id_region, id_city=''):
@@ -363,7 +368,7 @@ class TourismEvaluation:
                 like_count = self.get_tour_flow_rating(x=float(value), 
                                                         pcts=percentiles
                                                         )
-                like_count = round(like_count, 2)
+                like_count = round(like_count, 2) if like_count >= 2 else 2
                 metric = mv.get_info_metricvalue(id_metric=metrics[key],
                                                 id_city=id_city,
                                                 id_region=id_region
@@ -381,65 +386,64 @@ class TourismEvaluation:
 
     def calculating_complex_distance(self, id_region, id_city=''):
         """
-        Рассчет оценки расстояния от столицы региона
+        Рассчет оценки расстояния от столицы до региона
         """
         try:
-            if id_city:
-                r = Region_calc(id_region = id_region)
-                distance = r.get_distance_cities()
-                # получение координат столицы
-                wkb_element = distance['capital'][0].coordinates
-                point = to_shape(wkb_element)
-                longitude_capital, latitude_capital = point.x, point.y
-                mass = []
-                for city in distance['cities']:
-                    point = to_shape(city.coordinates)
-                    longitude_city, latitude_city = point.x, point.y
-                    longitude = (longitude_city - longitude_capital)**2
-                    latitude = (latitude_city - latitude_capital)**2
-                    length = (longitude + latitude)**0.5
-                    mass.append(length)
-                mass.sort()
-                df =  pd.DataFrame({'length':mass})
-                percentiles = df['length'].quantile([i*0.01 for i in range(1,101)])
-                percentiles = [percentiles[i*0.01] for i in range(1,101)]
-                city = [i for i in distance['cities'] if i.id_city == id_city][0]
+            r = Region_calc(id_region = id_region)
+            if not id_city:
+                reg = RegionRepository()
+                region = reg.find_region_by_id(id_region=id_region)
+                id_city = region.capital
+
+            distance = r.get_distance_cities()
+            # получение координат столицы
+            wkb_element = distance['capital'][0].coordinates
+            point = to_shape(wkb_element)
+            longitude_capital, latitude_capital = point.x, point.y
+            mass = []
+            for city in distance['cities']:
                 point = to_shape(city.coordinates)
                 longitude_city, latitude_city = point.x, point.y
                 longitude = (longitude_city - longitude_capital)**2
                 latitude = (latitude_city - latitude_capital)**2
                 length = (longitude + latitude)**0.5
-                
-                pcts = percentiles
-                x = length
-                # 1. Если x меньше первого перцентиля
-                if x <= pcts[0]:
-                    like_distance = 5.0
-                
-                # 2. Если x больше последнего перцентиля
-                elif x >= pcts[-1]:
-                    like_distance = 1.0
-                
-                # 3. Иначе ищем, в какой промежуток попадает x
-                else:
-                    for i in range(len(pcts) - 1):
-                        if pcts[i] <= x < pcts[i+1]:
-                            # 4. Доля внутри интервала
-                            alpha = (x - pcts[i]) / (pcts[i+1] - pcts[i])
-                            
-                            # 5. Индекс процентиля i + alpha
-                            # 6. Переводим в шкалу 1..5:
-                            rating = 7 - 4 * ((i + alpha) / 99.0)
-                            
-                            # 7. Округляем
-                            like_distance = round(rating, 2)
-                like_distance = self.get_tour_flow_rating(x=length, 
-                                                        pcts=percentiles
-                                                        )
-
+                mass.append(length)
+            mass.sort()
+            df =  pd.DataFrame({'length':mass})
+            percentiles = df['length'].quantile([i*0.01 for i in range(1,101)])
+            percentiles = [percentiles[i*0.01] for i in range(1,101)]
+            city = [i for i in distance['cities'] if i.id_city == id_city][0]
+            point = to_shape(city.coordinates)
+            longitude_city, latitude_city = point.x, point.y
+            longitude = (longitude_city - longitude_capital)**2
+            latitude = (latitude_city - latitude_capital)**2
+            length = (longitude + latitude)**0.5
+            
+            pcts = percentiles
+            x = length
+            # 1. Если x меньше первого перцентиля
+            if x <= pcts[0]:
+                like_distance = 5.0
+            
+            # 2. Если x больше последнего перцентиля
+            elif x >= pcts[-1]:
+                like_distance = 2.0
+            
+            # 3. Иначе ищем, в какой промежуток попадает x
             else:
-                like_distance = 5
-            like_distance = round(like_distance, 2)
+                for i in range(len(pcts) - 1):
+                    if pcts[i] <= x < pcts[i+1]:
+                        # 4. Доля внутри интервала
+                        alpha = (x - pcts[i]) / (pcts[i+1] - pcts[i])
+                        
+                        # 5. Индекс процентиля i + alpha
+                        # 6. Переводим в шкалу 1..5:
+                        rating = 1 + 4 * ((len(pcts) - 1 - i + alpha) / 99.0)
+                        
+                        # 7. Округляем
+                        like_distance = round(rating, 2)
+
+            like_distance = round(like_distance, 2) if like_distance >= 2 else 2
             mv = MetricValueRepository()
             metric = mv.get_info_metricvalue(id_metric = 285,
                                             id_region = id_region,
@@ -460,7 +464,7 @@ class TourismEvaluation:
         r = Region_calc(id_city=id_city, id_region=id_region)
         mv = MetricValueRepository()
         segments = r.get_like_segments()
-        like = np.mean([float(segments[i]) for i in segments]) if segments else 1 
+        like = np.mean([float(segments[i]) for i in segments]) if segments else 2 
         like = round(like, 2)
         metric = mv.get_info_metricvalue(id_metric = 217,
                                         id_region = id_region,
@@ -471,6 +475,44 @@ class TourismEvaluation:
                         id_region = id_region,
                         id_city = id_city,
                         value = like)
+        
+    def calculating_complex_price(self, ):
+        """
+        Рассчитывает среднюю стоимость проживания в городах и регионах
+        """
+        return 2
+    
+    def calculating_complex_like(self, id_region, id_city = ''):
+        """
+        Рассчет комплексной оценки
+        """
+        logger.info(f"Рассчет комплексной оценки id_region = {id_region}, id_city = {id_city}")
+        r = Region_calc(id_city=id_city, 
+                        id_region=id_region)
+        mv = MetricValueRepository()
+        metrics_value = r.get_like_parts_complex()
+        complex_like = (0.35 * metrics_value['complex_t']) + (
+                        0.2 * metrics_value['complex_o']) + (
+                        0.1 * (
+                            (0.7 * metrics_value['complex_n']) + (
+                            0.3 * metrics_value['complex_l']))
+                        ) + (
+                        0.1 * metrics_value['complex_tru']) + (
+                        0.1 * metrics_value['complex_night']) + (
+                        0.05 * metrics_value['complex_distance']) + (
+                        0.1 * metrics_value['complex_price'])
+        complex_like = round(complex_like, 2) if complex_like >= 2 else 2
+        metric = mv.get_info_metricvalue(id_metric = 282,
+                                        id_region = id_region,
+                                        id_city = id_city)
+        id_mv = metric[0].id_mv if metric else ''
+        mv.loading_info(id_mv = id_mv,
+                        id_metric = 282,
+                        id_region = id_region,
+                        id_city = id_city,
+                        value = complex_like)
+
+
 
         
         

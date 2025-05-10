@@ -7,6 +7,7 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 
 from app.data.parsing import Parse, ParseError 
+from app.data.imports.import_xls import load_yandex_locations
 
 logger = logging.getLogger(__name__)
 
@@ -161,3 +162,63 @@ class ParseSutochno(Parse):
         except ParseError as e:
             logger.error(f"Ошибка при получении DataFrame: {e}")
             return None
+        
+class ParseSutochnoXML():
+    """
+    Подготовка данных для закгрузки в БД
+    - опеределение местоположения
+    - преобразование данных для последующей загрузки в БД
+    """
+    def __init__(self, file_path, sheet_name=''):
+        self.file_path = file_path
+        self.sheet_name = sheet_name if sheet_name else None
+
+    def get_hotels_realty(self):
+        """
+        Чтение Excel файла и преобразование его в список словарей
+        """
+        # Читаем лист файла 
+        df = pd.read_excel(self.file_path, sheet_name=self.sheet_name)
+        # Преобразуем в список словарей
+        rows = df.to_dict(orient='records')
+        return rows
+
+    def location_detection(self, housing, cities, regions):
+        """
+        Определяет местоположение места проживания по региону и городу,
+        или по координатам в случае не определенности
+        """
+        logger.info(f"Определение местоположения у {housing}")
+        column_name_cities = 'Город' if 'Город' in housing else 'Населенный пункт'
+        mass_city = [city for city in cities if city.city_name == housing[column_name_cities]]
+        
+        if len(mass_city) == 1:
+            return mass_city[0]
+        
+        if len(mass_city) > 1: 
+            if 'Регион' in housing:
+                region = [region for region in regions if region.region_name == housing['Регион']]
+                if len(region) == 1:
+                    mass_city = [city for city in mass_city if city.id_region == region[0].id_region]
+                    if len(mass_city) == 1:
+                        return mass_city
+                    else:
+                        logger.warning(f'Для отеля {housing}\nОпределено {len(mass_city)} города {mass_city}')
+                else:
+                    logger.warning(f'Для отеля {housing}\nОпределено {len(region)} региона {region}')
+
+            # проверяем по координатам, какой город ближе всего
+            
+
+        if not mass_city:
+            logger.error(f'Проживание {housing}\nНе совпало ни с одним городом из БД')
+        
+
+
+
+
+
+
+
+    
+
