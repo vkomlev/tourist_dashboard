@@ -1,3 +1,5 @@
+#app/data/transform/prepare_data.py
+
 import pandas as pd
 from app.data.database import MetricValueRepository, CitiesRepository
 from app.models import Region
@@ -359,3 +361,16 @@ class Region_page_dashboard(City_page_dashboard):
         overall_metrics = region_calc.get_overall_metrics()
         segment_scores = region_calc.get_segment_scores()
         return overall_metrics, segment_scores
+    
+    METRIC_IDS = {
+        'Комплексная оценка инфраструктуры': 282,
+        'Комплексная оценка сегментов':    217,
+        'Средняя оценка общей инфраструктуры': 218,
+        'Турпоток (оценка)':               283,
+        'Ночёвки (оценка)':                284,
+        'Климат':                          222,
+        'Цена':                            286,
+        'Удаленность от столицы':          285,
+        'Основная инфраструктура кол-во': 240,
+        'Дополнительная инфраструктура кол-во': 241,
+    }

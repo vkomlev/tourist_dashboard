@@ -1,17 +1,16 @@
+#app/reports/plot.py
+
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
-import pandas as pd
 import plotly.express as px
 import dash_bootstrap_components as dbc
-import random
-from dash import Dash, html, dcc, Input, Output
-from typing import List, Optional, Tuple
+from dash import Dash, html, dcc, Input, Output, State
+from typing import List, Optional
 
 from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
 from app.data.database.models_repository import MetricValueRepository
 from app.logging_config import logger
-from app.data.score.base_assessment import OverallTourismEvaluation 
 from app.data.metric_codes import METRIC_CODE_MAP, get_metric_code
 from app.data.database.models_repository import MetricValueRepository
 
@@ -126,74 +125,80 @@ class Region_page_plot:
         return cards
 
 
-    def make_flow_figure(self, region_id: int, repo: MetricValueRepository) -> dict:
+    def flow_graph_with_year_selector(self, region_id: int) -> html.Div:
         """
-        Строит Plotly-figure с абсолютным турпотоком по месяцам за последний год.
-
-        Args:
-            region_id: ID региона.
-            repo: репозиторий для доступа к metric_values.
-
-        Returns:
-            Словарь-figure для dcc.Graph.
+        Возвращает Div с Dropdown по годам и графиком турпотока.
+        Данные берутся из prepare_data.prepare_tourist_count_data().
         """
-        ABS_FLOW_CODE = 2
-        try:
-            mvs = repo.get_info_metricvalue(id_metric=ABS_FLOW_CODE, id_region=region_id)
-            df = pd.DataFrame([
-                {"year": mv.year, "month": mv.month, "value": float(mv.value)}
-                for mv in mvs if mv.year is not None and mv.month is not None and mv.value is not None
-            ])
-            if df.empty:
-                return {}
-            last_year = int(df["year"].max())
-            df = df[df["year"] == last_year].sort_values("month")
-            fig = px.bar(
-                df,
-                x="month",
-                y="value",
-                title=f"Турпоток (абс.) за {last_year} год",
-                labels={"value": "Туристы, чел.", "month": "Месяц"}
-            )
-            return fig.to_dict()
-        except Exception as e:
-            logger.error("Ошибка при построении flow_figure для региона %s: %s", region_id, e)
-            return {}
+        rpd = Region_page_dashboard()
+        df = rpd.prepare_tourist_count_data(region_id)
+        years = sorted(df['year'].unique())
+        dropdown = dcc.Dropdown(
+            id='flow-year-dropdown',
+            options=[{'label': y, 'value': y} for y in years],
+            value=years[-1],
+            clearable=False
+        )
+        graph = dcc.Graph(id='flow-graph')
+        return html.Div([
+            html.H4("Турпоток по месяцам"),
+            dropdown,
+            graph
+        ])
 
-
-    def make_nights_figure(self, region_id: int, repo: MetricValueRepository) -> dict:
+    def nights_graph_with_year_selector(self, region_id: int) -> html.Div:
         """
-        Строит Plotly-figure с абсолютными ночёвками по месяцам за последний год.
-
-        Args:
-            region_id: ID региона.
-            repo: репозиторий для доступа к metric_values.
-
-        Returns:
-            Словарь-figure для dcc.Graph.
+        То же для ночёвок, используя prepare_data.get_region_mean_night().
         """
-        ABS_NIGHTS_CODE = 3
-        try:
-            mvs = repo.get_info_metricvalue(id_metric=ABS_NIGHTS_CODE, id_region=region_id)
-            df = pd.DataFrame([
-                {"year": mv.year, "month": mv.month, "value": float(mv.value)}
-                for mv in mvs if mv.year is not None and mv.month is not None and mv.value is not None
-            ])
-            if df.empty:
-                return {}
-            last_year = int(df["year"].max())
-            df = df[df["year"] == last_year].sort_values("month")
-            fig = px.line(
-                df,
-                x="month",
-                y="value",
-                title=f"Ночёвки (абс.) за {last_year} год",
-                labels={"value": "Ночёвки, чел.-дней", "month": "Месяц"}
-            )
-            return fig.to_dict()
-        except Exception as e:
-            logger.error("Ошибка при построении nights_figure для региона %s: %s", region_id, e)
-            return {}
+        rpd = Region_page_dashboard()
+        # Получаем список доступных годов
+        raw = rpd.prepare_tourist_count_data(region_id)
+        years = sorted(raw['year'].unique())
+        dropdown = dcc.Dropdown(
+            id='nights-year-dropdown',
+            options=[{'label': y, 'value': y} for y in years],
+            value=years[-1],
+            clearable=False
+        )
+        graph = dcc.Graph(id='nights-graph')
+        return html.Div([
+            html.H4("Ночёвки по месяцам"),
+            dropdown,
+            graph
+        ])
+
+    def register_graph_callbacks(self, app_dash: Dash):
+        """
+        Регистрирует коллбеки обновления графиков по выбору года.
+        Должен быть вызван из register_callbacks.
+        """
+        rpd = Region_page_dashboard()
+
+        @app_dash.callback(
+            Output('flow-graph', 'figure'),
+            Input('flow-year-dropdown', 'value'),
+            State('url', 'pathname'),
+        )
+        def update_flow_chart(year, pathname):
+            region_id = int(pathname.split('/')[-1])
+            df = rpd.prepare_tourist_count_data(region_id)
+            df = df[df['year'] == year].sort_values('month')
+            fig = px.bar(df, x='month', y='value',
+                         labels={'value': 'Туристы', 'month': 'Месяц'},
+                         title=f"Турпоток за {year} год")
+            return fig
+
+        @app_dash.callback(
+            Output('nights-graph', 'figure'),
+            Input('nights-year-dropdown', 'value'),
+            State('url', 'pathname'),
+        )
+        def update_nights_chart(year, pathname):
+            region_id = int(pathname.split('/')[-1])
+            df = rpd.get_region_mean_night(region_id, year)
+            fig = px.line(df, x='Месяц', y='Количество ночевок',
+                          title=f"Ночёвки за {year} год")
+            return fig
 
 
 class City_page_plot:
