@@ -11,7 +11,7 @@ from typing import List, Optional
 from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
 from app.data.database.models_repository import MetricValueRepository
 from app.logging_config import logger
-from app.data.metric_codes import METRIC_CODE_MAP, get_metric_code
+from app.data.metric_codes import METRIC_CODE_MAP
 from app.data.database.models_repository import MetricValueRepository
 
 
@@ -199,7 +199,52 @@ class Region_page_plot:
             fig = px.line(df, x='Месяц', y='Количество ночевок',
                           title=f"Ночёвки за {year} год")
             return fig
+        
+    def make_municipalities_map(self, id_region) -> dcc.Graph:
+        """
+        Строит карту городов/муниципалитетов по DataFrame muni_df:
+        ожидаются колонки ['name','lon','lat'].
+        Точки побольше, включены кнопки "+" и "-" для зума.
+        """
+        rpd = Region_page_dashboard()
+        muni_df  = rpd.load_municipalities(id_region)
+        if muni_df.empty:
+            return dcc.Graph(figure={})
 
+        fig = px.scatter_mapbox(
+            muni_df,
+            lon='lon',
+            lat='lat',
+            hover_name='name',
+            zoom=8,
+            height=600,
+            # размер маркера:
+            size_max=15,
+            size=[12]*len(muni_df)  # фиксированный размер 12px
+        )
+        fig.update_layout(
+            mapbox_style='open-street-map',
+            margin={'l':0,'r':0,'t':0,'b':0},
+            # показываем контролы зума
+            mapbox=dict(
+                accesstoken=None,
+                zoom=8,
+                center=dict(lat=muni_df['lat'].mean(), lon=muni_df['lon'].mean()),
+            ),
+            updatemenus=[{
+                'type': 'buttons',
+                'showactive': False,
+                'y': 0.99,
+                'x': 0.01,
+                'xanchor': 'left',
+                'yanchor': 'top',
+                'buttons': [
+                    {'label': '+', 'method': 'relayout', 'args': ['mapbox.zoom', fig.layout.mapbox.zoom + 1]},
+                    {'label': '–', 'method': 'relayout', 'args': ['mapbox.zoom', fig.layout.mapbox.zoom - 1]},
+                ]
+            }]
+        )
+        return dcc.Graph(figure=fig)
 
 class City_page_plot:
     def __init__(self):

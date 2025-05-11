@@ -1,6 +1,9 @@
 #app/data/transform/prepare_data.py
 
 import pandas as pd
+import os
+import json 
+
 from app.data.database import MetricValueRepository, CitiesRepository
 from app.models import Region
 from app.logging_config import logger
@@ -374,3 +377,32 @@ class Region_page_dashboard(City_page_dashboard):
         'Основная инфраструктура кол-во': 240,
         'Дополнительная инфраструктура кол-во': 241,
     }
+    def load_municipalities(self, region_id: int) -> pd.DataFrame:
+        """
+        Читает GeoJSON-файл муниципалитетов для региона и возвращает DataFrame:
+        столбцы ['name', 'lon', 'lat'].
+        """
+        path = os.path.join(
+            os.getcwd(), 'app', 'files', 'municipalities', f'{region_id}.geojson'
+        )
+        if not os.path.exists(path):
+            return pd.DataFrame(columns=['name', 'lon', 'lat'])
+
+        with open(path, 'r', encoding='utf-8') as f:
+            gj = json.load(f)
+
+        records = []
+        for feat in gj.get('features', []):
+            props = feat.get('properties', {})
+            geom = feat.get('geometry', {})
+            if geom.get('type') == 'Point':
+                coords = geom.get('coordinates', [])
+                if len(coords) == 2:
+                    lon, lat = coords
+                    records.append({
+                        'name': props.get('name', '—'),
+                        'lon': lon,
+                        'lat': lat
+                    })
+
+        return pd.DataFrame(records)
