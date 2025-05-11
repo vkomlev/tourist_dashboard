@@ -1,0 +1,19 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191641244, "name": "Майкоп" }, "geometry": { "type": "Point", "coordinates": [ 40.104053, 44.6062079 ] } },
+{ "type": "Feature", "properties": { "id": 296362274, "name": "Яблоновский" }, "geometry": { "type": "Point", "coordinates": [ 38.9382841, 44.9864341 ] } },
+{ "type": "Feature", "properties": { "id": 296362277, "name": "Энем" }, "geometry": { "type": "Point", "coordinates": [ 38.9071424, 44.9230727 ] } },
+{ "type": "Feature", "properties": { "id": 298455987, "name": "Адыгейск" }, "geometry": { "type": "Point", "coordinates": [ 39.1909625, 44.8833775 ] } },
+{ "type": "Feature", "properties": { "id": 341518238, "name": "Тлюстенхабль" }, "geometry": { "type": "Point", "coordinates": [ 39.0891847, 44.9811 ] } },
+{ "type": "Feature", "properties": { "id": 344033556, "name": "Тульский" }, "geometry": { "type": "Point", "coordinates": [ 40.1762144, 44.5093616 ] } },
+{ "type": "Feature", "properties": { "id": 344045392, "name": "Ханская" }, "geometry": { "type": "Point", "coordinates": [ 39.9534608, 44.6740242 ] } },
+{ "type": "Feature", "properties": { "id": 344840729, "name": "Хакуринохабль" }, "geometry": { "type": "Point", "coordinates": [ 40.2291119, 45.020114 ] } },
+{ "type": "Feature", "properties": { "id": 367076815, "name": "Кошехабль" }, "geometry": { "type": "Point", "coordinates": [ 40.4963631, 44.8964998 ] } },
+{ "type": "Feature", "properties": { "id": 367761426, "name": "Понежукай" }, "geometry": { "type": "Point", "coordinates": [ 39.3828521, 44.8876896 ] } },
+{ "type": "Feature", "properties": { "id": 369025581, "name": "Тахтамукай" }, "geometry": { "type": "Point", "coordinates": [ 38.994718, 44.9212862 ] } },
+{ "type": "Feature", "properties": { "id": 369790994, "name": "Красногвардейское" }, "geometry": { "type": "Point", "coordinates": [ 39.5861478, 45.1443556 ] } },
+{ "type": "Feature", "properties": { "id": 415008867, "name": "Гиагинская" }, "geometry": { "type": "Point", "coordinates": [ 40.0564982, 44.8755853 ] } }
+]
+}

@@ -1,0 +1,20 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 176957217, "name": "Салехард" }, "geometry": { "type": "Point", "coordinates": [ 66.6146311, 66.5298656 ] } },
+{ "type": "Feature", "properties": { "id": 176960743, "name": "Лабытнанги" }, "geometry": { "type": "Point", "coordinates": [ 66.3810869, 66.6615094 ] } },
+{ "type": "Feature", "properties": { "id": 191897505, "name": "Ноябрьск" }, "geometry": { "type": "Point", "coordinates": [ 75.4475807, 63.2002917 ] } },
+{ "type": "Feature", "properties": { "id": 287337481, "name": "Надым" }, "geometry": { "type": "Point", "coordinates": [ 72.5199792, 65.5369941 ] } },
+{ "type": "Feature", "properties": { "id": 307395771, "name": "Пангоды" }, "geometry": { "type": "Point", "coordinates": [ 74.4947031, 65.8563271 ] } },
+{ "type": "Feature", "properties": { "id": 330810024, "name": "Харп" }, "geometry": { "type": "Point", "coordinates": [ 65.801157, 66.8166121 ] } },
+{ "type": "Feature", "properties": { "id": 361024504, "name": "Уренгой" }, "geometry": { "type": "Point", "coordinates": [ 78.3718646, 65.9623488 ] } },
+{ "type": "Feature", "properties": { "id": 457894655, "name": "Тазовский" }, "geometry": { "type": "Point", "coordinates": [ 78.7149206, 67.4735321 ] } },
+{ "type": "Feature", "properties": { "id": 457970089, "name": "Красноселькуп" }, "geometry": { "type": "Point", "coordinates": [ 82.458855, 65.704239 ] } },
+{ "type": "Feature", "properties": { "id": 535141865, "name": "Губкинский" }, "geometry": { "type": "Point", "coordinates": [ 76.4898086, 64.4337824 ] } },
+{ "type": "Feature", "properties": { "id": 536380782, "name": "Тарко-Сале" }, "geometry": { "type": "Point", "coordinates": [ 77.779459, 64.9219991 ] } },
+{ "type": "Feature", "properties": { "id": 1214516212, "name": "Муравленко" }, "geometry": { "type": "Point", "coordinates": [ 74.4969322, 63.7947977 ] } },
+{ "type": "Feature", "properties": { "id": 1711559378, "name": "Новый Уренгой" }, "geometry": { "type": "Point", "coordinates": [ 76.6799167, 66.085196 ] } },
+{ "type": "Feature", "properties": { "id": 6568687418, "name": "Яр-Сале" }, "geometry": { "type": "Point", "coordinates": [ 70.83653, 66.865563 ] } }
+]
+}

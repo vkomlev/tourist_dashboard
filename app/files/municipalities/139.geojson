@@ -1,0 +1,30 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 79736088, "name": "Воткинск" }, "geometry": { "type": "Point", "coordinates": [ 53.990612, 57.052505 ] } },
+{ "type": "Feature", "properties": { "id": 255594586, "name": "Сарапул" }, "geometry": { "type": "Point", "coordinates": [ 53.8194777, 56.4774374 ] } },
+{ "type": "Feature", "properties": { "id": 255954981, "name": "Можга" }, "geometry": { "type": "Point", "coordinates": [ 52.2138722, 56.4426833 ] } },
+{ "type": "Feature", "properties": { "id": 272616739, "name": "Кез" }, "geometry": { "type": "Point", "coordinates": [ 53.7140134, 57.8965573 ] } },
+{ "type": "Feature", "properties": { "id": 287050506, "name": "Завьялово" }, "geometry": { "type": "Point", "coordinates": [ 53.3776005, 56.784662 ] } },
+{ "type": "Feature", "properties": { "id": 288089948, "name": "Игра" }, "geometry": { "type": "Point", "coordinates": [ 53.0808519, 57.5391501 ] } },
+{ "type": "Feature", "properties": { "id": 296120086, "name": "Сюмси" }, "geometry": { "type": "Point", "coordinates": [ 51.6147316, 57.1081378 ] } },
+{ "type": "Feature", "properties": { "id": 296130162, "name": "Ува" }, "geometry": { "type": "Point", "coordinates": [ 52.1884394, 56.9826616 ] } },
+{ "type": "Feature", "properties": { "id": 331569994, "name": "Алнаши" }, "geometry": { "type": "Point", "coordinates": [ 52.4755309, 56.1848812 ] } },
+{ "type": "Feature", "properties": { "id": 403305470, "name": "Сигаево" }, "geometry": { "type": "Point", "coordinates": [ 53.7753696, 56.4216058 ] } },
+{ "type": "Feature", "properties": { "id": 621090917, "name": "Малая Пурга" }, "geometry": { "type": "Point", "coordinates": [ 53.0055085, 56.5495455 ] } },
+{ "type": "Feature", "properties": { "id": 647804925, "name": "Красногорское" }, "geometry": { "type": "Point", "coordinates": [ 52.501841, 57.703725 ] } },
+{ "type": "Feature", "properties": { "id": 768275072, "name": "Балезино" }, "geometry": { "type": "Point", "coordinates": [ 53.0111891, 57.9745686 ] } },
+{ "type": "Feature", "properties": { "id": 768275075, "name": "Камбарка" }, "geometry": { "type": "Point", "coordinates": [ 54.1945613, 56.2652515 ] } },
+{ "type": "Feature", "properties": { "id": 768275077, "name": "Шаркан" }, "geometry": { "type": "Point", "coordinates": [ 53.869011, 57.295315 ] } },
+{ "type": "Feature", "properties": { "id": 768275079, "name": "Каракулино" }, "geometry": { "type": "Point", "coordinates": [ 53.705165, 56.0105232 ] } },
+{ "type": "Feature", "properties": { "id": 768275083, "name": "Вавож" }, "geometry": { "type": "Point", "coordinates": [ 51.9313766, 56.7676129 ] } },
+{ "type": "Feature", "properties": { "id": 768275089, "name": "Кизнер" }, "geometry": { "type": "Point", "coordinates": [ 51.5192626, 56.2850255 ] } },
+{ "type": "Feature", "properties": { "id": 768275090, "name": "Якшур-Бодья" }, "geometry": { "type": "Point", "coordinates": [ 53.1544847, 57.1842484 ] } },
+{ "type": "Feature", "properties": { "id": 775624401, "name": "Новый" }, "geometry": { "type": "Point", "coordinates": [ 54.0345463, 56.8154377 ] } },
+{ "type": "Feature", "properties": { "id": 920525617, "name": "Глазов" }, "geometry": { "type": "Point", "coordinates": [ 52.6464388, 58.1401196 ] } },
+{ "type": "Feature", "properties": { "id": 1679639726, "name": "Ижевск" }, "geometry": { "type": "Point", "coordinates": [ 53.2094166, 56.866557 ] } },
+{ "type": "Feature", "properties": { "id": 2337276352, "name": "Селты" }, "geometry": { "type": "Point", "coordinates": [ 52.1381468, 57.3094964 ] } },
+{ "type": "Feature", "properties": { "id": 4043325260, "name": "Дебёсы" }, "geometry": { "type": "Point", "coordinates": [ 53.806393, 57.652351 ] } }
+]
+}

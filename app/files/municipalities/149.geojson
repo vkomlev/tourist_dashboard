@@ -1,0 +1,30 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 179374935, "name": "Курган" }, "geometry": { "type": "Point", "coordinates": [ 65.3421169, 55.4409357 ] } },
+{ "type": "Feature", "properties": { "id": 243836016, "name": "Шадринск" }, "geometry": { "type": "Point", "coordinates": [ 63.629482, 56.087364 ] } },
+{ "type": "Feature", "properties": { "id": 420327055, "name": "Шумиха" }, "geometry": { "type": "Point", "coordinates": [ 63.282501, 55.228207 ] } },
+{ "type": "Feature", "properties": { "id": 432593615, "name": "Катайск" }, "geometry": { "type": "Point", "coordinates": [ 62.5836525, 56.2834992 ] } },
+{ "type": "Feature", "properties": { "id": 474362345, "name": "Красный Октябрь" }, "geometry": { "type": "Point", "coordinates": [ 64.812057, 55.653099 ] } },
+{ "type": "Feature", "properties": { "id": 569518115, "name": "Каргаполье" }, "geometry": { "type": "Point", "coordinates": [ 64.434021, 55.952408 ] } },
+{ "type": "Feature", "properties": { "id": 583717935, "name": "Варгаши" }, "geometry": { "type": "Point", "coordinates": [ 65.8081, 55.37204 ] } },
+{ "type": "Feature", "properties": { "id": 583721589, "name": "Лебяжье" }, "geometry": { "type": "Point", "coordinates": [ 66.502243, 55.273006 ] } },
+{ "type": "Feature", "properties": { "id": 583721641, "name": "Мокроусово" }, "geometry": { "type": "Point", "coordinates": [ 66.770607, 55.808598 ] } },
+{ "type": "Feature", "properties": { "id": 591773136, "name": "Половинное" }, "geometry": { "type": "Point", "coordinates": [ 65.987595, 54.789661 ] } },
+{ "type": "Feature", "properties": { "id": 591773144, "name": "Звериноголовское" }, "geometry": { "type": "Point", "coordinates": [ 64.856514, 54.459023 ] } },
+{ "type": "Feature", "properties": { "id": 591773189, "name": "Макушино" }, "geometry": { "type": "Point", "coordinates": [ 67.252739, 55.208321 ] } },
+{ "type": "Feature", "properties": { "id": 591773200, "name": "Белозерское" }, "geometry": { "type": "Point", "coordinates": [ 65.588783, 55.823845 ] } },
+{ "type": "Feature", "properties": { "id": 600671079, "name": "Целинное" }, "geometry": { "type": "Point", "coordinates": [ 63.664242, 54.50412 ] } },
+{ "type": "Feature", "properties": { "id": 622042482, "name": "Юргамыш" }, "geometry": { "type": "Point", "coordinates": [ 64.455788, 55.374958 ] } },
+{ "type": "Feature", "properties": { "id": 804635670, "name": "Мишкино" }, "geometry": { "type": "Point", "coordinates": [ 63.9143594, 55.3373017 ] } },
+{ "type": "Feature", "properties": { "id": 865923188, "name": "Шатрово" }, "geometry": { "type": "Point", "coordinates": [ 64.634209, 56.519569 ] } },
+{ "type": "Feature", "properties": { "id": 890085038, "name": "Петухово" }, "geometry": { "type": "Point", "coordinates": [ 67.88736, 55.065 ] } },
+{ "type": "Feature", "properties": { "id": 990895081, "name": "Альменево" }, "geometry": { "type": "Point", "coordinates": [ 63.578785, 54.942505 ] } },
+{ "type": "Feature", "properties": { "id": 1214196377, "name": "Частоозерье" }, "geometry": { "type": "Point", "coordinates": [ 67.909462, 55.568256 ] } },
+{ "type": "Feature", "properties": { "id": 1315840274, "name": "Щучье" }, "geometry": { "type": "Point", "coordinates": [ 62.747772, 55.208908 ] } },
+{ "type": "Feature", "properties": { "id": 1357711197, "name": "Сафакулево" }, "geometry": { "type": "Point", "coordinates": [ 62.54039, 54.988411 ] } },
+{ "type": "Feature", "properties": { "id": 3189643211, "name": "Далматово" }, "geometry": { "type": "Point", "coordinates": [ 62.939163, 56.258656 ] } },
+{ "type": "Feature", "properties": { "id": 3889268056, "name": "Куртамыш" }, "geometry": { "type": "Point", "coordinates": [ 64.4283925, 54.9095859 ] } }
+]
+}

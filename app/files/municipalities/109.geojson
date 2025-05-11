@@ -1,0 +1,33 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 34506389, "name": "Воркута" }, "geometry": { "type": "Point", "coordinates": [ 64.0627028, 67.5035662 ] } },
+{ "type": "Feature", "properties": { "id": 191650708, "name": "Сыктывкар" }, "geometry": { "type": "Point", "coordinates": [ 50.8352024, 61.6685237 ] } },
+{ "type": "Feature", "properties": { "id": 191909841, "name": "Ухта" }, "geometry": { "type": "Point", "coordinates": [ 53.6842376, 63.5623797 ] } },
+{ "type": "Feature", "properties": { "id": 330842003, "name": "Сосногорск" }, "geometry": { "type": "Point", "coordinates": [ 53.9305546, 63.5895298 ] } },
+{ "type": "Feature", "properties": { "id": 331793608, "name": "Корткерос" }, "geometry": { "type": "Point", "coordinates": [ 51.5744647, 61.8130799 ] } },
+{ "type": "Feature", "properties": { "id": 335978319, "name": "Печора" }, "geometry": { "type": "Point", "coordinates": [ 57.16074, 65.1142862 ] } },
+{ "type": "Feature", "properties": { "id": 335978335, "name": "Водный" }, "geometry": { "type": "Point", "coordinates": [ 53.408073, 63.505032 ] } },
+{ "type": "Feature", "properties": { "id": 335978346, "name": "Ярега" }, "geometry": { "type": "Point", "coordinates": [ 53.5824966, 63.4369197 ] } },
+{ "type": "Feature", "properties": { "id": 335978361, "name": "Троицко-Печорск" }, "geometry": { "type": "Point", "coordinates": [ 56.185379, 62.714462 ] } },
+{ "type": "Feature", "properties": { "id": 335978390, "name": "Емва" }, "geometry": { "type": "Point", "coordinates": [ 50.8880873, 62.5983295 ] } },
+{ "type": "Feature", "properties": { "id": 335978395, "name": "Микунь" }, "geometry": { "type": "Point", "coordinates": [ 50.08218, 62.358238 ] } },
+{ "type": "Feature", "properties": { "id": 335978447, "name": "Выльгорт" }, "geometry": { "type": "Point", "coordinates": [ 50.768478, 61.627003 ] } },
+{ "type": "Feature", "properties": { "id": 335978558, "name": "Койгородок" }, "geometry": { "type": "Point", "coordinates": [ 51.007, 60.441257 ] } },
+{ "type": "Feature", "properties": { "id": 335978588, "name": "Воргашор" }, "geometry": { "type": "Point", "coordinates": [ 63.783737, 67.581192 ] } },
+{ "type": "Feature", "properties": { "id": 335978609, "name": "Инта" }, "geometry": { "type": "Point", "coordinates": [ 60.1313631, 66.0401498 ] } },
+{ "type": "Feature", "properties": { "id": 344035312, "name": "Вуктыл" }, "geometry": { "type": "Point", "coordinates": [ 57.300171, 63.844337 ] } },
+{ "type": "Feature", "properties": { "id": 457173591, "name": "Усинск" }, "geometry": { "type": "Point", "coordinates": [ 57.5570861, 65.9944237 ] } },
+{ "type": "Feature", "properties": { "id": 457190064, "name": "Усть-Цильма" }, "geometry": { "type": "Point", "coordinates": [ 52.156208, 65.438683 ] } },
+{ "type": "Feature", "properties": { "id": 500855169, "name": "Ижма" }, "geometry": { "type": "Point", "coordinates": [ 53.908283, 65.00869 ] } },
+{ "type": "Feature", "properties": { "id": 554878224, "name": "Нижний Одес" }, "geometry": { "type": "Point", "coordinates": [ 54.846099, 63.638953 ] } },
+{ "type": "Feature", "properties": { "id": 598307577, "name": "Усогорск" }, "geometry": { "type": "Point", "coordinates": [ 48.706184, 63.429546 ] } },
+{ "type": "Feature", "properties": { "id": 1037740112, "name": "Северный" }, "geometry": { "type": "Point", "coordinates": [ 64.109085, 67.600349 ] } },
+{ "type": "Feature", "properties": { "id": 1621509798, "name": "Объячево" }, "geometry": { "type": "Point", "coordinates": [ 49.618275, 60.334034 ] } },
+{ "type": "Feature", "properties": { "id": 2330918634, "name": "Жешарт" }, "geometry": { "type": "Point", "coordinates": [ 49.5921266, 62.0953883 ] } },
+{ "type": "Feature", "properties": { "id": 2578815250, "name": "Усть-Кулом" }, "geometry": { "type": "Point", "coordinates": [ 53.689861, 61.684792 ] } },
+{ "type": "Feature", "properties": { "id": 2927671709, "name": "Сторожевск" }, "geometry": { "type": "Point", "coordinates": [ 52.3147008, 61.9398083 ] } },
+{ "type": "Feature", "properties": { "id": 3005417325, "name": "Заполярный" }, "geometry": { "type": "Point", "coordinates": [ 63.730633, 67.496056 ] } }
+]
+}

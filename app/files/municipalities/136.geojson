@@ -1,0 +1,22 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191640862, "name": "Йошкар-Ола" }, "geometry": { "type": "Point", "coordinates": [ 47.8868803, 56.6315556 ] } },
+{ "type": "Feature", "properties": { "id": 256443047, "name": "Красногорский" }, "geometry": { "type": "Point", "coordinates": [ 48.3206246, 56.1541534 ] } },
+{ "type": "Feature", "properties": { "id": 324648017, "name": "Медведево" }, "geometry": { "type": "Point", "coordinates": [ 47.8030237, 56.6332426 ] } },
+{ "type": "Feature", "properties": { "id": 336523790, "name": "Волжск" }, "geometry": { "type": "Point", "coordinates": [ 48.3618598, 55.8636579 ] } },
+{ "type": "Feature", "properties": { "id": 336523845, "name": "Звенигово" }, "geometry": { "type": "Point", "coordinates": [ 48.016105, 55.9718239 ] } },
+{ "type": "Feature", "properties": { "id": 378731567, "name": "Козьмодемьянск" }, "geometry": { "type": "Point", "coordinates": [ 46.5462855, 56.3324346 ] } },
+{ "type": "Feature", "properties": { "id": 378731831, "name": "Юрино" }, "geometry": { "type": "Point", "coordinates": [ 46.291918, 56.29035 ] } },
+{ "type": "Feature", "properties": { "id": 598156536, "name": "Морки" }, "geometry": { "type": "Point", "coordinates": [ 48.9980508, 56.4302572 ] } },
+{ "type": "Feature", "properties": { "id": 604388758, "name": "Оршанка" }, "geometry": { "type": "Point", "coordinates": [ 47.8944568, 56.9154239 ] } },
+{ "type": "Feature", "properties": { "id": 701760403, "name": "Параньга" }, "geometry": { "type": "Point", "coordinates": [ 49.3933921, 56.7052785 ] } },
+{ "type": "Feature", "properties": { "id": 701808009, "name": "Куженер" }, "geometry": { "type": "Point", "coordinates": [ 48.9167614, 56.8114328 ] } },
+{ "type": "Feature", "properties": { "id": 701808010, "name": "Мари-Турек" }, "geometry": { "type": "Point", "coordinates": [ 49.6203566, 56.7877954 ] } },
+{ "type": "Feature", "properties": { "id": 703076601, "name": "Советский" }, "geometry": { "type": "Point", "coordinates": [ 48.474292, 56.7629821 ] } },
+{ "type": "Feature", "properties": { "id": 737168420, "name": "Сернур" }, "geometry": { "type": "Point", "coordinates": [ 49.1469163, 56.9347617 ] } },
+{ "type": "Feature", "properties": { "id": 738194171, "name": "Килемары" }, "geometry": { "type": "Point", "coordinates": [ 46.8594894, 56.7767366 ] } },
+{ "type": "Feature", "properties": { "id": 1741212632, "name": "Новый Торъял" }, "geometry": { "type": "Point", "coordinates": [ 48.7403315, 57.0032906 ] } }
+]
+}

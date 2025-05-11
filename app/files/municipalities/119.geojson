@@ -1,0 +1,23 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 27024680, "name": "Пушкин" }, "geometry": { "type": "Point", "coordinates": [ 30.415731, 59.722256 ] } },
+{ "type": "Feature", "properties": { "id": 27490597, "name": "Санкт-Петербург" }, "geometry": { "type": "Point", "coordinates": [ 30.316229, 59.938732 ] } },
+{ "type": "Feature", "properties": { "id": 60081897, "name": "Колпино" }, "geometry": { "type": "Point", "coordinates": [ 30.5971405, 59.7491142 ] } },
+{ "type": "Feature", "properties": { "id": 60477767, "name": "Зеленогорск" }, "geometry": { "type": "Point", "coordinates": [ 29.7071585, 60.1970751 ] } },
+{ "type": "Feature", "properties": { "id": 83087798, "name": "Петергоф" }, "geometry": { "type": "Point", "coordinates": [ 29.912041, 59.881847 ] } },
+{ "type": "Feature", "properties": { "id": 235967510, "name": "Сестрорецк" }, "geometry": { "type": "Point", "coordinates": [ 29.9594709, 60.0982441 ] } },
+{ "type": "Feature", "properties": { "id": 243067926, "name": "Парголово" }, "geometry": { "type": "Point", "coordinates": [ 30.2795673, 60.0837018 ] } },
+{ "type": "Feature", "properties": { "id": 244213400, "name": "Левашово" }, "geometry": { "type": "Point", "coordinates": [ 30.2040627, 60.1024225 ] } },
+{ "type": "Feature", "properties": { "id": 244217868, "name": "Кронштадт" }, "geometry": { "type": "Point", "coordinates": [ 29.774652, 59.990845 ] } },
+{ "type": "Feature", "properties": { "id": 252425945, "name": "Красное Село" }, "geometry": { "type": "Point", "coordinates": [ 30.0862455, 59.7337668 ] } },
+{ "type": "Feature", "properties": { "id": 356483118, "name": "Понтонный" }, "geometry": { "type": "Point", "coordinates": [ 30.630955, 59.782928 ] } },
+{ "type": "Feature", "properties": { "id": 411691832, "name": "Ломоносов" }, "geometry": { "type": "Point", "coordinates": [ 29.776194, 59.91032 ] } },
+{ "type": "Feature", "properties": { "id": 431206762, "name": "Металлострой" }, "geometry": { "type": "Point", "coordinates": [ 30.575077, 59.809059 ] } },
+{ "type": "Feature", "properties": { "id": 584287948, "name": "Павловск" }, "geometry": { "type": "Point", "coordinates": [ 30.433264, 59.684853 ] } },
+{ "type": "Feature", "properties": { "id": 596163169, "name": "Стрельна" }, "geometry": { "type": "Point", "coordinates": [ 30.058228, 59.852634 ] } },
+{ "type": "Feature", "properties": { "id": 1376026523, "name": "Песочный" }, "geometry": { "type": "Point", "coordinates": [ 30.1637647, 60.1211791 ] } },
+{ "type": "Feature", "properties": { "id": 1827519802, "name": "Шушары" }, "geometry": { "type": "Point", "coordinates": [ 30.37583, 59.807457 ] } }
+]
+}

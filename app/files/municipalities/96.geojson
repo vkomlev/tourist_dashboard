@@ -1,0 +1,32 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 148901123, "name": "Кострома" }, "geometry": { "type": "Point", "coordinates": [ 40.9269141, 57.7679158 ] } },
+{ "type": "Feature", "properties": { "id": 256825509, "name": "Судиславль" }, "geometry": { "type": "Point", "coordinates": [ 41.712421, 57.881283 ] } },
+{ "type": "Feature", "properties": { "id": 256825510, "name": "Островское" }, "geometry": { "type": "Point", "coordinates": [ 42.240532, 57.805042 ] } },
+{ "type": "Feature", "properties": { "id": 256827430, "name": "Кадый" }, "geometry": { "type": "Point", "coordinates": [ 43.189411, 57.784485 ] } },
+{ "type": "Feature", "properties": { "id": 256827431, "name": "Макарьев" }, "geometry": { "type": "Point", "coordinates": [ 43.80724, 57.880402 ] } },
+{ "type": "Feature", "properties": { "id": 256827434, "name": "Шарья" }, "geometry": { "type": "Point", "coordinates": [ 45.519306, 58.37257 ] } },
+{ "type": "Feature", "properties": { "id": 256827435, "name": "Ветлужский" }, "geometry": { "type": "Point", "coordinates": [ 45.471382, 58.394447 ] } },
+{ "type": "Feature", "properties": { "id": 256827438, "name": "Поназырево" }, "geometry": { "type": "Point", "coordinates": [ 46.317429, 58.358154 ] } },
+{ "type": "Feature", "properties": { "id": 262625960, "name": "Никольское" }, "geometry": { "type": "Point", "coordinates": [ 41.1107, 57.8056 ] } },
+{ "type": "Feature", "properties": { "id": 335978725, "name": "Солигалич" }, "geometry": { "type": "Point", "coordinates": [ 42.2861828, 59.0777693 ] } },
+{ "type": "Feature", "properties": { "id": 356482525, "name": "Кологрив" }, "geometry": { "type": "Point", "coordinates": [ 44.311275, 58.825497 ] } },
+{ "type": "Feature", "properties": { "id": 356482537, "name": "Чухлома" }, "geometry": { "type": "Point", "coordinates": [ 42.68065, 58.7560222 ] } },
+{ "type": "Feature", "properties": { "id": 356482549, "name": "Буй" }, "geometry": { "type": "Point", "coordinates": [ 41.532956, 58.4816821 ] } },
+{ "type": "Feature", "properties": { "id": 356482553, "name": "Галич" }, "geometry": { "type": "Point", "coordinates": [ 42.347916, 58.381382 ] } },
+{ "type": "Feature", "properties": { "id": 356482562, "name": "Нея" }, "geometry": { "type": "Point", "coordinates": [ 43.8609201, 58.2940908 ] } },
+{ "type": "Feature", "properties": { "id": 356482688, "name": "Нерехта" }, "geometry": { "type": "Point", "coordinates": [ 40.573799, 57.460655 ] } },
+{ "type": "Feature", "properties": { "id": 494895608, "name": "Антропово" }, "geometry": { "type": "Point", "coordinates": [ 43.005, 58.3976 ] } },
+{ "type": "Feature", "properties": { "id": 494895622, "name": "Парфеньево" }, "geometry": { "type": "Point", "coordinates": [ 43.4086182, 58.4799889 ] } },
+{ "type": "Feature", "properties": { "id": 535384092, "name": "Волгореченск" }, "geometry": { "type": "Point", "coordinates": [ 41.157181, 57.440105 ] } },
+{ "type": "Feature", "properties": { "id": 544529486, "name": "Георгиевское" }, "geometry": { "type": "Point", "coordinates": [ 45.0299127, 58.7303454 ] } },
+{ "type": "Feature", "properties": { "id": 707796257, "name": "Красное-на-Волге" }, "geometry": { "type": "Point", "coordinates": [ 41.237621, 57.509319 ] } },
+{ "type": "Feature", "properties": { "id": 713766836, "name": "Караваево" }, "geometry": { "type": "Point", "coordinates": [ 41.07542, 57.738625 ] } },
+{ "type": "Feature", "properties": { "id": 717410211, "name": "Сусанино" }, "geometry": { "type": "Point", "coordinates": [ 41.5851443, 58.147578 ] } },
+{ "type": "Feature", "properties": { "id": 1025646631, "name": "Вохма" }, "geometry": { "type": "Point", "coordinates": [ 46.7588656, 58.9306116 ] } },
+{ "type": "Feature", "properties": { "id": 1542661472, "name": "Пыщуг" }, "geometry": { "type": "Point", "coordinates": [ 45.7177025, 58.8867501 ] } },
+{ "type": "Feature", "properties": { "id": 4579427498, "name": "Мантурово" }, "geometry": { "type": "Point", "coordinates": [ 44.761791, 58.333271 ] } }
+]
+}

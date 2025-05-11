@@ -1,0 +1,32 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191754954, "name": "Комсомольск-на-Амуре" }, "geometry": { "type": "Point", "coordinates": [ 137.0099189, 50.5497277 ] } },
+{ "type": "Feature", "properties": { "id": 276994866, "name": "Бикин" }, "geometry": { "type": "Point", "coordinates": [ 134.2581318, 46.8188381 ] } },
+{ "type": "Feature", "properties": { "id": 277060596, "name": "Вяземский" }, "geometry": { "type": "Point", "coordinates": [ 134.757874, 47.533455 ] } },
+{ "type": "Feature", "properties": { "id": 277060995, "name": "Хабаровск" }, "geometry": { "type": "Point", "coordinates": [ 135.0762968, 48.4812568 ] } },
+{ "type": "Feature", "properties": { "id": 304663037, "name": "имени Полины Осипенко" }, "geometry": { "type": "Point", "coordinates": [ 136.48938, 52.422848 ] } },
+{ "type": "Feature", "properties": { "id": 330401916, "name": "Николаевск-на-Амуре" }, "geometry": { "type": "Point", "coordinates": [ 140.72493, 53.138729 ] } },
+{ "type": "Feature", "properties": { "id": 330421322, "name": "Новый Ургал" }, "geometry": { "type": "Point", "coordinates": [ 132.605484, 51.071144 ] } },
+{ "type": "Feature", "properties": { "id": 330823587, "name": "Переяславка" }, "geometry": { "type": "Point", "coordinates": [ 135.053232900000012, 47.966766 ] } },
+{ "type": "Feature", "properties": { "id": 330823637, "name": "Хор" }, "geometry": { "type": "Point", "coordinates": [ 134.960938, 47.882572 ] } },
+{ "type": "Feature", "properties": { "id": 508031778, "name": "Мухен" }, "geometry": { "type": "Point", "coordinates": [ 136.137177, 48.194725 ] } },
+{ "type": "Feature", "properties": { "id": 518743376, "name": "Амурск" }, "geometry": { "type": "Point", "coordinates": [ 136.9100919, 50.2265588 ] } },
+{ "type": "Feature", "properties": { "id": 648491601, "name": "Высокогорный" }, "geometry": { "type": "Point", "coordinates": [ 139.125916, 50.097515 ] } },
+{ "type": "Feature", "properties": { "id": 922234034, "name": "Лазарев" }, "geometry": { "type": "Point", "coordinates": [ 141.5195022, 52.2104004 ] } },
+{ "type": "Feature", "properties": { "id": 1028724036, "name": "Солнечный" }, "geometry": { "type": "Point", "coordinates": [ 136.64006, 50.723808 ] } },
+{ "type": "Feature", "properties": { "id": 1028724168, "name": "Чумикан" }, "geometry": { "type": "Point", "coordinates": [ 135.317284199999989, 54.7171986 ] } },
+{ "type": "Feature", "properties": { "id": 1028724277, "name": "Охотск" }, "geometry": { "type": "Point", "coordinates": [ 143.2146511, 59.3619947 ] } },
+{ "type": "Feature", "properties": { "id": 1032777112, "name": "Князе-Волконское" }, "geometry": { "type": "Point", "coordinates": [ 135.4542243, 48.4674107 ] } },
+{ "type": "Feature", "properties": { "id": 1290213687, "name": "Корфовский" }, "geometry": { "type": "Point", "coordinates": [ 135.058899, 48.222679 ] } },
+{ "type": "Feature", "properties": { "id": 1332198301, "name": "Чегдомын" }, "geometry": { "type": "Point", "coordinates": [ 133.035553, 51.134487 ] } },
+{ "type": "Feature", "properties": { "id": 1341004029, "name": "Заветы Ильича" }, "geometry": { "type": "Point", "coordinates": [ 140.272903, 49.030109 ] } },
+{ "type": "Feature", "properties": { "id": 1712866108, "name": "Советская Гавань" }, "geometry": { "type": "Point", "coordinates": [ 140.284958, 48.9663026 ] } },
+{ "type": "Feature", "properties": { "id": 1913939332, "name": "Аян" }, "geometry": { "type": "Point", "coordinates": [ 138.181733900000012, 56.4609007 ] } },
+{ "type": "Feature", "properties": { "id": 1985529890, "name": "Эльбан" }, "geometry": { "type": "Point", "coordinates": [ 136.509415, 50.101788 ] } },
+{ "type": "Feature", "properties": { "id": 2173162616, "name": "Ванино" }, "geometry": { "type": "Point", "coordinates": [ 140.260864, 49.090481 ] } },
+{ "type": "Feature", "properties": { "id": 2561287256, "name": "Некрасовка" }, "geometry": { "type": "Point", "coordinates": [ 135.231827, 48.35223 ] } },
+{ "type": "Feature", "properties": { "id": 2825826684, "name": "Октябрьский" }, "geometry": { "type": "Point", "coordinates": [ 140.252335, 49.058681 ] } }
+]
+}

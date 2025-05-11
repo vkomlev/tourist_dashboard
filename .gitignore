@@ -54,3 +54,6 @@ cleaned_apartments.xml
 raw_apartments.xml
 municipalities_ru.geojson
 regions.geojson
+app/data/regions_big.geojson
+app/files/regions_big.geojson
+app/files/municipalities_ru_big.geojson

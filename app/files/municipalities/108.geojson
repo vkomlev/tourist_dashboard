@@ -1,0 +1,22 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 26898768, "name": "Калевала" }, "geometry": { "type": "Point", "coordinates": [ 31.180172, 65.200096 ] } },
+{ "type": "Feature", "properties": { "id": 26898776, "name": "Надвоицы" }, "geometry": { "type": "Point", "coordinates": [ 34.2660109, 63.8924047 ] } },
+{ "type": "Feature", "properties": { "id": 26898825, "name": "Сегежа" }, "geometry": { "type": "Point", "coordinates": [ 34.3106868, 63.7435087 ] } },
+{ "type": "Feature", "properties": { "id": 26903504, "name": "Петрозаводск" }, "geometry": { "type": "Point", "coordinates": [ 34.3688041, 61.789221 ] } },
+{ "type": "Feature", "properties": { "id": 26921263, "name": "Кондопога" }, "geometry": { "type": "Point", "coordinates": [ 34.268185, 62.20929 ] } },
+{ "type": "Feature", "properties": { "id": 247216329, "name": "Суоярви" }, "geometry": { "type": "Point", "coordinates": [ 32.345856, 62.0820094 ] } },
+{ "type": "Feature", "properties": { "id": 276627958, "name": "Беломорск" }, "geometry": { "type": "Point", "coordinates": [ 34.7625835, 64.5216684 ] } },
+{ "type": "Feature", "properties": { "id": 309493556, "name": "Кемь" }, "geometry": { "type": "Point", "coordinates": [ 34.5697446, 64.9550895 ] } },
+{ "type": "Feature", "properties": { "id": 309773771, "name": "Пряжа" }, "geometry": { "type": "Point", "coordinates": [ 33.6224108, 61.6932537 ] } },
+{ "type": "Feature", "properties": { "id": 309965794, "name": "Питкяранта" }, "geometry": { "type": "Point", "coordinates": [ 31.4744211, 61.5717807 ] } },
+{ "type": "Feature", "properties": { "id": 347359894, "name": "Пудож" }, "geometry": { "type": "Point", "coordinates": [ 36.536045, 61.808434 ] } },
+{ "type": "Feature", "properties": { "id": 1828409507, "name": "Медвежьегорск" }, "geometry": { "type": "Point", "coordinates": [ 34.473339, 62.915024 ] } },
+{ "type": "Feature", "properties": { "id": 1839536171, "name": "Лахденпохья" }, "geometry": { "type": "Point", "coordinates": [ 30.2038927, 61.5179265 ] } },
+{ "type": "Feature", "properties": { "id": 1858199523, "name": "Олонец" }, "geometry": { "type": "Point", "coordinates": [ 32.9749376, 60.979276 ] } },
+{ "type": "Feature", "properties": { "id": 1858201567, "name": "Сортавала" }, "geometry": { "type": "Point", "coordinates": [ 30.691231, 61.70274 ] } },
+{ "type": "Feature", "properties": { "id": 2078883019, "name": "Костомукша" }, "geometry": { "type": "Point", "coordinates": [ 30.5969076, 64.5873013 ] } }
+]
+}
