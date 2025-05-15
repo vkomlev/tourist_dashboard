@@ -49,8 +49,10 @@ def register_callbacks(app_dash: Dash) -> None:
             try:
                 region_id = int(parts[3])
                 return create_region_layout(region_id)
-            except ValueError:
+            except ValueError as e:
+                logger.error(f"Ошибка значения при формировании страницы : {e}")
                 return page_not_found()
+        logger.error(f"Ошибка значения при формировании страницы : {e}")
         return page_not_found()
 
     @app_dash.callback(
@@ -108,7 +110,6 @@ def create_region_layout(region_id: int):
     repo = MetricValueRepository()
     region_repo = RegionRepository()
     rpp = Region_page_plot()
-    plotter = Region_page_plot()
     # Пытаемся получить экземпляр региона
     region = region_repo.find_region_by_id(region_id)
     region_name = region.region_name if region else f"#{region_id}"
@@ -119,7 +120,7 @@ def create_region_layout(region_id: int):
     flow_block = rpp.flow_graph_with_year_selector(region_id)
     nights_block = rpp.nights_graph_with_year_selector(region_id)
     # муниципалитеты
-    muni = plotter.make_municipalities_map(region_id)
+    muni = rpp.make_municipalities_map(region_id)
 
     return dbc.Container([
         dbc.Row(

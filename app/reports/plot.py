@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 import plotly.express as px
+import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
 from dash import Dash, html, dcc, Input, Output, State
 from typing import List, Optional
@@ -200,51 +201,258 @@ class Region_page_plot:
                           title=f"Ночёвки за {year} год")
             return fig
         
-    def make_municipalities_map(self, id_region) -> dcc.Graph:
+    # app/reports/plot.py
+from dash import dcc
+import plotly.graph_objs as go
+from typing import Optional
+import pandas as pd
+
+class Region_page_plot:
+        # Интерпретации оценок
+
+    def __init__(self): 
+        self.interpretations = { 
+            (1.0, 2.0): "Туристская инфраструктура слабо развита, требуется значительное улучшение.", 
+            (2.1, 3.0): "Средний уровень, подходит для локальных туристов, но имеет ограничения для международного туризма.", 
+            (3.1, 4.0): "Хорошая инфраструктура, пригодная для национальных и международных туристов.", 
+            (4.1, 5.0): "Высокий уровень инфраструктуры, готовый к приему большого турпотока и международных мероприятий." 
+        } 
+ 
+    # Вспомогательная функция для интерпретации оценок
+    def get_interpretation(self, rating): 
+        for (low, high), text in self.interpretations.items(): 
+            if low <= rating <= high: 
+                return text 
+        return "Нет данных."
+    
+    def fetch_latest_value(self,
+        repo: MetricValueRepository,
+        id_metric: int,
+        id_region: int
+    ) -> Optional[float]:
         """
-        Строит карту городов/муниципалитетов по DataFrame muni_df:
-        ожидаются колонки ['name','lon','lat'].
-        Точки побольше, включены кнопки "+" и "-" для зума.
+        Возвращает последнее числовое значение метрики для заданного региона.
+
+        Args:
+            repo: экземпляр MetricValueRepository.
+            id_metric: код метрики.
+            id_region: ID региона.
+
+        Returns:
+            Последнее значение value в виде float, или None.
+        """
+        try:
+            mvs = repo.get_info_metricvalue(id_metric=id_metric, id_region=id_region)
+            if not mvs:
+                return None
+            raw = mvs[-1].value
+            return float(raw) if raw is not None else None
+        except Exception as e:
+            logger.warning("Ошибка при fetch_latest_value(metric=%s, region=%s): %s",
+                        id_metric, id_region, e)
+            return None
+
+
+    def _choose_card_color(self, val: Optional[float]) -> str:
+        """
+        Выбирает цвет карточки по значению:
+         - None → secondary (серый)
+         - < 3.0 → danger (красный)
+         - 3.0–4.0 → warning (желтый)
+         - > 4.0 → success (зелёный)
+        """
+        if val is None:
+            return "secondary"
+        if val < 3.0:
+            return "danger"
+        if val < 4.0:
+            return "warning"
+        return "success"
+
+    def make_kpi_cards(self, region_id: int, repo: MetricValueRepository) -> List[dbc.Col]:
+        """
+        Формирует список карточек KPI для всех метрик из METRIC_CODE_MAP
+        с цветовой градацией оценки.
+        """
+        cards: List[dbc.Col] = []
+        for key, (code, rus_name) in METRIC_CODE_MAP.items():
+            val = self.fetch_latest_value(repo, code, region_id)
+            display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
+            color = self._choose_card_color(val)
+
+            card = dbc.Card(
+                [
+                    dbc.CardHeader(rus_name, className="text-white"),
+                    dbc.CardBody(html.H4(display, className="card-title text-white")),
+                ],
+                color=color,
+                inverse=True,  # делает фон карточки цветным, текст светлым
+                className="mb-3 shadow-sm",
+            )
+            cards.append(dbc.Col(card, xs=12, sm=6, md=4, lg=3))
+        return cards
+
+
+    def flow_graph_with_year_selector(self, region_id: int) -> html.Div:
+        """
+        Возвращает Div с Dropdown по годам и графиком турпотока.
+        Данные берутся из prepare_data.prepare_tourist_count_data().
         """
         rpd = Region_page_dashboard()
-        muni_df  = rpd.load_municipalities(id_region)
+        df = rpd.prepare_tourist_count_data(region_id)
+        years = sorted(df['year'].unique())
+        dropdown = dcc.Dropdown(
+            id='flow-year-dropdown',
+            options=[{'label': y, 'value': y} for y in years],
+            value=years[-1],
+            clearable=False
+        )
+        graph = dcc.Graph(id='flow-graph')
+        return html.Div([
+            html.H4("Турпоток по месяцам"),
+            dropdown,
+            graph
+        ])
+
+    def nights_graph_with_year_selector(self, region_id: int) -> html.Div:
+        """
+        То же для ночёвок, используя prepare_data.get_region_mean_night().
+        """
+        rpd = Region_page_dashboard()
+        # Получаем список доступных годов
+        raw = rpd.prepare_tourist_count_data(region_id)
+        years = sorted(raw['year'].unique())
+        dropdown = dcc.Dropdown(
+            id='nights-year-dropdown',
+            options=[{'label': y, 'value': y} for y in years],
+            value=years[-1],
+            clearable=False
+        )
+        graph = dcc.Graph(id='nights-graph')
+        return html.Div([
+            html.H4("Ночёвки по месяцам"),
+            dropdown,
+            graph
+        ])
+
+    def register_graph_callbacks(self, app_dash: Dash):
+        """
+        Регистрирует коллбеки обновления графиков по выбору года.
+        Должен быть вызван из register_callbacks.
+        """
+        rpd = Region_page_dashboard()
+
+        @app_dash.callback(
+            Output('flow-graph', 'figure'),
+            Input('flow-year-dropdown', 'value'),
+            State('url', 'pathname'),
+        )
+        def update_flow_chart(year, pathname):
+            region_id = int(pathname.split('/')[-1])
+            df = rpd.prepare_tourist_count_data(region_id)
+            df = df[df['year'] == year].sort_values('month')
+            fig = px.bar(df, x='month', y='value',
+                         labels={'value': 'Туристы', 'month': 'Месяц'},
+                         title=f"Турпоток за {year} год")
+            return fig
+
+        @app_dash.callback(
+            Output('nights-graph', 'figure'),
+            Input('nights-year-dropdown', 'value'),
+            State('url', 'pathname'),
+        )
+        def update_nights_chart(year, pathname):
+            region_id = int(pathname.split('/')[-1])
+            df = rpd.get_region_mean_night(region_id, year)
+            fig = px.line(df, x='Месяц', y='Количество ночевок',
+                          title=f"Ночёвки за {year} год")
+            return fig
+
+    def make_municipalities_map(self, region_id) -> dcc.Graph:
+        """
+        Рисует ScatterMapbox с городами:
+          - размер точки по population-бину,
+          - цвет по metric_282.
+          - управление зумом через кнопки ModeBar.
+          - без легенды.
+        """
+        data_prep = Region_page_dashboard()
+        muni_df = data_prep.load_municipalities(region_id)
         if muni_df.empty:
             return dcc.Graph(figure={})
 
-        fig = px.scatter_mapbox(
-            muni_df,
-            lon='lon',
-            lat='lat',
-            hover_name='name',
-            zoom=8,
-            height=600,
-            # размер маркера:
-            size_max=15,
-            size=[12]*len(muni_df)  # фиксированный размер 12px
-        )
+        def pop_size(pop: Optional[int]) -> int:
+            if pop is None or pop < 30_000:
+                return 8
+            if pop < 100_000:
+                return 12
+            if pop < 500_000:
+                return 16
+            if pop < 1_000_000:
+                return 20
+            return 24
+
+        def metric_color(val: Optional[float]) -> str:
+            if val is None:
+                return 'gray'
+            if val < 3.0:
+                return 'red'
+            if val < 4.0:
+                return 'yellow'
+            return 'green'
+
+        data = []
+        for _, row in muni_df.iterrows():
+            if row['lon'] is None or row['lat'] is None:
+                continue
+            sz = pop_size(row['population'])
+            clr = metric_color(row['metric_282'])
+            data.append(
+                go.Scattermapbox(
+                    lon=[row['lon']],
+                    lat=[row['lat']],
+                    mode='markers',
+                    marker=dict(size=sz, color=clr),
+                    text=(
+                        f"{row['name']}<br>"
+                        f"Население: {row['population'] or '—'}<br>"
+                        f"Оценка: {row['metric_282'] or '—'}"
+                    ),
+                    hoverinfo='text',
+                    showlegend=False  # отключаем легенду для каждой серии
+                )
+            )
+
+        center = {
+            'lon': muni_df['lon'].dropna().mean(),
+            'lat': muni_df['lat'].dropna().mean()
+        }
+
+        fig = go.Figure(data=data)
         fig.update_layout(
-            mapbox_style='open-street-map',
-            margin={'l':0,'r':0,'t':0,'b':0},
-            # показываем контролы зума
+            showlegend=False,  # целиком отключаем легенду
             mapbox=dict(
-                accesstoken=None,
-                zoom=8,
-                center=dict(lat=muni_df['lat'].mean(), lon=muni_df['lon'].mean()),
+                style='open-street-map',
+                center=center,
+                zoom=7
             ),
-            updatemenus=[{
-                'type': 'buttons',
-                'showactive': False,
-                'y': 0.99,
-                'x': 0.01,
-                'xanchor': 'left',
-                'yanchor': 'top',
-                'buttons': [
-                    {'label': '+', 'method': 'relayout', 'args': ['mapbox.zoom', fig.layout.mapbox.zoom + 1]},
-                    {'label': '–', 'method': 'relayout', 'args': ['mapbox.zoom', fig.layout.mapbox.zoom - 1]},
-                ]
-            }]
+            margin={'l':0,'r':0,'t':0,'b':0},
+            height=450
         )
-        return dcc.Graph(figure=fig)
+
+        # Передаём config с кнопками зума
+        config = {
+            'displayModeBar': True,
+            'modeBarButtonsToAdd': ['zoomInMapbox', 'zoomOutMapbox'],
+            # при желании можно убрать ненужные кнопки:
+            'modeBarButtonsToRemove': [
+                'lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d',
+                'pan2d', 'autoScale2d', 'hoverClosestGeo', 'hoverCompare'
+            ]
+        }
+
+        return dcc.Graph(figure=fig, config=config)
+
 
 class City_page_plot:
     def __init__(self):

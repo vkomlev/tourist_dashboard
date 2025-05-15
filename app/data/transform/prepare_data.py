@@ -1,13 +1,14 @@
 #app/data/transform/prepare_data.py
 
 import pandas as pd
-import os
-import json 
+from geoalchemy2.shape import to_shape
+from shapely.geometry import Point
 
 from app.data.database import MetricValueRepository, CitiesRepository
-from app.models import Region
+from app.models import Region, City
 from app.logging_config import logger
 from app.data.calc.base_calc import Region_calc
+
 
 class Main_page_dashboard:
     @staticmethod
@@ -366,7 +367,7 @@ class Region_page_dashboard(City_page_dashboard):
         return overall_metrics, segment_scores
     
     METRIC_IDS = {
-        'Комплексная оценка инфраструктуры': 282,
+        'Комплексная оценка развития туризма': 282,
         'Комплексная оценка сегментов':    217,
         'Средняя оценка общей инфраструктуры': 218,
         'Турпоток (оценка)':               283,
@@ -379,30 +380,53 @@ class Region_page_dashboard(City_page_dashboard):
     }
     def load_municipalities(self, region_id: int) -> pd.DataFrame:
         """
-        Читает GeoJSON-файл муниципалитетов для региона и возвращает DataFrame:
-        столбцы ['name', 'lon', 'lat'].
+        Возвращает DataFrame с городами региона и колонками:
+        ['id_city','name','lon','lat','population','metric_282'].
         """
-        path = os.path.join(
-            os.getcwd(), 'app', 'files', 'municipalities', f'{region_id}.geojson'
-        )
-        if not os.path.exists(path):
-            return pd.DataFrame(columns=['name', 'lon', 'lat'])
-
-        with open(path, 'r', encoding='utf-8') as f:
-            gj = json.load(f)
-
+        # 1) получаем все города региона
+        cities_repo = CitiesRepository()
+        cities = cities_repo.get_by_fields(model=City, id_region=region_id)
+        
+        # 2) подготовка списков
         records = []
-        for feat in gj.get('features', []):
-            props = feat.get('properties', {})
-            geom = feat.get('geometry', {})
-            if geom.get('type') == 'Point':
-                coords = geom.get('coordinates', [])
-                if len(coords) == 2:
-                    lon, lat = coords
-                    records.append({
-                        'name': props.get('name', '—'),
-                        'lon': lon,
-                        'lat': lat
-                    })
+        mv_repo = MetricValueRepository()
+        for city in cities:
+            # имя
+            name = city.city_name
 
-        return pd.DataFrame(records)
+            # координаты
+            coords = None
+            if city.coordinates:
+                geom: Point = to_shape(city.coordinates)
+                coords = (geom.x, geom.y)
+            lon, lat = coords if coords else (None, None)
+
+            # population из JSONB characters
+            pop = None
+            if city.characters:
+                pop_raw = city.characters.get('population')
+                try:
+                    pop = int(pop_raw)
+                except Exception:
+                    pop = None
+
+            # метрика 282 для этого города (берем последнее значение)
+            metric_val = None
+            mvs = mv_repo.get_info_metricvalue(id_metric=282, id_city=city.id_city)
+            if mvs and mvs[-1].value is not None:
+                try:
+                    metric_val = float(mvs[-1].value)
+                except Exception:
+                    metric_val = None
+
+            records.append({
+                'id_city': city.id_city,
+                'name': name,
+                'lon': lon,
+                'lat': lat,
+                'population': pop,
+                'metric_282': metric_val
+            })
+
+        df = pd.DataFrame(records)
+        return df
