@@ -434,10 +434,10 @@ class Region_page_plot:
             mapbox=dict(
                 style='open-street-map',
                 center=center,
-                zoom=7
+                zoom=5
             ),
             margin={'l':0,'r':0,'t':0,'b':0},
-            height=450
+            height=600
         )
 
         # Передаём config с кнопками зума
