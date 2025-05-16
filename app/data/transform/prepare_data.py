@@ -455,3 +455,33 @@ class Region_page_dashboard(City_page_dashboard):
 
         df = pd.DataFrame(records)
         return df
+    
+    SEGMENT_METRICS = {
+        'Пляжный': 274,
+        'Оздоровительный': 275,
+        'Деловой': 276,
+        'Паломнический': 277,
+        'Образовательный': 278,
+        'Семейный': 279,
+        'Спортивный': 280,
+        'Эко-походный': 281,
+    }
+
+    def load_segment_scores(self, region_id: int) -> pd.DataFrame:
+        """
+        Возвращает DataFrame с оценками T_segment для каждого туристического сегмента.
+        Колонки: ['segment', 'value'].
+        """
+        mv_repo = MetricValueRepository()
+        records = []
+        for name, metric_id in self.SEGMENT_METRICS.items():
+            mvs = mv_repo.get_info_metricvalue(id_region=region_id, id_metric=metric_id)
+            val = None
+            if mvs and mvs[-1].value is not None:
+                try:
+                    val = float(mvs[-1].value)
+                except:
+                    val = None
+            records.append({'segment': name, 'value': val})
+        df = pd.DataFrame(records)
+        return df.sort_values('value', ascending=False).reset_index(drop=True)

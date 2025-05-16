@@ -6,7 +6,8 @@ import os
 import plotly.express as px
 import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
-from dash import Dash, html, dcc, Input, Output, State
+from dash import Dash, html, dcc, Input, Output, State, dash_table
+import colorlover as cl
 from typing import List, Optional
 
 from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
@@ -458,6 +459,49 @@ class Region_page_plot:
         }
 
         return dcc.Graph(figure=fig, config=config)
+    
+    def make_segments_table(self, region_id: int) -> dash_table.DataTable:
+        """
+        Строит DataTable с оценками сегментов для заданного региона.
+        Считывает данные через prepare_data.load_segment_scores().
+        """
+        # 1) Загружаем данные
+        df = Region_page_dashboard().load_segment_scores(region_id)
+
+        # 2) Форматируем столбец value
+        df['value'] = df['value'].map(lambda v: f"{v:.2f}" if pd.notnull(v) else "—")
+
+        # 3) Генерируем градиент
+        colors = cl.scales['5']['div']['RdYlGn']
+        style_cond = []
+        for i, cell in enumerate(df['value']):
+            try:
+                num = float(cell)
+                frac = (num - 1.0) / 4.0
+                idx = min(int(frac * (len(colors)-1)), len(colors)-1)
+                bg = colors[idx]
+            except:
+                bg = 'lightgray'
+            style_cond.append({
+                'if': {'row_index': i, 'column_id': 'value'},
+                'backgroundColor': bg,
+                'color': 'black'
+            })
+
+        # 4) Собираем и возвращаем DataTable
+        return dash_table.DataTable(
+            columns=[
+                {'name': 'Сегмент', 'id': 'segment', 'type': 'text'},
+                {'name': 'Оценка', 'id': 'value',  'type': 'numeric'},
+            ],
+            data=df.to_dict('records'),
+            sort_action='native',
+            style_cell={'textAlign': 'center', 'padding': '4px'},
+            style_header={'fontWeight': 'bold'},
+            style_data_conditional=style_cond,
+            page_action='none',
+            style_table={'maxHeight': '300px', 'overflowY': 'auto'},
+        )
 
 
 class City_page_plot:

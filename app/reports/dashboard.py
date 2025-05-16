@@ -122,6 +122,9 @@ def create_region_layout(region_id: int):
     # муниципалитеты
     muni = rpp.make_municipalities_map(region_id)
 
+    # Таблица сегментов
+    seg_table = rpp.make_segments_table(region_id)
+
     return dbc.Container([
         dbc.Row(
             dbc.Col(html.H2(f"Дашборд региона: {region_name}"), width=12),
@@ -137,6 +140,9 @@ def create_region_layout(region_id: int):
          # Карта городов
         dbc.Row(dbc.Col(html.H4("Муниципалитеты и города"), width=12)),
         dbc.Row(dbc.Col(muni, width=12), className="mb-4"),
+        dbc.Row(dbc.Col(html.H4("Оценки сегментов туризма"), width=12), className="mt-4"),
+        dbc.Row(dbc.Col(seg_table, width=12), className="mb-4"),
+
         dbc.Row([
             dbc.Col(dbc.Button("Скачать метрики в Excel", id="btn-download", color="primary"),
                     width="auto"),
