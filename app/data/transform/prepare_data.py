@@ -3,8 +3,12 @@
 import pandas as pd
 from geoalchemy2.shape import to_shape
 from shapely.geometry import Point
+import json
+import os
 
-from app.data.database import MetricValueRepository, CitiesRepository
+from typing import Optional, Dict, Any
+
+from app.data.database import MetricValueRepository, CitiesRepository, SyncRepository
 from app.models import Region, City
 from app.logging_config import logger
 from app.data.calc.base_calc import Region_calc
@@ -378,6 +382,27 @@ class Region_page_dashboard(City_page_dashboard):
         'Основная инфраструктура кол-во': 240,
         'Дополнительная инфраструктура кол-во': 241,
     }
+
+    def load_region_boundary(self, region_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Читает файл app/files/regions.geojson и возвращает GeoJSON Feature
+        для заданного region_id. Если не найдено — None.
+        """
+        path = os.path.join(os.getcwd(), 'app', 'files', 'regions.geojson')
+        if not os.path.exists(path):
+            return None
+        sync_repo = SyncRepository()
+        with open(path, 'r', encoding='utf-8') as f:
+            gj = json.load(f)
+
+        for feat in gj.get('features', []):
+            region_name = feat.get('properties', {}).get('name:ru', {}) or feat.get('name:ru', {})
+            id = sync_repo.find_id(region_name, 'region', 'OSM')
+            if id == region_id:
+                return feat
+        return None
+
+
     def load_municipalities(self, region_id: int) -> pd.DataFrame:
         """
         Возвращает DataFrame с городами региона и колонками:
@@ -408,7 +433,7 @@ class Region_page_dashboard(City_page_dashboard):
                 try:
                     pop = int(pop_raw)
                 except Exception:
-                    pop = None
+                    pop = 0
 
             # метрика 282 для этого города (берем последнее значение)
             metric_val = None

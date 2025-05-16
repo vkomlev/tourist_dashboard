@@ -368,83 +368,89 @@ class Region_page_plot:
                           title=f"Ночёвки за {year} год")
             return fig
 
+    
     def make_municipalities_map(self, region_id) -> dcc.Graph:
-        """
-        Рисует ScatterMapbox с городами:
-          - размер точки по population-бину,
-          - цвет по metric_282.
-          - управление зумом через кнопки ModeBar.
-          - без легенды.
-        """
         data_prep = Region_page_dashboard()
+        # Загрузка границы региона как GeoJSON-объекта
+        boundary_feat = data_prep.load_region_boundary(region_id)
+        # Табличка муниципалитетов
         muni_df = data_prep.load_municipalities(region_id)
         if muni_df.empty:
             return dcc.Graph(figure={})
 
-        def pop_size(pop: Optional[int]) -> int:
-            if pop is None or pop < 30_000:
-                return 8
-            if pop < 100_000:
-                return 12
-            if pop < 500_000:
-                return 16
-            if pop < 1_000_000:
-                return 20
+        # Функции для размера и цвета
+        def pop_size(pop):
+            if pop is None or pop < 30_000: return 8
+            if pop < 100_000: return 12
+            if pop < 500_000: return 16
+            if pop < 1_000_000: return 20
             return 24
 
-        def metric_color(val: Optional[float]) -> str:
-            if val is None:
-                return 'gray'
-            if val < 3.0:
-                return 'red'
-            if val < 4.0:
-                return 'yellow'
+        def metric_color(val):
+            if val is None: return 'gray'
+            if val < 3.0: return 'red'
+            if val < 4.0: return 'yellow'
             return 'green'
 
-        data = []
-        for _, row in muni_df.iterrows():
-            if row['lon'] is None or row['lat'] is None:
-                continue
-            sz = pop_size(row['population'])
-            clr = metric_color(row['metric_282'])
-            data.append(
-                go.Scattermapbox(
-                    lon=[row['lon']],
-                    lat=[row['lat']],
-                    mode='markers',
-                    marker=dict(size=sz, color=clr),
-                    text=(
-                        f"{row['name']}<br>"
-                        f"Население: {row['population'] or '—'}<br>"
-                        f"Оценка: {row['metric_282'] or '—'}"
-                    ),
-                    hoverinfo='text',
-                    showlegend=False  # отключаем легенду для каждой серии
-                )
-            )
+        # Создаём scattermapbox-трейс
+        fig = go.Figure(go.Scattermapbox(
+            lon=muni_df['lon'],
+            lat=muni_df['lat'],
+            mode='markers',
+            marker=dict(
+                size=[pop_size(p) for p in muni_df['population']],
+                color=[metric_color(m) for m in muni_df['metric_282']],
+                opacity=0.8
+            ),
+            text=[
+                f"{n}<br>Население: {pop or '—'}<br>Оценка: {m or '—'}"
+                for n, pop, m in zip(muni_df['name'], muni_df['population'], muni_df['metric_282'])
+            ],
+            hoverinfo='text',
+            showlegend=False
+        ))
 
+        # Центрирование
         center = {
-            'lon': muni_df['lon'].dropna().mean(),
-            'lat': muni_df['lat'].dropna().mean()
+            'lon': float(muni_df['lon'].mean()),
+            'lat': float(muni_df['lat'].mean())
         }
 
-        fig = go.Figure(data=data)
+        # Если есть граница — рисуем её как слой
+        layers = []
+        if boundary_feat:
+            # Слой-заливка
+            layers.append({
+                "source": boundary_feat,
+                "type": "fill",            # заливка полигона
+                "below": "traces",         # под точками
+                "color": "blue",           # цвет заливки
+                "opacity": 0.1             # прозрачность 10%
+            })
+            # Слой контура (по-прежнему)
+            layers.append({
+                "source": boundary_feat,
+                "type": "line",
+                "color": "blue",
+                "line": {"width": 2}
+            })
+
+        # Обновляем layout
         fig.update_layout(
-            showlegend=False,  # целиком отключаем легенду
             mapbox=dict(
                 style='open-street-map',
                 center=center,
-                zoom=5
+                zoom=5,
+                layers=layers      # вот здесь подключаем слой границы
             ),
             margin={'l':0,'r':0,'t':0,'b':0},
             height=600
         )
 
-        # Передаём config с кнопками зума
+        # Конфиг для кнопок зума
         config = {
             'displayModeBar': True,
             'modeBarButtonsToAdd': ['zoomInMapbox', 'zoomOutMapbox'],
-            # при желании можно убрать ненужные кнопки:
             'modeBarButtonsToRemove': [
                 'lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d',
                 'pan2d', 'autoScale2d', 'hoverClosestGeo', 'hoverCompare'
