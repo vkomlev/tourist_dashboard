@@ -1,0 +1,15 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191638748, "name": "Черкесск" }, "geometry": { "type": "Point", "coordinates": [ 42.048257, 44.2285229 ] } },
+{ "type": "Feature", "properties": { "id": 287387383, "name": "Карачаевск" }, "geometry": { "type": "Point", "coordinates": [ 41.911979, 43.7715594 ] } },
+{ "type": "Feature", "properties": { "id": 303486344, "name": "Зеленчукская" }, "geometry": { "type": "Point", "coordinates": [ 41.5853611, 43.8549752 ] } },
+{ "type": "Feature", "properties": { "id": 304718065, "name": "Сторожевая" }, "geometry": { "type": "Point", "coordinates": [ 41.4534086, 43.888099 ] } },
+{ "type": "Feature", "properties": { "id": 304718066, "name": "Преградная" }, "geometry": { "type": "Point", "coordinates": [ 41.1917906, 43.9528755 ] } },
+{ "type": "Feature", "properties": { "id": 875324888, "name": "Медногорский" }, "geometry": { "type": "Point", "coordinates": [ 41.185108, 43.9161378 ] } },
+{ "type": "Feature", "properties": { "id": 961867142, "name": "Усть-Джегута" }, "geometry": { "type": "Point", "coordinates": [ 41.9722557, 44.0858961 ] } },
+{ "type": "Feature", "properties": { "id": 968062705, "name": "Теберда" }, "geometry": { "type": "Point", "coordinates": [ 41.7436988, 43.4410989 ] } },
+{ "type": "Feature", "properties": { "id": 1879354139, "name": "Адыге-Хабль" }, "geometry": { "type": "Point", "coordinates": [ 41.9371355, 44.3314433 ] } }
+]
+}

@@ -1,8 +1,18 @@
+#app/data/transform/prepare_data.py
+
 import pandas as pd
-from app.data.database import MetricValueRepository, CitiesRepository
-from app.models import Region
+from geoalchemy2.shape import to_shape
+from shapely.geometry import Point
+import json
+import os
+
+from typing import Optional, Dict, Any
+
+from app.data.database import MetricValueRepository, CitiesRepository, SyncRepository
+from app.models import Region, City
 from app.logging_config import logger
 from app.data.calc.base_calc import Region_calc
+
 
 class Main_page_dashboard:
     @staticmethod
@@ -359,3 +369,89 @@ class Region_page_dashboard(City_page_dashboard):
         overall_metrics = region_calc.get_overall_metrics()
         segment_scores = region_calc.get_segment_scores()
         return overall_metrics, segment_scores
+    
+    METRIC_IDS = {
+        'Комплексная оценка развития туризма': 282,
+        'Комплексная оценка сегментов':    217,
+        'Средняя оценка общей инфраструктуры': 218,
+        'Турпоток (оценка)':               283,
+        'Ночёвки (оценка)':                284,
+        'Климат':                          222,
+        'Цена':                            286,
+        'Удаленность от столицы':          285,
+        'Основная инфраструктура кол-во': 240,
+        'Дополнительная инфраструктура кол-во': 241,
+    }
+
+    def load_region_boundary(self, region_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Читает файл app/files/regions.geojson и возвращает GeoJSON Feature
+        для заданного region_id. Если не найдено — None.
+        """
+        path = os.path.join(os.getcwd(), 'app', 'files', 'regions.geojson')
+        if not os.path.exists(path):
+            return None
+        sync_repo = SyncRepository()
+        with open(path, 'r', encoding='utf-8') as f:
+            gj = json.load(f)
+
+        for feat in gj.get('features', []):
+            region_name = feat.get('properties', {}).get('name:ru', {}) or feat.get('name:ru', {})
+            id = sync_repo.find_id(region_name, 'region', 'OSM')
+            if id == region_id:
+                return feat
+        return None
+
+
+    def load_municipalities(self, region_id: int) -> pd.DataFrame:
+        """
+        Возвращает DataFrame с городами региона и колонками:
+        ['id_city','name','lon','lat','population','metric_282'].
+        """
+        # 1) получаем все города региона
+        cities_repo = CitiesRepository()
+        cities = cities_repo.get_by_fields(model=City, id_region=region_id)
+        
+        # 2) подготовка списков
+        records = []
+        mv_repo = MetricValueRepository()
+        for city in cities:
+            # имя
+            name = city.city_name
+
+            # координаты
+            coords = None
+            if city.coordinates:
+                geom: Point = to_shape(city.coordinates)
+                coords = (geom.x, geom.y)
+            lon, lat = coords if coords else (None, None)
+
+            # population из JSONB characters
+            pop = None
+            if city.characters:
+                pop_raw = city.characters.get('population')
+                try:
+                    pop = int(pop_raw)
+                except Exception:
+                    pop = 0
+
+            # метрика 282 для этого города (берем последнее значение)
+            metric_val = None
+            mvs = mv_repo.get_info_metricvalue(id_metric=282, id_city=city.id_city)
+            if mvs and mvs[-1].value is not None:
+                try:
+                    metric_val = float(mvs[-1].value)
+                except Exception:
+                    metric_val = None
+
+            records.append({
+                'id_city': city.id_city,
+                'name': name,
+                'lon': lon,
+                'lat': lat,
+                'population': pop,
+                'metric_282': metric_val
+            })
+
+        df = pd.DataFrame(records)
+        return df

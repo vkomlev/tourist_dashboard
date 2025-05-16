@@ -1,0 +1,18 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191648647, "name": "Элиста" }, "geometry": { "type": "Point", "coordinates": [ 44.270187, 46.306999 ] } },
+{ "type": "Feature", "properties": { "id": 810728424, "name": "Лагань" }, "geometry": { "type": "Point", "coordinates": [ 47.361282, 45.392059 ] } },
+{ "type": "Feature", "properties": { "id": 935391368, "name": "Приютное" }, "geometry": { "type": "Point", "coordinates": [ 43.512432, 46.100689 ] } },
+{ "type": "Feature", "properties": { "id": 935471197, "name": "Троицкое" }, "geometry": { "type": "Point", "coordinates": [ 44.260704, 46.411068 ] } },
+{ "type": "Feature", "properties": { "id": 935566173, "name": "Яшкуль" }, "geometry": { "type": "Point", "coordinates": [ 45.343464, 46.174168 ] } },
+{ "type": "Feature", "properties": { "id": 936162170, "name": "Малые Дербеты" }, "geometry": { "type": "Point", "coordinates": [ 44.6783553, 47.9509398 ] } },
+{ "type": "Feature", "properties": { "id": 936169076, "name": "Садовое" }, "geometry": { "type": "Point", "coordinates": [ 44.5164159, 47.7676505 ] } },
+{ "type": "Feature", "properties": { "id": 936186502, "name": "Кетченеры" }, "geometry": { "type": "Point", "coordinates": [ 44.528316, 47.304371 ] } },
+{ "type": "Feature", "properties": { "id": 1401400307, "name": "Городовиковск" }, "geometry": { "type": "Point", "coordinates": [ 41.934269, 46.082851 ] } },
+{ "type": "Feature", "properties": { "id": 1401401726, "name": "Яшалта" }, "geometry": { "type": "Point", "coordinates": [ 42.2726097, 46.3385265 ] } },
+{ "type": "Feature", "properties": { "id": 1784377069, "name": "Большой Царын" }, "geometry": { "type": "Point", "coordinates": [ 45.428036, 47.850693 ] } },
+{ "type": "Feature", "properties": { "id": 2766548814, "name": "Цаган Аман" }, "geometry": { "type": "Point", "coordinates": [ 46.724106, 47.565372 ] } }
+]
+}

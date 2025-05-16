@@ -1,0 +1,9 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191733890, "name": "Нарьян-Мар" }, "geometry": { "type": "Point", "coordinates": [ 53.0071044, 67.6380175 ] } },
+{ "type": "Feature", "properties": { "id": 1016276147, "name": "Искателей" }, "geometry": { "type": "Point", "coordinates": [ 53.129215, 67.676239 ] } },
+{ "type": "Feature", "properties": { "id": 1827600917, "name": "Красное" }, "geometry": { "type": "Point", "coordinates": [ 53.6017497, 67.8342979 ] } }
+]
+}

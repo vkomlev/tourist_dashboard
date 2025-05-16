@@ -1,0 +1,30 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 26163795, "name": "Невель" }, "geometry": { "type": "Point", "coordinates": [ 29.917128, 56.017616 ] } },
+{ "type": "Feature", "properties": { "id": 27025689, "name": "Псков" }, "geometry": { "type": "Point", "coordinates": [ 28.3343465, 57.8173923 ] } },
+{ "type": "Feature", "properties": { "id": 27072632, "name": "Великие Луки" }, "geometry": { "type": "Point", "coordinates": [ 30.527922, 56.342361 ] } },
+{ "type": "Feature", "properties": { "id": 27081144, "name": "Опочка" }, "geometry": { "type": "Point", "coordinates": [ 28.656818, 56.71167 ] } },
+{ "type": "Feature", "properties": { "id": 27084320, "name": "Себеж" }, "geometry": { "type": "Point", "coordinates": [ 28.4848862, 56.2774187 ] } },
+{ "type": "Feature", "properties": { "id": 76752092, "name": "Порхов" }, "geometry": { "type": "Point", "coordinates": [ 29.551878, 57.765289 ] } },
+{ "type": "Feature", "properties": { "id": 173846663, "name": "Локня" }, "geometry": { "type": "Point", "coordinates": [ 30.144482, 56.824783 ] } },
+{ "type": "Feature", "properties": { "id": 173863860, "name": "Бежаницы" }, "geometry": { "type": "Point", "coordinates": [ 29.8845309, 56.9738846 ] } },
+{ "type": "Feature", "properties": { "id": 246830274, "name": "Остров" }, "geometry": { "type": "Point", "coordinates": [ 28.357817, 57.344631 ] } },
+{ "type": "Feature", "properties": { "id": 273195256, "name": "Идрица" }, "geometry": { "type": "Point", "coordinates": [ 28.8920106, 56.3333942 ] } },
+{ "type": "Feature", "properties": { "id": 278141459, "name": "Красногородск" }, "geometry": { "type": "Point", "coordinates": [ 28.284595, 56.830654 ] } },
+{ "type": "Feature", "properties": { "id": 285580257, "name": "Струги Красные" }, "geometry": { "type": "Point", "coordinates": [ 29.1115963, 58.2693219 ] } },
+{ "type": "Feature", "properties": { "id": 301304385, "name": "Плюсса" }, "geometry": { "type": "Point", "coordinates": [ 29.3706, 58.420612 ] } },
+{ "type": "Feature", "properties": { "id": 304552666, "name": "Гдов" }, "geometry": { "type": "Point", "coordinates": [ 27.8156854, 58.743066 ] } },
+{ "type": "Feature", "properties": { "id": 342263289, "name": "Пустошка" }, "geometry": { "type": "Point", "coordinates": [ 29.3684565, 56.3350632 ] } },
+{ "type": "Feature", "properties": { "id": 342402547, "name": "Новоржев" }, "geometry": { "type": "Point", "coordinates": [ 29.332918, 57.031181 ] } },
+{ "type": "Feature", "properties": { "id": 342420981, "name": "Палкино" }, "geometry": { "type": "Point", "coordinates": [ 28.009026, 57.540539 ] } },
+{ "type": "Feature", "properties": { "id": 356482952, "name": "Новосокольники" }, "geometry": { "type": "Point", "coordinates": [ 30.152925, 56.347385 ] } },
+{ "type": "Feature", "properties": { "id": 369312472, "name": "Кунья" }, "geometry": { "type": "Point", "coordinates": [ 30.9819213, 56.294902 ] } },
+{ "type": "Feature", "properties": { "id": 706163973, "name": "Печоры" }, "geometry": { "type": "Point", "coordinates": [ 27.608185, 57.813305 ] } },
+{ "type": "Feature", "properties": { "id": 738074805, "name": "Пушкинские Горы" }, "geometry": { "type": "Point", "coordinates": [ 28.917532, 57.018421 ] } },
+{ "type": "Feature", "properties": { "id": 884345171, "name": "Дедовичи" }, "geometry": { "type": "Point", "coordinates": [ 29.945297, 57.551205 ] } },
+{ "type": "Feature", "properties": { "id": 2085977899, "name": "Дно" }, "geometry": { "type": "Point", "coordinates": [ 29.9611357, 57.8288277 ] } },
+{ "type": "Feature", "properties": { "id": 4370385260, "name": "Пыталово" }, "geometry": { "type": "Point", "coordinates": [ 27.921061, 57.062908 ] } }
+]
+}

@@ -1,0 +1,22 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 27017589, "name": "Великий Новгород" }, "geometry": { "type": "Point", "coordinates": [ 31.2757862, 58.5209862 ] } },
+{ "type": "Feature", "properties": { "id": 27492465, "name": "Хвойная" }, "geometry": { "type": "Point", "coordinates": [ 34.5121844, 58.8960621 ] } },
+{ "type": "Feature", "properties": { "id": 248560493, "name": "Крестцы" }, "geometry": { "type": "Point", "coordinates": [ 32.522858, 58.247665 ] } },
+{ "type": "Feature", "properties": { "id": 248561620, "name": "Валдай" }, "geometry": { "type": "Point", "coordinates": [ 33.2537994, 57.9791414 ] } },
+{ "type": "Feature", "properties": { "id": 250133468, "name": "Пестово" }, "geometry": { "type": "Point", "coordinates": [ 35.8230767, 58.5991505 ] } },
+{ "type": "Feature", "properties": { "id": 282462417, "name": "Окуловка" }, "geometry": { "type": "Point", "coordinates": [ 33.3009383, 58.3740782 ] } },
+{ "type": "Feature", "properties": { "id": 282635858, "name": "Демянск" }, "geometry": { "type": "Point", "coordinates": [ 32.4646788, 57.6423554 ] } },
+{ "type": "Feature", "properties": { "id": 282656834, "name": "Холм" }, "geometry": { "type": "Point", "coordinates": [ 31.182678, 57.150761 ] } },
+{ "type": "Feature", "properties": { "id": 282671987, "name": "Сольцы" }, "geometry": { "type": "Point", "coordinates": [ 30.309679, 58.119003 ] } },
+{ "type": "Feature", "properties": { "id": 287260036, "name": "Боровичи" }, "geometry": { "type": "Point", "coordinates": [ 33.9068275, 58.389009 ] } },
+{ "type": "Feature", "properties": { "id": 411447188, "name": "Шимск" }, "geometry": { "type": "Point", "coordinates": [ 30.724808, 58.2117 ] } },
+{ "type": "Feature", "properties": { "id": 2259675178, "name": "Панковка" }, "geometry": { "type": "Point", "coordinates": [ 31.2025631, 58.5000397 ] } },
+{ "type": "Feature", "properties": { "id": 2259729877, "name": "Парфино" }, "geometry": { "type": "Point", "coordinates": [ 31.649848, 57.9713226 ] } },
+{ "type": "Feature", "properties": { "id": 2261998876, "name": "Старая Русса" }, "geometry": { "type": "Point", "coordinates": [ 31.3634905, 57.9898923 ] } },
+{ "type": "Feature", "properties": { "id": 2291707774, "name": "Чудово" }, "geometry": { "type": "Point", "coordinates": [ 31.6665887, 59.119539 ] } },
+{ "type": "Feature", "properties": { "id": 2363198292, "name": "Малая Вишера" }, "geometry": { "type": "Point", "coordinates": [ 32.218636, 58.844215 ] } }
+]
+}

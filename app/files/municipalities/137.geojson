@@ -1,0 +1,25 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191651581, "name": "Саранск" }, "geometry": { "type": "Point", "coordinates": [ 45.18383, 54.18671 ] } },
+{ "type": "Feature", "properties": { "id": 288418650, "name": "Зубова Поляна" }, "geometry": { "type": "Point", "coordinates": [ 42.837425, 54.079964 ] } },
+{ "type": "Feature", "properties": { "id": 316226231, "name": "Рузаевка" }, "geometry": { "type": "Point", "coordinates": [ 44.954391, 54.058735 ] } },
+{ "type": "Feature", "properties": { "id": 316230125, "name": "Ялга" }, "geometry": { "type": "Point", "coordinates": [ 45.127655, 54.127609 ] } },
+{ "type": "Feature", "properties": { "id": 336521799, "name": "Ельники" }, "geometry": { "type": "Point", "coordinates": [ 43.875977, 54.620689 ] } },
+{ "type": "Feature", "properties": { "id": 336521806, "name": "Темников" }, "geometry": { "type": "Point", "coordinates": [ 43.210983, 54.631496 ] } },
+{ "type": "Feature", "properties": { "id": 336521963, "name": "Явас" }, "geometry": { "type": "Point", "coordinates": [ 42.8385091, 54.4161794 ] } },
+{ "type": "Feature", "properties": { "id": 336522062, "name": "Краснослободск" }, "geometry": { "type": "Point", "coordinates": [ 43.7778997, 54.4306717 ] } },
+{ "type": "Feature", "properties": { "id": 336522107, "name": "Старое Шайгово" }, "geometry": { "type": "Point", "coordinates": [ 44.463558, 54.304256 ] } },
+{ "type": "Feature", "properties": { "id": 336522134, "name": "Торбеево" }, "geometry": { "type": "Point", "coordinates": [ 43.245144, 54.074532 ] } },
+{ "type": "Feature", "properties": { "id": 336524920, "name": "Ардатов" }, "geometry": { "type": "Point", "coordinates": [ 46.23863, 54.84503 ] } },
+{ "type": "Feature", "properties": { "id": 336525378, "name": "Чамзинка" }, "geometry": { "type": "Point", "coordinates": [ 45.784023, 54.407948 ] } },
+{ "type": "Feature", "properties": { "id": 336525399, "name": "Ромоданово" }, "geometry": { "type": "Point", "coordinates": [ 45.334122, 54.420921 ] } },
+{ "type": "Feature", "properties": { "id": 336525416, "name": "Комсомольский" }, "geometry": { "type": "Point", "coordinates": [ 45.82156, 54.436646 ] } },
+{ "type": "Feature", "properties": { "id": 336525506, "name": "Большие Березники" }, "geometry": { "type": "Point", "coordinates": [ 45.966282, 54.171913 ] } },
+{ "type": "Feature", "properties": { "id": 336525565, "name": "Лямбирь" }, "geometry": { "type": "Point", "coordinates": [ 45.1226407, 54.2828455 ] } },
+{ "type": "Feature", "properties": { "id": 1160184877, "name": "Ковылкино" }, "geometry": { "type": "Point", "coordinates": [ 43.9156202, 54.0380912 ] } },
+{ "type": "Feature", "properties": { "id": 1520151475, "name": "Инсар" }, "geometry": { "type": "Point", "coordinates": [ 44.371407, 53.867741 ] } },
+{ "type": "Feature", "properties": { "id": 3057548478, "name": "Кадошкино" }, "geometry": { "type": "Point", "coordinates": [ 44.421387, 54.027386 ] } }
+]
+}

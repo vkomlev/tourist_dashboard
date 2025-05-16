@@ -1,0 +1,13 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191738860, "name": "Биробиджан" }, "geometry": { "type": "Point", "coordinates": [ 132.9269836, 48.79329 ] } },
+{ "type": "Feature", "properties": { "id": 452087724, "name": "Бира" }, "geometry": { "type": "Point", "coordinates": [ 132.4662375, 49.001633 ] } },
+{ "type": "Feature", "properties": { "id": 452125401, "name": "Амурзет" }, "geometry": { "type": "Point", "coordinates": [ 131.0896669, 47.6946588 ] } },
+{ "type": "Feature", "properties": { "id": 452164141, "name": "Ленинское" }, "geometry": { "type": "Point", "coordinates": [ 132.6223808, 47.9344425 ] } },
+{ "type": "Feature", "properties": { "id": 1028723730, "name": "Смидович" }, "geometry": { "type": "Point", "coordinates": [ 133.813836900000013, 48.5956701 ] } },
+{ "type": "Feature", "properties": { "id": 1028723825, "name": "Облучье" }, "geometry": { "type": "Point", "coordinates": [ 131.0538038, 49.0145149 ] } },
+{ "type": "Feature", "properties": { "id": 1323475088, "name": "Николаевка" }, "geometry": { "type": "Point", "coordinates": [ 134.77888870000001, 48.5564779 ] } }
+]
+}

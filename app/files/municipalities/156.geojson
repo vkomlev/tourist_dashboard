@@ -1,0 +1,17 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191636706, "name": "Горно-Алтайск" }, "geometry": { "type": "Point", "coordinates": [ 85.963653, 51.957775 ] } },
+{ "type": "Feature", "properties": { "id": 280404821, "name": "Усть-Кокса" }, "geometry": { "type": "Point", "coordinates": [ 85.6155842, 50.2695927 ] } },
+{ "type": "Feature", "properties": { "id": 280513195, "name": "Шебалино" }, "geometry": { "type": "Point", "coordinates": [ 85.6739928, 51.2922638 ] } },
+{ "type": "Feature", "properties": { "id": 280513628, "name": "Майма" }, "geometry": { "type": "Point", "coordinates": [ 85.898743, 52.004684 ] } },
+{ "type": "Feature", "properties": { "id": 280515128, "name": "Кош-Агач" }, "geometry": { "type": "Point", "coordinates": [ 88.6628218, 49.9947055 ] } },
+{ "type": "Feature", "properties": { "id": 280521185, "name": "Усть-Кан" }, "geometry": { "type": "Point", "coordinates": [ 84.765213, 50.932003 ] } },
+{ "type": "Feature", "properties": { "id": 280550570, "name": "Турочак" }, "geometry": { "type": "Point", "coordinates": [ 87.117538, 52.259956 ] } },
+{ "type": "Feature", "properties": { "id": 289835271, "name": "Чоя" }, "geometry": { "type": "Point", "coordinates": [ 86.544221, 52.0131939 ] } },
+{ "type": "Feature", "properties": { "id": 297513007, "name": "Улаган" }, "geometry": { "type": "Point", "coordinates": [ 87.9561929, 50.6317434 ] } },
+{ "type": "Feature", "properties": { "id": 2500528613, "name": "Чемал" }, "geometry": { "type": "Point", "coordinates": [ 86.0037576, 51.4065933 ] } },
+{ "type": "Feature", "properties": { "id": 3030450878, "name": "Онгудай" }, "geometry": { "type": "Point", "coordinates": [ 86.1335256, 50.7495872 ] } }
+]
+}
