@@ -13,7 +13,6 @@ from typing import List, Optional
 from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
 from app.data.database.models_repository import MetricValueRepository
 from app.logging_config import logger
-from app.data.metric_codes import METRIC_CODE_MAP
 from app.data.database.models_repository import MetricValueRepository
 
 
@@ -83,7 +82,7 @@ class Region_page_plot:
         с цветовой градацией оценки.
         """
         cards: List[dbc.Col] = []
-        for key, (code, rus_name) in METRIC_CODE_MAP.items():
+        for rus_name, code  in self.prepare.METRIC_IDS.items():
             val = self.prepare.fetch_latest_metric_value( code, region_id)
             display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
             color = self._choose_card_color(val)

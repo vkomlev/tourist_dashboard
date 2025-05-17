@@ -373,14 +373,14 @@ class Region_page_dashboard(City_page_dashboard):
     METRIC_IDS = {
         'Комплексная оценка развития туризма': 282,
         'Комплексная оценка сегментов':    217,
-        'Средняя оценка общей инфраструктуры': 218,
+        'Средняя оценка отелей и других мест размещения': 218,
         'Турпоток (оценка)':               283,
         'Ночёвки (оценка)':                284,
-        'Климат':                          222,
-        'Цена':                            286,
+        'Оценка климата':                          222,
+        'Стоимость туристических услуг':                            286,
         'Удаленность от столицы':          285,
-        'Основная инфраструктура кол-во': 240,
-        'Дополнительная инфраструктура кол-во': 241,
+        'Количество отелей и других мест размещения': 240,
+        'Количество кафе, ресторанов и пр. мест питания': 241,
     }
 
     def load_region_boundary(self, region_id: int) -> Optional[Dict[str, Any]]:
@@ -437,7 +437,7 @@ class Region_page_dashboard(City_page_dashboard):
 
             # метрика 282 для этого города (берем последнее значение)
             metric_val = None
-            mvs = mv_repo.get_info_metricvalue(id_metric=282, id_city=city.id_city)
+            mvs = mv_repo.get_info_metricvalue(id_metric=282, id_city=city.id_city, id_location=None)
             if mvs and mvs[-1].value is not None:
                 try:
                     metric_val = float(mvs[-1].value)
@@ -475,7 +475,7 @@ class Region_page_dashboard(City_page_dashboard):
         mv_repo = MetricValueRepository()
         records = []
         for name, metric_id in self.SEGMENT_METRICS.items():
-            mvs = mv_repo.get_info_metricvalue(id_region=region_id, id_metric=metric_id)
+            mvs = mv_repo.get_info_metricvalue(id_region=region_id, id_metric=metric_id, id_city=None, id_location=None)
             val = None
             if mvs and mvs[-1].value is not None:
                 try:
