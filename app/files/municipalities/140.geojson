@@ -1,0 +1,28 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191879312, "name": "Новочебоксарск" }, "geometry": { "type": "Point", "coordinates": [ 47.4870341, 56.1140023 ] } },
+{ "type": "Feature", "properties": { "id": 296134100, "name": "Ядрин" }, "geometry": { "type": "Point", "coordinates": [ 46.2006586, 55.9407976 ] } },
+{ "type": "Feature", "properties": { "id": 336524089, "name": "Красные Четаи" }, "geometry": { "type": "Point", "coordinates": [ 46.1593707, 55.6988225 ] } },
+{ "type": "Feature", "properties": { "id": 336524379, "name": "Вурнары" }, "geometry": { "type": "Point", "coordinates": [ 46.9529003, 55.4917095 ] } },
+{ "type": "Feature", "properties": { "id": 336524477, "name": "Порецкое" }, "geometry": { "type": "Point", "coordinates": [ 46.3261836, 55.1989448 ] } },
+{ "type": "Feature", "properties": { "id": 336524720, "name": "Батырево" }, "geometry": { "type": "Point", "coordinates": [ 47.6042007, 55.0681559 ] } },
+{ "type": "Feature", "properties": { "id": 355658943, "name": "Шумерля" }, "geometry": { "type": "Point", "coordinates": [ 46.4186725, 55.4985162 ] } },
+{ "type": "Feature", "properties": { "id": 382547924, "name": "Цивильск" }, "geometry": { "type": "Point", "coordinates": [ 47.473703, 55.8661072 ] } },
+{ "type": "Feature", "properties": { "id": 634802483, "name": "Мариинский Посад" }, "geometry": { "type": "Point", "coordinates": [ 47.7220654, 56.1178077 ] } },
+{ "type": "Feature", "properties": { "id": 740732715, "name": "Чебоксары" }, "geometry": { "type": "Point", "coordinates": [ 47.2480999, 56.1399598 ] } },
+{ "type": "Feature", "properties": { "id": 850408359, "name": "Яльчики" }, "geometry": { "type": "Point", "coordinates": [ 48.003334, 55.1628658 ] } },
+{ "type": "Feature", "properties": { "id": 853525380, "name": "Ибреси" }, "geometry": { "type": "Point", "coordinates": [ 47.0389112, 55.3043004 ] } },
+{ "type": "Feature", "properties": { "id": 853568231, "name": "Козловка" }, "geometry": { "type": "Point", "coordinates": [ 48.2484231, 55.8414764 ] } },
+{ "type": "Feature", "properties": { "id": 854182620, "name": "Янтиково" }, "geometry": { "type": "Point", "coordinates": [ 47.7805881, 55.5163733 ] } },
+{ "type": "Feature", "properties": { "id": 855155287, "name": "Комсомольское" }, "geometry": { "type": "Point", "coordinates": [ 47.5455999, 55.2622657 ] } },
+{ "type": "Feature", "properties": { "id": 855192927, "name": "Шемурша" }, "geometry": { "type": "Point", "coordinates": [ 47.51651, 54.8854761 ] } },
+{ "type": "Feature", "properties": { "id": 856139011, "name": "Кугеси" }, "geometry": { "type": "Point", "coordinates": [ 47.2987956, 56.0315502 ] } },
+{ "type": "Feature", "properties": { "id": 860022797, "name": "Новые Лапсары" }, "geometry": { "type": "Point", "coordinates": [ 47.2156582, 56.0694026 ] } },
+{ "type": "Feature", "properties": { "id": 906758991, "name": "Шыгырдан" }, "geometry": { "type": "Point", "coordinates": [ 47.5547508, 55.0504966 ] } },
+{ "type": "Feature", "properties": { "id": 906795109, "name": "Урмары" }, "geometry": { "type": "Point", "coordinates": [ 47.9446913, 55.6802934 ] } },
+{ "type": "Feature", "properties": { "id": 2288716213, "name": "Алатырь" }, "geometry": { "type": "Point", "coordinates": [ 46.5878356, 54.8419041 ] } },
+{ "type": "Feature", "properties": { "id": 5255951743, "name": "Канаш" }, "geometry": { "type": "Point", "coordinates": [ 47.5067782, 55.5113818 ] } }
+]
+}

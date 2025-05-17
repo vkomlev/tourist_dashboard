@@ -104,7 +104,7 @@ class SyncRepository(Database):
 
 
 
-class RegionRepository(Database):
+class RegionRepository(JSONRepository):
     """
     Репозиторий для работы с моделью Region.
     """

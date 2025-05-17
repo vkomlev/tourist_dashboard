@@ -49,8 +49,10 @@ def register_callbacks(app_dash: Dash) -> None:
             try:
                 region_id = int(parts[3])
                 return create_region_layout(region_id)
-            except ValueError:
+            except ValueError as e:
+                logger.error(f"Ошибка значения при формировании страницы : {e}")
                 return page_not_found()
+        logger.error(f"Ошибка значения при формировании страницы : {e}")
         return page_not_found()
 
     @app_dash.callback(
@@ -91,6 +93,8 @@ def register_callbacks(app_dash: Dash) -> None:
         buffer.seek(0)
         filename = f"{parts[2]}_{entity_id}_metrics.xlsx"
         return dcc.send_bytes(buffer.read(), filename)
+    rpp = Region_page_plot()
+    rpp.register_graph_callbacks(app_dash)
 
 
 def page_not_found():
@@ -113,20 +117,26 @@ def create_region_layout(region_id: int):
     cards = rpp.make_kpi_cards(region_id, repo)
 
     # Графики
-    flow_fig = rpp.make_flow_figure(region_id, repo)
-    nights_fig = rpp.make_nights_figure(region_id, repo)
+    flow_block = rpp.flow_graph_with_year_selector(region_id)
+    nights_block = rpp.nights_graph_with_year_selector(region_id)
+    # муниципалитеты
+    muni = rpp.make_municipalities_map(region_id)
 
     return dbc.Container([
         dbc.Row(
             dbc.Col(html.H2(f"Дашборд региона: {region_name}"), width=12),
             className="my-3"
         ),
-
+        # Карточки показателей
         dbc.Row(cards, className="mb-4"),
+        # Графики турпотока и ночевок
         dbc.Row([
-            dbc.Col(dcc.Graph(figure=flow_fig), md=6),
-            dbc.Col(dcc.Graph(figure=nights_fig), md=6),
+            dbc.Col(flow_block, md=6),
+            dbc.Col(nights_block, md=6),
         ], className="mb-4"),
+         # Карта городов
+        dbc.Row(dbc.Col(html.H4("Муниципалитеты и города"), width=12)),
+        dbc.Row(dbc.Col(muni, width=12), className="mb-4"),
         dbc.Row([
             dbc.Col(dbc.Button("Скачать метрики в Excel", id="btn-download", color="primary"),
                     width="auto"),

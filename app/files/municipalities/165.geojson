@@ -1,0 +1,27 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 163043169, "name": "Томск" }, "geometry": { "type": "Point", "coordinates": [ 84.9523434, 56.4887526 ] } },
+{ "type": "Feature", "properties": { "id": 178891026, "name": "Кисловка" }, "geometry": { "type": "Point", "coordinates": [ 84.8696956, 56.4201101 ] } },
+{ "type": "Feature", "properties": { "id": 178972986, "name": "Асино" }, "geometry": { "type": "Point", "coordinates": [ 86.14167, 56.999187 ] } },
+{ "type": "Feature", "properties": { "id": 179108306, "name": "Зональная Станция" }, "geometry": { "type": "Point", "coordinates": [ 85.022102, 56.426922 ] } },
+{ "type": "Feature", "properties": { "id": 179165864, "name": "Первомайское" }, "geometry": { "type": "Point", "coordinates": [ 86.226082, 57.070614 ] } },
+{ "type": "Feature", "properties": { "id": 186985543, "name": "Кривошеино" }, "geometry": { "type": "Point", "coordinates": [ 83.930153, 57.343742 ] } },
+{ "type": "Feature", "properties": { "id": 186987910, "name": "Молчаново" }, "geometry": { "type": "Point", "coordinates": [ 83.7605886, 57.581014 ] } },
+{ "type": "Feature", "properties": { "id": 187010245, "name": "Колпашево" }, "geometry": { "type": "Point", "coordinates": [ 82.903557, 58.313667 ] } },
+{ "type": "Feature", "properties": { "id": 187013636, "name": "Мельниково" }, "geometry": { "type": "Point", "coordinates": [ 84.090408, 56.554417 ] } },
+{ "type": "Feature", "properties": { "id": 191902212, "name": "Северск" }, "geometry": { "type": "Point", "coordinates": [ 84.881012, 56.603161 ] } },
+{ "type": "Feature", "properties": { "id": 203914619, "name": "Бакчар" }, "geometry": { "type": "Point", "coordinates": [ 82.066872, 57.020538 ] } },
+{ "type": "Feature", "properties": { "id": 203999445, "name": "Зырянское" }, "geometry": { "type": "Point", "coordinates": [ 86.621178, 56.834206 ] } },
+{ "type": "Feature", "properties": { "id": 205375412, "name": "Белый Яр" }, "geometry": { "type": "Point", "coordinates": [ 85.0389307, 58.4475598 ] } },
+{ "type": "Feature", "properties": { "id": 206803392, "name": "Парабель" }, "geometry": { "type": "Point", "coordinates": [ 81.5018413, 58.7139667 ] } },
+{ "type": "Feature", "properties": { "id": 206809742, "name": "Каргасок" }, "geometry": { "type": "Point", "coordinates": [ 80.8708719, 59.0598053 ] } },
+{ "type": "Feature", "properties": { "id": 210111403, "name": "Стрежевой" }, "geometry": { "type": "Point", "coordinates": [ 77.600807, 60.732758 ] } },
+{ "type": "Feature", "properties": { "id": 210375564, "name": "Александровское" }, "geometry": { "type": "Point", "coordinates": [ 77.865845, 60.431446 ] } },
+{ "type": "Feature", "properties": { "id": 210526082, "name": "Кедровый" }, "geometry": { "type": "Point", "coordinates": [ 79.570801, 57.56192 ] } },
+{ "type": "Feature", "properties": { "id": 210737785, "name": "Подгорное" }, "geometry": { "type": "Point", "coordinates": [ 82.6441106, 57.7915323 ] } },
+{ "type": "Feature", "properties": { "id": 244529460, "name": "Тегульдет" }, "geometry": { "type": "Point", "coordinates": [ 88.167168, 57.306404 ] } },
+{ "type": "Feature", "properties": { "id": 292349889, "name": "Тогур" }, "geometry": { "type": "Point", "coordinates": [ 82.829697, 58.358292 ] } }
+]
+}

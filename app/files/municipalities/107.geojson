@@ -1,0 +1,19 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 253041038, "name": "Зеленоград" }, "geometry": { "type": "Point", "coordinates": [ 37.214241, 55.991971 ] } },
+{ "type": "Feature", "properties": { "id": 256361817, "name": "Щербинка" }, "geometry": { "type": "Point", "coordinates": [ 37.5673544, 55.5069136 ] } },
+{ "type": "Feature", "properties": { "id": 264180569, "name": "Внуково" }, "geometry": { "type": "Point", "coordinates": [ 37.300255, 55.611698 ] } },
+{ "type": "Feature", "properties": { "id": 282045438, "name": "Киевский" }, "geometry": { "type": "Point", "coordinates": [ 36.8684242, 55.4302632 ] } },
+{ "type": "Feature", "properties": { "id": 360000940, "name": "Шишкин Лес" }, "geometry": { "type": "Point", "coordinates": [ 37.1893153, 55.4131918 ] } },
+{ "type": "Feature", "properties": { "id": 360001111, "name": "Кокошкино" }, "geometry": { "type": "Point", "coordinates": [ 37.171, 55.6 ] } },
+{ "type": "Feature", "properties": { "id": 360002120, "name": "Московский" }, "geometry": { "type": "Point", "coordinates": [ 37.3479176, 55.6026007 ] } },
+{ "type": "Feature", "properties": { "id": 976862420, "name": "Восточный" }, "geometry": { "type": "Point", "coordinates": [ 37.8675117, 55.8188903 ] } },
+{ "type": "Feature", "properties": { "id": 1341052984, "name": "ЛМС" }, "geometry": { "type": "Point", "coordinates": [ 37.1847123, 55.3136134 ] } },
+{ "type": "Feature", "properties": { "id": 1451694728, "name": "Мосрентген" }, "geometry": { "type": "Point", "coordinates": [ 37.4727266, 55.6217029 ] } },
+{ "type": "Feature", "properties": { "id": 1686293227, "name": "Москва" }, "geometry": { "type": "Point", "coordinates": [ 37.6174782, 55.7505412 ] } },
+{ "type": "Feature", "properties": { "id": 1692441713, "name": "Троицк" }, "geometry": { "type": "Point", "coordinates": [ 37.3017465, 55.4728168 ] } },
+{ "type": "Feature", "properties": { "id": 2824022495, "name": "Коммунарка" }, "geometry": { "type": "Point", "coordinates": [ 37.4757622, 55.5703217 ] } }
+]
+}

@@ -14,7 +14,7 @@ def load_geojson():
     '''Загрузка json файла с границами с учетом кэширования'''
     global cached_gdf
     if cached_gdf is None:
-        geojson_path = os.path.join(current_app.root_path, 'data', 'regions.geojson')
+        geojson_path = os.path.join(current_app.root_path, 'files', 'regions.geojson')
         cached_gdf = gpd.read_file(geojson_path)
         # Фильтрация, чтобы загружать только полигоны
         cached_gdf = cached_gdf[cached_gdf.geometry.type.isin(['Polygon', 'MultiPolygon'])]

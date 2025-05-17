@@ -1,0 +1,20 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 27464354, "name": "Борисоглебский" }, "geometry": { "type": "Point", "coordinates": [ 39.15, 57.259 ] } },
+{ "type": "Feature", "properties": { "id": 27464486, "name": "Ростов Великий" }, "geometry": { "type": "Point", "coordinates": [ 39.4249825, 57.1860076 ] } },
+{ "type": "Feature", "properties": { "id": 27505266, "name": "Ярославль" }, "geometry": { "type": "Point", "coordinates": [ 39.8933705, 57.6263877 ] } },
+{ "type": "Feature", "properties": { "id": 92383389, "name": "Углич" }, "geometry": { "type": "Point", "coordinates": [ 38.316689, 57.526783 ] } },
+{ "type": "Feature", "properties": { "id": 92441557, "name": "Переславль-Залесский" }, "geometry": { "type": "Point", "coordinates": [ 38.8462714, 56.7367178 ] } },
+{ "type": "Feature", "properties": { "id": 92774502, "name": "Мышкин" }, "geometry": { "type": "Point", "coordinates": [ 38.451595, 57.784725 ] } },
+{ "type": "Feature", "properties": { "id": 148899210, "name": "Рыбинск" }, "geometry": { "type": "Point", "coordinates": [ 38.8558908, 58.0489536 ] } },
+{ "type": "Feature", "properties": { "id": 148899607, "name": "Тутаев" }, "geometry": { "type": "Point", "coordinates": [ 39.527214, 57.875385 ] } },
+{ "type": "Feature", "properties": { "id": 276646949, "name": "Данилов" }, "geometry": { "type": "Point", "coordinates": [ 40.175114, 58.188808 ] } },
+{ "type": "Feature", "properties": { "id": 356482546, "name": "Любим" }, "geometry": { "type": "Point", "coordinates": [ 40.6866038, 58.3595618 ] } },
+{ "type": "Feature", "properties": { "id": 356482599, "name": "Новый Некоуз" }, "geometry": { "type": "Point", "coordinates": [ 38.0624475, 57.90218 ] } },
+{ "type": "Feature", "properties": { "id": 356482725, "name": "Гаврилов-Ям" }, "geometry": { "type": "Point", "coordinates": [ 39.8537697, 57.3032827 ] } },
+{ "type": "Feature", "properties": { "id": 924463542, "name": "Пошехонье" }, "geometry": { "type": "Point", "coordinates": [ 39.119701, 58.503201 ] } },
+{ "type": "Feature", "properties": { "id": 1353439098, "name": "Семибратово" }, "geometry": { "type": "Point", "coordinates": [ 39.5386826, 57.2988334 ] } }
+]
+}

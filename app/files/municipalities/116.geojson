@@ -1,0 +1,30 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 26878551, "name": "Кандалакша" }, "geometry": { "type": "Point", "coordinates": [ 32.4082716, 67.1507901 ] } },
+{ "type": "Feature", "properties": { "id": 26898767, "name": "Апатиты" }, "geometry": { "type": "Point", "coordinates": [ 33.404392, 67.568626 ] } },
+{ "type": "Feature", "properties": { "id": 26898769, "name": "Кировск" }, "geometry": { "type": "Point", "coordinates": [ 33.6637527, 67.6151331 ] } },
+{ "type": "Feature", "properties": { "id": 26898826, "name": "Зеленоборский" }, "geometry": { "type": "Point", "coordinates": [ 32.3871, 66.857452 ] } },
+{ "type": "Feature", "properties": { "id": 269342417, "name": "Мурманск" }, "geometry": { "type": "Point", "coordinates": [ 33.07497, 68.970665 ] } },
+{ "type": "Feature", "properties": { "id": 272845466, "name": "Никель" }, "geometry": { "type": "Point", "coordinates": [ 30.2114216, 69.4062217 ] } },
+{ "type": "Feature", "properties": { "id": 292226474, "name": "Заозёрск" }, "geometry": { "type": "Point", "coordinates": [ 32.441334, 69.400925 ] } },
+{ "type": "Feature", "properties": { "id": 292231968, "name": "Гаджиево" }, "geometry": { "type": "Point", "coordinates": [ 33.315281, 69.250359 ] } },
+{ "type": "Feature", "properties": { "id": 292235034, "name": "Полярный" }, "geometry": { "type": "Point", "coordinates": [ 33.445839, 69.199524 ] } },
+{ "type": "Feature", "properties": { "id": 293459034, "name": "Мурмаши" }, "geometry": { "type": "Point", "coordinates": [ 32.816505, 68.816956 ] } },
+{ "type": "Feature", "properties": { "id": 293459492, "name": "Кола" }, "geometry": { "type": "Point", "coordinates": [ 33.019726, 68.880638 ] } },
+{ "type": "Feature", "properties": { "id": 303015164, "name": "Умба" }, "geometry": { "type": "Point", "coordinates": [ 34.3376019, 66.6780339 ] } },
+{ "type": "Feature", "properties": { "id": 303019430, "name": "Ревда" }, "geometry": { "type": "Point", "coordinates": [ 34.5489702, 67.9415427 ] } },
+{ "type": "Feature", "properties": { "id": 303353860, "name": "Полярные Зори" }, "geometry": { "type": "Point", "coordinates": [ 32.5010277, 67.3659225 ] } },
+{ "type": "Feature", "properties": { "id": 303968215, "name": "Островной" }, "geometry": { "type": "Point", "coordinates": [ 39.5129384, 68.0544447 ] } },
+{ "type": "Feature", "properties": { "id": 303973327, "name": "Заполярный" }, "geometry": { "type": "Point", "coordinates": [ 30.819939, 69.426239 ] } },
+{ "type": "Feature", "properties": { "id": 303980218, "name": "Североморск" }, "geometry": { "type": "Point", "coordinates": [ 33.416656, 69.069168 ] } },
+{ "type": "Feature", "properties": { "id": 303988937, "name": "Песчаный" }, "geometry": { "type": "Point", "coordinates": [ 33.201176, 68.497131 ] } },
+{ "type": "Feature", "properties": { "id": 304025149, "name": "Ковдор" }, "geometry": { "type": "Point", "coordinates": [ 30.474108, 67.563049 ] } },
+{ "type": "Feature", "properties": { "id": 775382050, "name": "Печенга" }, "geometry": { "type": "Point", "coordinates": [ 31.212254, 69.547714 ] } },
+{ "type": "Feature", "properties": { "id": 795838932, "name": "Снежногорск" }, "geometry": { "type": "Point", "coordinates": [ 33.232357, 69.19191 ] } },
+{ "type": "Feature", "properties": { "id": 986551118, "name": "Видяево" }, "geometry": { "type": "Point", "coordinates": [ 32.8067302, 69.3180029 ] } },
+{ "type": "Feature", "properties": { "id": 1627107363, "name": "Оленегорск" }, "geometry": { "type": "Point", "coordinates": [ 33.282597, 68.140732 ] } },
+{ "type": "Feature", "properties": { "id": 1628525065, "name": "Мончегорск" }, "geometry": { "type": "Point", "coordinates": [ 32.931679, 67.939903 ] } }
+]
+}

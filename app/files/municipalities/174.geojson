@@ -1,0 +1,25 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191723030, "name": "Южно-Сахалинск" }, "geometry": { "type": "Point", "coordinates": [ 142.727438, 46.9574273 ] } },
+{ "type": "Feature", "properties": { "id": 286560902, "name": "Холмск" }, "geometry": { "type": "Point", "coordinates": [ 142.0487125, 47.0545875 ] } },
+{ "type": "Feature", "properties": { "id": 360790060, "name": "Шахтёрск" }, "geometry": { "type": "Point", "coordinates": [ 142.1070013, 49.1592435 ] } },
+{ "type": "Feature", "properties": { "id": 360790120, "name": "Макаров" }, "geometry": { "type": "Point", "coordinates": [ 142.7814002, 48.6242527 ] } },
+{ "type": "Feature", "properties": { "id": 360790153, "name": "Ноглики" }, "geometry": { "type": "Point", "coordinates": [ 143.13650770000001, 51.7953617 ] } },
+{ "type": "Feature", "properties": { "id": 360790301, "name": "Невельск" }, "geometry": { "type": "Point", "coordinates": [ 141.860114399999986, 46.6877802 ] } },
+{ "type": "Feature", "properties": { "id": 360790385, "name": "Углегорск" }, "geometry": { "type": "Point", "coordinates": [ 142.0633622, 49.079296 ] } },
+{ "type": "Feature", "properties": { "id": 360790488, "name": "Корсаков" }, "geometry": { "type": "Point", "coordinates": [ 142.781014699999986, 46.632815 ] } },
+{ "type": "Feature", "properties": { "id": 360790596, "name": "Долинск" }, "geometry": { "type": "Point", "coordinates": [ 142.797936099999987, 47.3241456 ] } },
+{ "type": "Feature", "properties": { "id": 360790636, "name": "Северо-Курильск" }, "geometry": { "type": "Point", "coordinates": [ 156.115439900000013, 50.6683048 ] } },
+{ "type": "Feature", "properties": { "id": 360790752, "name": "Тымовское" }, "geometry": { "type": "Point", "coordinates": [ 142.655, 50.845556 ] } },
+{ "type": "Feature", "properties": { "id": 360790819, "name": "Томари" }, "geometry": { "type": "Point", "coordinates": [ 142.063478, 47.7612087 ] } },
+{ "type": "Feature", "properties": { "id": 360790875, "name": "Смирных" }, "geometry": { "type": "Point", "coordinates": [ 142.8320066, 49.7423531 ] } },
+{ "type": "Feature", "properties": { "id": 360790972, "name": "Поронайск" }, "geometry": { "type": "Point", "coordinates": [ 143.1015759, 49.2216366 ] } },
+{ "type": "Feature", "properties": { "id": 360791081, "name": "Оха" }, "geometry": { "type": "Point", "coordinates": [ 142.949684499999989, 53.5891992 ] } },
+{ "type": "Feature", "properties": { "id": 983942465, "name": "Александровск-Сахалинский" }, "geometry": { "type": "Point", "coordinates": [ 142.159166699999986, 50.8974983 ] } },
+{ "type": "Feature", "properties": { "id": 1108170436, "name": "Курильск" }, "geometry": { "type": "Point", "coordinates": [ 147.875184499999989, 45.2290413 ] } },
+{ "type": "Feature", "properties": { "id": 1373610125, "name": "Южно-Курильск" }, "geometry": { "type": "Point", "coordinates": [ 145.8613722, 44.0270756 ] } },
+{ "type": "Feature", "properties": { "id": 1457197051, "name": "Анива" }, "geometry": { "type": "Point", "coordinates": [ 142.527515, 46.7147768 ] } }
+]
+}

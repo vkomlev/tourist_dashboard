@@ -1,18 +1,18 @@
+#app/reports/plot.py
+
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
-import pandas as pd
 import plotly.express as px
+import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
-import random
-from dash import Dash, html, dcc, Input, Output
-from typing import List, Optional, Tuple
+from dash import Dash, html, dcc, Input, Output, State
+from typing import List, Optional
 
 from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
 from app.data.database.models_repository import MetricValueRepository
 from app.logging_config import logger
-from app.data.score.base_assessment import OverallTourismEvaluation 
-from app.data.metric_codes import METRIC_CODE_MAP, get_metric_code
+from app.data.metric_codes import METRIC_CODE_MAP
 from app.data.database.models_repository import MetricValueRepository
 
 
@@ -126,74 +126,338 @@ class Region_page_plot:
         return cards
 
 
-    def make_flow_figure(self, region_id: int, repo: MetricValueRepository) -> dict:
+    def flow_graph_with_year_selector(self, region_id: int) -> html.Div:
         """
-        Строит Plotly-figure с абсолютным турпотоком по месяцам за последний год.
+        Возвращает Div с Dropdown по годам и графиком турпотока.
+        Данные берутся из prepare_data.prepare_tourist_count_data().
+        """
+        rpd = Region_page_dashboard()
+        df = rpd.prepare_tourist_count_data(region_id)
+        years = sorted(df['year'].unique())
+        dropdown = dcc.Dropdown(
+            id='flow-year-dropdown',
+            options=[{'label': y, 'value': y} for y in years],
+            value=years[-1],
+            clearable=False
+        )
+        graph = dcc.Graph(id='flow-graph')
+        return html.Div([
+            html.H4("Турпоток по месяцам"),
+            dropdown,
+            graph
+        ])
+
+    def nights_graph_with_year_selector(self, region_id: int) -> html.Div:
+        """
+        То же для ночёвок, используя prepare_data.get_region_mean_night().
+        """
+        rpd = Region_page_dashboard()
+        # Получаем список доступных годов
+        raw = rpd.prepare_tourist_count_data(region_id)
+        years = sorted(raw['year'].unique())
+        dropdown = dcc.Dropdown(
+            id='nights-year-dropdown',
+            options=[{'label': y, 'value': y} for y in years],
+            value=years[-1],
+            clearable=False
+        )
+        graph = dcc.Graph(id='nights-graph')
+        return html.Div([
+            html.H4("Ночёвки по месяцам"),
+            dropdown,
+            graph
+        ])
+
+    def register_graph_callbacks(self, app_dash: Dash):
+        """
+        Регистрирует коллбеки обновления графиков по выбору года.
+        Должен быть вызван из register_callbacks.
+        """
+        rpd = Region_page_dashboard()
+
+        @app_dash.callback(
+            Output('flow-graph', 'figure'),
+            Input('flow-year-dropdown', 'value'),
+            State('url', 'pathname'),
+        )
+        def update_flow_chart(year, pathname):
+            region_id = int(pathname.split('/')[-1])
+            df = rpd.prepare_tourist_count_data(region_id)
+            df = df[df['year'] == year].sort_values('month')
+            fig = px.bar(df, x='month', y='value',
+                         labels={'value': 'Туристы', 'month': 'Месяц'},
+                         title=f"Турпоток за {year} год")
+            return fig
+
+        @app_dash.callback(
+            Output('nights-graph', 'figure'),
+            Input('nights-year-dropdown', 'value'),
+            State('url', 'pathname'),
+        )
+        def update_nights_chart(year, pathname):
+            region_id = int(pathname.split('/')[-1])
+            df = rpd.get_region_mean_night(region_id, year)
+            fig = px.line(df, x='Месяц', y='Количество ночевок',
+                          title=f"Ночёвки за {year} год")
+            return fig
+        
+    # app/reports/plot.py
+from dash import dcc
+import plotly.graph_objs as go
+from typing import Optional
+import pandas as pd
+
+class Region_page_plot:
+        # Интерпретации оценок
+
+    def __init__(self): 
+        self.interpretations = { 
+            (1.0, 2.0): "Туристская инфраструктура слабо развита, требуется значительное улучшение.", 
+            (2.1, 3.0): "Средний уровень, подходит для локальных туристов, но имеет ограничения для международного туризма.", 
+            (3.1, 4.0): "Хорошая инфраструктура, пригодная для национальных и международных туристов.", 
+            (4.1, 5.0): "Высокий уровень инфраструктуры, готовый к приему большого турпотока и международных мероприятий." 
+        } 
+ 
+    # Вспомогательная функция для интерпретации оценок
+    def get_interpretation(self, rating): 
+        for (low, high), text in self.interpretations.items(): 
+            if low <= rating <= high: 
+                return text 
+        return "Нет данных."
+    
+    def fetch_latest_value(self,
+        repo: MetricValueRepository,
+        id_metric: int,
+        id_region: int
+    ) -> Optional[float]:
+        """
+        Возвращает последнее числовое значение метрики для заданного региона.
 
         Args:
-            region_id: ID региона.
-            repo: репозиторий для доступа к metric_values.
+            repo: экземпляр MetricValueRepository.
+            id_metric: код метрики.
+            id_region: ID региона.
 
         Returns:
-            Словарь-figure для dcc.Graph.
+            Последнее значение value в виде float, или None.
         """
-        ABS_FLOW_CODE = 2
         try:
-            mvs = repo.get_info_metricvalue(id_metric=ABS_FLOW_CODE, id_region=region_id)
-            df = pd.DataFrame([
-                {"year": mv.year, "month": mv.month, "value": float(mv.value)}
-                for mv in mvs if mv.year is not None and mv.month is not None and mv.value is not None
-            ])
-            if df.empty:
-                return {}
-            last_year = int(df["year"].max())
-            df = df[df["year"] == last_year].sort_values("month")
-            fig = px.bar(
-                df,
-                x="month",
-                y="value",
-                title=f"Турпоток (абс.) за {last_year} год",
-                labels={"value": "Туристы, чел.", "month": "Месяц"}
-            )
-            return fig.to_dict()
+            mvs = repo.get_info_metricvalue(id_metric=id_metric, id_region=id_region)
+            if not mvs:
+                return None
+            raw = mvs[-1].value
+            return float(raw) if raw is not None else None
         except Exception as e:
-            logger.error("Ошибка при построении flow_figure для региона %s: %s", region_id, e)
-            return {}
+            logger.warning("Ошибка при fetch_latest_value(metric=%s, region=%s): %s",
+                        id_metric, id_region, e)
+            return None
 
 
-    def make_nights_figure(self, region_id: int, repo: MetricValueRepository) -> dict:
+    def _choose_card_color(self, val: Optional[float]) -> str:
         """
-        Строит Plotly-figure с абсолютными ночёвками по месяцам за последний год.
-
-        Args:
-            region_id: ID региона.
-            repo: репозиторий для доступа к metric_values.
-
-        Returns:
-            Словарь-figure для dcc.Graph.
+        Выбирает цвет карточки по значению:
+         - None → secondary (серый)
+         - < 3.0 → danger (красный)
+         - 3.0–4.0 → warning (желтый)
+         - > 4.0 → success (зелёный)
         """
-        ABS_NIGHTS_CODE = 3
-        try:
-            mvs = repo.get_info_metricvalue(id_metric=ABS_NIGHTS_CODE, id_region=region_id)
-            df = pd.DataFrame([
-                {"year": mv.year, "month": mv.month, "value": float(mv.value)}
-                for mv in mvs if mv.year is not None and mv.month is not None and mv.value is not None
-            ])
-            if df.empty:
-                return {}
-            last_year = int(df["year"].max())
-            df = df[df["year"] == last_year].sort_values("month")
-            fig = px.line(
-                df,
-                x="month",
-                y="value",
-                title=f"Ночёвки (абс.) за {last_year} год",
-                labels={"value": "Ночёвки, чел.-дней", "month": "Месяц"}
+        if val is None:
+            return "secondary"
+        if val < 3.0:
+            return "danger"
+        if val < 4.0:
+            return "warning"
+        return "success"
+
+    def make_kpi_cards(self, region_id: int, repo: MetricValueRepository) -> List[dbc.Col]:
+        """
+        Формирует список карточек KPI для всех метрик из METRIC_CODE_MAP
+        с цветовой градацией оценки.
+        """
+        cards: List[dbc.Col] = []
+        for key, (code, rus_name) in METRIC_CODE_MAP.items():
+            val = self.fetch_latest_value(repo, code, region_id)
+            display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
+            color = self._choose_card_color(val)
+
+            card = dbc.Card(
+                [
+                    dbc.CardHeader(rus_name, className="text-white"),
+                    dbc.CardBody(html.H4(display, className="card-title text-white")),
+                ],
+                color=color,
+                inverse=True,  # делает фон карточки цветным, текст светлым
+                className="mb-3 shadow-sm",
             )
-            return fig.to_dict()
-        except Exception as e:
-            logger.error("Ошибка при построении nights_figure для региона %s: %s", region_id, e)
-            return {}
+            cards.append(dbc.Col(card, xs=12, sm=6, md=4, lg=3))
+        return cards
+
+
+    def flow_graph_with_year_selector(self, region_id: int) -> html.Div:
+        """
+        Возвращает Div с Dropdown по годам и графиком турпотока.
+        Данные берутся из prepare_data.prepare_tourist_count_data().
+        """
+        rpd = Region_page_dashboard()
+        df = rpd.prepare_tourist_count_data(region_id)
+        years = sorted(df['year'].unique())
+        dropdown = dcc.Dropdown(
+            id='flow-year-dropdown',
+            options=[{'label': y, 'value': y} for y in years],
+            value=years[-1],
+            clearable=False
+        )
+        graph = dcc.Graph(id='flow-graph')
+        return html.Div([
+            html.H4("Турпоток по месяцам"),
+            dropdown,
+            graph
+        ])
+
+    def nights_graph_with_year_selector(self, region_id: int) -> html.Div:
+        """
+        То же для ночёвок, используя prepare_data.get_region_mean_night().
+        """
+        rpd = Region_page_dashboard()
+        # Получаем список доступных годов
+        raw = rpd.prepare_tourist_count_data(region_id)
+        years = sorted(raw['year'].unique())
+        dropdown = dcc.Dropdown(
+            id='nights-year-dropdown',
+            options=[{'label': y, 'value': y} for y in years],
+            value=years[-1],
+            clearable=False
+        )
+        graph = dcc.Graph(id='nights-graph')
+        return html.Div([
+            html.H4("Ночёвки по месяцам"),
+            dropdown,
+            graph
+        ])
+
+    def register_graph_callbacks(self, app_dash: Dash):
+        """
+        Регистрирует коллбеки обновления графиков по выбору года.
+        Должен быть вызван из register_callbacks.
+        """
+        rpd = Region_page_dashboard()
+
+        @app_dash.callback(
+            Output('flow-graph', 'figure'),
+            Input('flow-year-dropdown', 'value'),
+            State('url', 'pathname'),
+        )
+        def update_flow_chart(year, pathname):
+            region_id = int(pathname.split('/')[-1])
+            df = rpd.prepare_tourist_count_data(region_id)
+            df = df[df['year'] == year].sort_values('month')
+            fig = px.bar(df, x='month', y='value',
+                         labels={'value': 'Туристы', 'month': 'Месяц'},
+                         title=f"Турпоток за {year} год")
+            return fig
+
+        @app_dash.callback(
+            Output('nights-graph', 'figure'),
+            Input('nights-year-dropdown', 'value'),
+            State('url', 'pathname'),
+        )
+        def update_nights_chart(year, pathname):
+            region_id = int(pathname.split('/')[-1])
+            df = rpd.get_region_mean_night(region_id, year)
+            fig = px.line(df, x='Месяц', y='Количество ночевок',
+                          title=f"Ночёвки за {year} год")
+            return fig
+
+    
+    def make_municipalities_map(self, region_id) -> dcc.Graph:
+        data_prep = Region_page_dashboard()
+        # Загрузка границы региона как GeoJSON-объекта
+        boundary_feat = data_prep.load_region_boundary(region_id)
+        # Табличка муниципалитетов
+        muni_df = data_prep.load_municipalities(region_id)
+        if muni_df.empty:
+            return dcc.Graph(figure={})
+
+        # Функции для размера и цвета
+        def pop_size(pop):
+            if pop is None or pop < 30_000: return 8
+            if pop < 100_000: return 12
+            if pop < 500_000: return 16
+            if pop < 1_000_000: return 20
+            return 24
+
+        def metric_color(val):
+            if val is None: return 'gray'
+            if val < 3.0: return 'red'
+            if val < 4.0: return 'yellow'
+            return 'green'
+
+        # Создаём scattermapbox-трейс
+        fig = go.Figure(go.Scattermapbox(
+            lon=muni_df['lon'],
+            lat=muni_df['lat'],
+            mode='markers',
+            marker=dict(
+                size=[pop_size(p) for p in muni_df['population']],
+                color=[metric_color(m) for m in muni_df['metric_282']],
+                opacity=0.8
+            ),
+            text=[
+                f"{n}<br>Население: {pop or '—'}<br>Оценка: {m or '—'}"
+                for n, pop, m in zip(muni_df['name'], muni_df['population'], muni_df['metric_282'])
+            ],
+            hoverinfo='text',
+            showlegend=False
+        ))
+
+        # Центрирование
+        center = {
+            'lon': float(muni_df['lon'].mean()),
+            'lat': float(muni_df['lat'].mean())
+        }
+
+        # Если есть граница — рисуем её как слой
+        layers = []
+        if boundary_feat:
+            # Слой-заливка
+            layers.append({
+                "source": boundary_feat,
+                "type": "fill",            # заливка полигона
+                "below": "traces",         # под точками
+                "color": "blue",           # цвет заливки
+                "opacity": 0.1             # прозрачность 10%
+            })
+            # Слой контура (по-прежнему)
+            layers.append({
+                "source": boundary_feat,
+                "type": "line",
+                "color": "blue",
+                "line": {"width": 2}
+            })
+
+        # Обновляем layout
+        fig.update_layout(
+            mapbox=dict(
+                style='open-street-map',
+                center=center,
+                zoom=5,
+                layers=layers      # вот здесь подключаем слой границы
+            ),
+            margin={'l':0,'r':0,'t':0,'b':0},
+            height=600
+        )
+
+        # Конфиг для кнопок зума
+        config = {
+            'displayModeBar': True,
+            'modeBarButtonsToAdd': ['zoomInMapbox', 'zoomOutMapbox'],
+            'modeBarButtonsToRemove': [
+                'lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d',
+                'pan2d', 'autoScale2d', 'hoverClosestGeo', 'hoverCompare'
+            ]
+        }
+
+        return dcc.Graph(figure=fig, config=config)
 
 
 class City_page_plot:

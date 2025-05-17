@@ -52,4 +52,16 @@ run_compare.py
 run_tests.py
 cleaned_apartments.xml
 raw_apartments.xml
+<<<<<<< HEAD
 *.xlsx
+=======
+municipalities_ru.geojson
+regions.geojson
+app/data/regions_big.geojson
+app/files/regions_big.geojson
+app/files/municipalities_ru_big.geojson
+/docs/
+/docs/
+app/files/municipalities_ru_big.geojson
+app/files/regions_big.geojson
+>>>>>>> main

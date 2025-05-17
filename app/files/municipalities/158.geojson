@@ -1,0 +1,21 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 275808402, "name": "Майна" }, "geometry": { "type": "Point", "coordinates": [ 91.487083, 52.998306 ] } },
+{ "type": "Feature", "properties": { "id": 275808498, "name": "Саяногорск" }, "geometry": { "type": "Point", "coordinates": [ 91.4128377, 53.0899015 ] } },
+{ "type": "Feature", "properties": { "id": 285340786, "name": "Боград" }, "geometry": { "type": "Point", "coordinates": [ 90.856026, 54.21806 ] } },
+{ "type": "Feature", "properties": { "id": 285360076, "name": "Шира" }, "geometry": { "type": "Point", "coordinates": [ 89.962891, 54.48764 ] } },
+{ "type": "Feature", "properties": { "id": 285365947, "name": "Копьёво" }, "geometry": { "type": "Point", "coordinates": [ 89.826622, 54.992966 ] } },
+{ "type": "Feature", "properties": { "id": 285889059, "name": "Черногорск" }, "geometry": { "type": "Point", "coordinates": [ 91.31321, 53.828236 ] } },
+{ "type": "Feature", "properties": { "id": 286214595, "name": "Абаза" }, "geometry": { "type": "Point", "coordinates": [ 90.101159, 52.6510546 ] } },
+{ "type": "Feature", "properties": { "id": 295945680, "name": "Черёмушки" }, "geometry": { "type": "Point", "coordinates": [ 91.42038, 52.848377 ] } },
+{ "type": "Feature", "properties": { "id": 409086394, "name": "Аскиз" }, "geometry": { "type": "Point", "coordinates": [ 90.4321, 53.1366 ] } },
+{ "type": "Feature", "properties": { "id": 457453957, "name": "Таштып" }, "geometry": { "type": "Point", "coordinates": [ 89.891724, 52.79586 ] } },
+{ "type": "Feature", "properties": { "id": 457497582, "name": "Белый Яр" }, "geometry": { "type": "Point", "coordinates": [ 91.382362, 53.596436 ] } },
+{ "type": "Feature", "properties": { "id": 457505136, "name": "Бея" }, "geometry": { "type": "Point", "coordinates": [ 90.921989, 53.046246 ] } },
+{ "type": "Feature", "properties": { "id": 457507984, "name": "Усть-Абакан" }, "geometry": { "type": "Point", "coordinates": [ 91.3937743, 53.8326725 ] } },
+{ "type": "Feature", "properties": { "id": 1028723854, "name": "Сорск" }, "geometry": { "type": "Point", "coordinates": [ 90.2525861, 54.0016092 ] } },
+{ "type": "Feature", "properties": { "id": 1588233141, "name": "Абакан" }, "geometry": { "type": "Point", "coordinates": [ 91.4406019, 53.72068 ] } }
+]
+}

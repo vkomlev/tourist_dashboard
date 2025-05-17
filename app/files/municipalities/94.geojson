@@ -1,0 +1,29 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 148901125, "name": "Иваново" }, "geometry": { "type": "Point", "coordinates": [ 40.9812104, 56.9956855 ] } },
+{ "type": "Feature", "properties": { "id": 295896340, "name": "Шуя" }, "geometry": { "type": "Point", "coordinates": [ 41.3838496, 56.8558465 ] } },
+{ "type": "Feature", "properties": { "id": 356482634, "name": "Заволжск" }, "geometry": { "type": "Point", "coordinates": [ 42.13964, 57.4909934 ] } },
+{ "type": "Feature", "properties": { "id": 356482665, "name": "Кинешма" }, "geometry": { "type": "Point", "coordinates": [ 42.1687834, 57.4426901 ] } },
+{ "type": "Feature", "properties": { "id": 356482668, "name": "Наволоки" }, "geometry": { "type": "Point", "coordinates": [ 41.962231, 57.4737882 ] } },
+{ "type": "Feature", "properties": { "id": 356482697, "name": "Юрьевец" }, "geometry": { "type": "Point", "coordinates": [ 43.1110178, 57.3178792 ] } },
+{ "type": "Feature", "properties": { "id": 356482705, "name": "Приволжск" }, "geometry": { "type": "Point", "coordinates": [ 41.281178, 57.380333 ] } },
+{ "type": "Feature", "properties": { "id": 356482716, "name": "Фурманов" }, "geometry": { "type": "Point", "coordinates": [ 41.10923, 57.248756 ] } },
+{ "type": "Feature", "properties": { "id": 356482727, "name": "Комсомольск" }, "geometry": { "type": "Point", "coordinates": [ 40.377602, 57.027321 ] } },
+{ "type": "Feature", "properties": { "id": 356482735, "name": "Кохма" }, "geometry": { "type": "Point", "coordinates": [ 41.0939402, 56.9315448 ] } },
+{ "type": "Feature", "properties": { "id": 356482739, "name": "Пучеж" }, "geometry": { "type": "Point", "coordinates": [ 43.168062, 56.9820977 ] } },
+{ "type": "Feature", "properties": { "id": 356482756, "name": "Вичуга" }, "geometry": { "type": "Point", "coordinates": [ 41.9239228, 57.2200735 ] } },
+{ "type": "Feature", "properties": { "id": 356482761, "name": "Родники" }, "geometry": { "type": "Point", "coordinates": [ 41.72839, 57.105225 ] } },
+{ "type": "Feature", "properties": { "id": 356482792, "name": "Тейково" }, "geometry": { "type": "Point", "coordinates": [ 40.5405863, 56.8554753 ] } },
+{ "type": "Feature", "properties": { "id": 356482812, "name": "Лежнево" }, "geometry": { "type": "Point", "coordinates": [ 40.887329, 56.775677 ] } },
+{ "type": "Feature", "properties": { "id": 356482828, "name": "Палех" }, "geometry": { "type": "Point", "coordinates": [ 41.8539925, 56.8023842 ] } },
+{ "type": "Feature", "properties": { "id": 356482846, "name": "Южа" }, "geometry": { "type": "Point", "coordinates": [ 42.0109249, 56.5840428 ] } },
+{ "type": "Feature", "properties": { "id": 356482858, "name": "Савино" }, "geometry": { "type": "Point", "coordinates": [ 41.2151323, 56.5907172 ] } },
+{ "type": "Feature", "properties": { "id": 456844533, "name": "Плёс" }, "geometry": { "type": "Point", "coordinates": [ 41.511353, 57.459187 ] } },
+{ "type": "Feature", "properties": { "id": 588133522, "name": "Нерль" }, "geometry": { "type": "Point", "coordinates": [ 40.385872, 56.658333 ] } },
+{ "type": "Feature", "properties": { "id": 662755005, "name": "Ново-Талицы" }, "geometry": { "type": "Point", "coordinates": [ 40.846987, 57.0079129 ] } },
+{ "type": "Feature", "properties": { "id": 672673962, "name": "Верхний Ландех" }, "geometry": { "type": "Point", "coordinates": [ 42.595818, 56.840488 ] } },
+{ "type": "Feature", "properties": { "id": 1006718396, "name": "Гаврилов Посад" }, "geometry": { "type": "Point", "coordinates": [ 40.1205669, 56.5585501 ] } }
+]
+}

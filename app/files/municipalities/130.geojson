@@ -1,0 +1,22 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 93701882, "name": "Баксан" }, "geometry": { "type": "Point", "coordinates": [ 43.5344319, 43.6820626 ] } },
+{ "type": "Feature", "properties": { "id": 93711720, "name": "Нальчик" }, "geometry": { "type": "Point", "coordinates": [ 43.5966578, 43.4769604 ] } },
+{ "type": "Feature", "properties": { "id": 287411141, "name": "Прохладный" }, "geometry": { "type": "Point", "coordinates": [ 44.0103981, 43.7590017 ] } },
+{ "type": "Feature", "properties": { "id": 413055139, "name": "Терек" }, "geometry": { "type": "Point", "coordinates": [ 44.1363776, 43.4826692 ] } },
+{ "type": "Feature", "properties": { "id": 413084059, "name": "Майский" }, "geometry": { "type": "Point", "coordinates": [ 44.0518741, 43.6282481 ] } },
+{ "type": "Feature", "properties": { "id": 652081328, "name": "Тырныауз" }, "geometry": { "type": "Point", "coordinates": [ 42.9230751, 43.3958986 ] } },
+{ "type": "Feature", "properties": { "id": 652439062, "name": "Залукокоаже" }, "geometry": { "type": "Point", "coordinates": [ 43.2179308, 43.8996316 ] } },
+{ "type": "Feature", "properties": { "id": 1026705983, "name": "Чегем" }, "geometry": { "type": "Point", "coordinates": [ 43.5899021, 43.5655936 ] } },
+{ "type": "Feature", "properties": { "id": 1028161907, "name": "Анзорей" }, "geometry": { "type": "Point", "coordinates": [ 43.9398825, 43.3549219 ] } },
+{ "type": "Feature", "properties": { "id": 1574509870, "name": "Кашхатау" }, "geometry": { "type": "Point", "coordinates": [ 43.6091174, 43.3191905 ] } },
+{ "type": "Feature", "properties": { "id": 2127195931, "name": "Нарткала" }, "geometry": { "type": "Point", "coordinates": [ 43.8616759, 43.5561489 ] } },
+{ "type": "Feature", "properties": { "id": 2752207846, "name": "Дыгулыбгей" }, "geometry": { "type": "Point", "coordinates": [ 43.5394406, 43.6632456 ] } },
+{ "type": "Feature", "properties": { "id": 3051806265, "name": "Шалушка" }, "geometry": { "type": "Point", "coordinates": [ 43.5636803, 43.5322394 ] } },
+{ "type": "Feature", "properties": { "id": 5964911232, "name": "Хасанья" }, "geometry": { "type": "Point", "coordinates": [ 43.5765839, 43.431676 ] } },
+{ "type": "Feature", "properties": { "id": 5964911233, "name": "Кенже" }, "geometry": { "type": "Point", "coordinates": [ 43.5551946, 43.4972513 ] } },
+{ "type": "Feature", "properties": { "id": 5965122500, "name": "Нартан" }, "geometry": { "type": "Point", "coordinates": [ 43.704021, 43.5070324 ] } }
+]
+}

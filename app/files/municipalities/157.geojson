@@ -1,0 +1,15 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 191655065, "name": "Кызыл" }, "geometry": { "type": "Point", "coordinates": [ 94.4300679, 51.719079 ] } },
+{ "type": "Feature", "properties": { "id": 286084866, "name": "Ак-Довурак" }, "geometry": { "type": "Point", "coordinates": [ 90.5934434, 51.173087 ] } },
+{ "type": "Feature", "properties": { "id": 286085202, "name": "Чадан" }, "geometry": { "type": "Point", "coordinates": [ 91.5666701, 51.2840385 ] } },
+{ "type": "Feature", "properties": { "id": 286085444, "name": "Шагонар" }, "geometry": { "type": "Point", "coordinates": [ 92.9194074, 51.538721 ] } },
+{ "type": "Feature", "properties": { "id": 286085489, "name": "Туран" }, "geometry": { "type": "Point", "coordinates": [ 93.9186434, 52.1458093 ] } },
+{ "type": "Feature", "properties": { "id": 286200781, "name": "Сарыг-Сеп" }, "geometry": { "type": "Point", "coordinates": [ 95.554681, 51.492626 ] } },
+{ "type": "Feature", "properties": { "id": 286203959, "name": "Кызыл-Мажалык" }, "geometry": { "type": "Point", "coordinates": [ 90.5814803, 51.1454611 ] } },
+{ "type": "Feature", "properties": { "id": 457351057, "name": "Хову-Аксы" }, "geometry": { "type": "Point", "coordinates": [ 93.715744, 51.131943 ] } },
+{ "type": "Feature", "properties": { "id": 457354065, "name": "Каа-Хем" }, "geometry": { "type": "Point", "coordinates": [ 94.563721, 51.696541 ] } }
+]
+}

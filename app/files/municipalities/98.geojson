@@ -1,0 +1,19 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 76611479, "name": "Липецк" }, "geometry": { "type": "Point", "coordinates": [ 39.5936899, 52.6041877 ] } },
+{ "type": "Feature", "properties": { "id": 191891797, "name": "Елец" }, "geometry": { "type": "Point", "coordinates": [ 38.5003298, 52.6219865 ] } },
+{ "type": "Feature", "properties": { "id": 332353039, "name": "Задонск" }, "geometry": { "type": "Point", "coordinates": [ 38.92672, 52.387798 ] } },
+{ "type": "Feature", "properties": { "id": 334723509, "name": "Чаплыгин" }, "geometry": { "type": "Point", "coordinates": [ 39.966801, 53.243015 ] } },
+{ "type": "Feature", "properties": { "id": 334723512, "name": "Данков" }, "geometry": { "type": "Point", "coordinates": [ 39.1591798, 53.2533095 ] } },
+{ "type": "Feature", "properties": { "id": 334723521, "name": "Лев Толстой" }, "geometry": { "type": "Point", "coordinates": [ 39.4477568, 53.212541 ] } },
+{ "type": "Feature", "properties": { "id": 334723573, "name": "Доброе" }, "geometry": { "type": "Point", "coordinates": [ 39.8102066, 52.8613369 ] } },
+{ "type": "Feature", "properties": { "id": 336140276, "name": "Грязи" }, "geometry": { "type": "Point", "coordinates": [ 39.955162, 52.49612 ] } },
+{ "type": "Feature", "properties": { "id": 336140320, "name": "Долгоруково" }, "geometry": { "type": "Point", "coordinates": [ 38.3495961, 52.3243879 ] } },
+{ "type": "Feature", "properties": { "id": 336140371, "name": "Тербуны" }, "geometry": { "type": "Point", "coordinates": [ 38.278389, 52.146828 ] } },
+{ "type": "Feature", "properties": { "id": 336140373, "name": "Усмань" }, "geometry": { "type": "Point", "coordinates": [ 39.7399996, 52.0506929 ] } },
+{ "type": "Feature", "properties": { "id": 336140376, "name": "Добринка" }, "geometry": { "type": "Point", "coordinates": [ 40.4772102, 52.1658357 ] } },
+{ "type": "Feature", "properties": { "id": 710667288, "name": "Лебедянь" }, "geometry": { "type": "Point", "coordinates": [ 39.127593, 53.0126146 ] } }
+]
+}

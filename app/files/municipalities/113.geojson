@@ -1,0 +1,33 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 26951330, "name": "Вологда" }, "geometry": { "type": "Point", "coordinates": [ 39.8933913, 59.2189391 ] } },
+{ "type": "Feature", "properties": { "id": 188558082, "name": "Череповец" }, "geometry": { "type": "Point", "coordinates": [ 37.916389, 59.128696 ] } },
+{ "type": "Feature", "properties": { "id": 246280229, "name": "Кадуй" }, "geometry": { "type": "Point", "coordinates": [ 37.148609, 59.199219 ] } },
+{ "type": "Feature", "properties": { "id": 246559783, "name": "Чагода" }, "geometry": { "type": "Point", "coordinates": [ 35.329369, 59.16383 ] } },
+{ "type": "Feature", "properties": { "id": 246566425, "name": "Устюжна" }, "geometry": { "type": "Point", "coordinates": [ 36.4296982, 58.8428204 ] } },
+{ "type": "Feature", "properties": { "id": 248877229, "name": "Кириллов" }, "geometry": { "type": "Point", "coordinates": [ 38.3758696, 59.8590575 ] } },
+{ "type": "Feature", "properties": { "id": 249629979, "name": "Белозерск" }, "geometry": { "type": "Point", "coordinates": [ 37.7842189, 60.03199 ] } },
+{ "type": "Feature", "properties": { "id": 251710853, "name": "Шексна" }, "geometry": { "type": "Point", "coordinates": [ 38.5009851, 59.2069457 ] } },
+{ "type": "Feature", "properties": { "id": 254855683, "name": "Нюксеница" }, "geometry": { "type": "Point", "coordinates": [ 44.254551, 60.419796 ] } },
+{ "type": "Feature", "properties": { "id": 254862887, "name": "Тотьма" }, "geometry": { "type": "Point", "coordinates": [ 42.7587335, 59.9736254 ] } },
+{ "type": "Feature", "properties": { "id": 276104425, "name": "Сокол" }, "geometry": { "type": "Point", "coordinates": [ 40.112858, 59.462799 ] } },
+{ "type": "Feature", "properties": { "id": 330402488, "name": "Бабаево" }, "geometry": { "type": "Point", "coordinates": [ 35.9499951, 59.3887129 ] } },
+{ "type": "Feature", "properties": { "id": 335978507, "name": "Великий Устюг" }, "geometry": { "type": "Point", "coordinates": [ 46.3014666, 60.7612852 ] } },
+{ "type": "Feature", "properties": { "id": 335978516, "name": "Красавино" }, "geometry": { "type": "Point", "coordinates": [ 46.4778243, 60.9617195 ] } },
+{ "type": "Feature", "properties": { "id": 335978687, "name": "Харовск" }, "geometry": { "type": "Point", "coordinates": [ 40.2068249, 59.9533237 ] } },
+{ "type": "Feature", "properties": { "id": 335978750, "name": "Никольск" }, "geometry": { "type": "Point", "coordinates": [ 45.4585029, 59.5304186 ] } },
+{ "type": "Feature", "properties": { "id": 356482541, "name": "Вохтога" }, "geometry": { "type": "Point", "coordinates": [ 41.031261, 58.814575 ] } },
+{ "type": "Feature", "properties": { "id": 417072768, "name": "Вытегра" }, "geometry": { "type": "Point", "coordinates": [ 36.4514921, 61.006498 ] } },
+{ "type": "Feature", "properties": { "id": 487102792, "name": "Сямжа" }, "geometry": { "type": "Point", "coordinates": [ 41.060516, 60.021656 ] } },
+{ "type": "Feature", "properties": { "id": 576932612, "name": "Верховажье" }, "geometry": { "type": "Point", "coordinates": [ 42.047316, 60.7451617 ] } },
+{ "type": "Feature", "properties": { "id": 614478741, "name": "Кадников" }, "geometry": { "type": "Point", "coordinates": [ 40.340584, 59.5014752 ] } },
+{ "type": "Feature", "properties": { "id": 904985374, "name": "Липин Бор" }, "geometry": { "type": "Point", "coordinates": [ 37.9714452, 60.2622011 ] } },
+{ "type": "Feature", "properties": { "id": 1028723788, "name": "Вожега" }, "geometry": { "type": "Point", "coordinates": [ 40.2121613, 60.4736301 ] } },
+{ "type": "Feature", "properties": { "id": 1028724063, "name": "Тарногский Городок" }, "geometry": { "type": "Point", "coordinates": [ 43.574997, 60.498989 ] } },
+{ "type": "Feature", "properties": { "id": 1028724239, "name": "Грязовец" }, "geometry": { "type": "Point", "coordinates": [ 40.2515006, 58.8841692 ] } },
+{ "type": "Feature", "properties": { "id": 1045662261, "name": "имени Бабушкина" }, "geometry": { "type": "Point", "coordinates": [ 43.1335636, 59.7567364 ] } },
+{ "type": "Feature", "properties": { "id": 1045663790, "name": "Кичменгский Городок" }, "geometry": { "type": "Point", "coordinates": [ 45.8055674, 59.9923379 ] } }
+]
+}
