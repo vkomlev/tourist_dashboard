@@ -373,14 +373,14 @@ class Region_page_dashboard(City_page_dashboard):
     METRIC_IDS = {
         'Комплексная оценка развития туризма': 282,
         'Комплексная оценка сегментов':    217,
-        'Средняя оценка общей инфраструктуры': 218,
+        'Средняя оценка отелей и других мест размещения': 218,
         'Турпоток (оценка)':               283,
         'Ночёвки (оценка)':                284,
-        'Климат':                          222,
-        'Цена':                            286,
+        'Оценка климата':                          222,
+        'Стоимость туристических услуг':                            286,
         'Удаленность от столицы':          285,
-        'Основная инфраструктура кол-во': 240,
-        'Дополнительная инфраструктура кол-во': 241,
+        'Количество отелей и других мест размещения': 240,
+        'Количество кафе, ресторанов и пр. мест питания': 241,
     }
 
     def load_region_boundary(self, region_id: int) -> Optional[Dict[str, Any]]:
@@ -437,7 +437,7 @@ class Region_page_dashboard(City_page_dashboard):
 
             # метрика 282 для этого города (берем последнее значение)
             metric_val = None
-            mvs = mv_repo.get_info_metricvalue(id_metric=282, id_city=city.id_city)
+            mvs = mv_repo.get_info_metricvalue(id_metric=282, id_city=city.id_city, id_location=None)
             if mvs and mvs[-1].value is not None:
                 try:
                     metric_val = float(mvs[-1].value)
@@ -455,3 +455,61 @@ class Region_page_dashboard(City_page_dashboard):
 
         df = pd.DataFrame(records)
         return df
+    
+    SEGMENT_METRICS = {
+        'Пляжный': 274,
+        'Оздоровительный': 275,
+        'Деловой': 276,
+        'Паломнический': 277,
+        'Познавательный': 278,
+        'Семейный': 279,
+        'Спортивный': 280,
+        'Эко-походный': 281,
+    }
+
+    def load_segment_scores(self, region_id: int) -> pd.DataFrame:
+        """
+        Возвращает DataFrame с оценками T_segment для каждого туристического сегмента.
+        Колонки: ['segment', 'value'].
+        """
+        mv_repo = MetricValueRepository()
+        records = []
+        for name, metric_id in self.SEGMENT_METRICS.items():
+            mvs = mv_repo.get_info_metricvalue(id_region=region_id, id_metric=metric_id, id_city=None, id_location=None)
+            val = None
+            if mvs and mvs[-1].value is not None:
+                try:
+                    val = float(mvs[-1].value)
+                except:
+                    val = None
+            records.append({'segment': name, 'value': val})
+        df = pd.DataFrame(records)
+        df['value'] = df['value'].map(lambda v: f"{v:.2f}" if pd.notnull(v) else "—")
+        return df.sort_values('value', ascending=False).reset_index(drop=True)
+    
+    def fetch_latest_metric_value(self,
+        id_metric: int,
+        id_region: int
+    ) -> Optional[float]:
+        """
+        Возвращает последнее числовое значение метрики для заданного региона.
+
+        Args:
+            repo: экземпляр MetricValueRepository.
+            id_metric: код метрики.
+            id_region: ID региона.
+
+        Returns:
+            Последнее значение value в виде float, или None.
+        """
+        try:
+            repo = MetricValueRepository()
+            mvs = repo.get_info_metricvalue(id_metric=id_metric, id_region=id_region, id_city=None, id_location=None)
+            if not mvs:
+                return None
+            raw = mvs[-1].value
+            return float(raw) if raw is not None else None
+        except Exception as e:
+            logger.warning("Ошибка при fetch_latest_value(metric=%s, region=%s): %s",
+                        id_metric, id_region, e)
+            return None
