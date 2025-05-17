@@ -7,7 +7,8 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 
 from app.data.parsing import Parse, ParseError 
-from app.data.imports.import_xls import load_yandex_locations
+from geoalchemy2.shape import to_shape
+from geopy.distance import geodesic
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +166,7 @@ class ParseSutochno(Parse):
         
 class ParseSutochnoXML():
     """
-    Подготовка данных для закгрузки в БД
+    Подготовка данных для загрузки в БД
     - опеределение местоположения
     - преобразование данных для последующей загрузки в БД
     """
@@ -188,30 +189,63 @@ class ParseSutochnoXML():
         Определяет местоположение места проживания по региону и городу,
         или по координатам в случае не определенности
         """
-        logger.info(f"Определение местоположения у {housing}")
-        column_name_cities = 'Город' if 'Город' in housing else 'Населенный пункт'
-        mass_city = [city for city in cities if city.city_name == housing[column_name_cities]]
-        
-        if len(mass_city) == 1:
-            return mass_city[0]
-        
-        if len(mass_city) > 1: 
-            if 'Регион' in housing:
-                region = [region for region in regions if region.region_name == housing['Регион']]
-                if len(region) == 1:
-                    mass_city = [city for city in mass_city if city.id_region == region[0].id_region]
-                    if len(mass_city) == 1:
-                        return mass_city
-                    else:
-                        logger.warning(f'Для отеля {housing}\nОпределено {len(mass_city)} города {mass_city}')
-                else:
-                    logger.warning(f'Для отеля {housing}\nОпределено {len(region)} региона {region}')
+        try:
+            logger.debug(f"Определение местоположения у {housing}")
+            column_name_cities = 'Город' if 'Город' in housing else 'Населенный пункт'
+            mass_city = [city for city in cities if city.city_name == housing[column_name_cities]]
 
-            # проверяем по координатам, какой город ближе всего
+            if len(mass_city) == 1:
+                return mass_city[0]
             
+            if len(mass_city) > 1: 
+                if 'Регион' in housing:
+                    region = [region for region in regions if region.region_name == housing['Регион']]
+                    if len(region) == 1:
+                        mass_city = [city for city in mass_city if city.id_region == region[0].id_region]
+                        if len(mass_city) == 1:
+                            return mass_city[0]
+                        else:
+                            logger.warning(f'Для отеля {housing}\nОпределено {len(mass_city)} города {mass_city}')
+                    else:
+                        logger.debug(f'Для отеля {housing}\nОпределено {len(region)} региона {region}')
+            
+            # Если не нашлось точного совпадения, то идет поиск по координатам
+            try:
+                lat_str, lon_str = housing['Координаты'].split(',') if 'Координаты' in housing else ('','')
+                if not (lat_str and lon_str):
+                    lat_str, lon_str = housing['Широта'], housing['Долгота'] if 'Широта' in housing else ('', '')
+                if not (lat_str and lon_str):
+                    raise
+                latitude = float(lat_str.strip() if isinstance(lat_str, str) else lat_str)
+                longitude = float(lon_str.strip() if isinstance(lon_str, str) else lon_str)
+                housing_coordinates = (latitude, longitude)
+            except:
+                logger.error(f'Не определены координаты у локации {lat_str, lon_str}')
+                logger.error(f'{housing}')
+                return False
+            min_distance = float('inf')
+            nearest_city = None
+            # Если были совпадения по нескольким городам то сравниваем только расстояние до них
+            # иначе берём полный список городов
+            mass_city = mass_city if mass_city else cities
+            
+            for city in mass_city:
+                point = to_shape(city.coordinates)
+                city_coords = (point.y, point.x)
+                distance = geodesic(housing_coordinates, city_coords).kilometers  # расстояние в километрах
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_city = city
+            
+            if min_distance < 20:
+                return nearest_city
+                
+            logger.warning(f'Проживание {housing}\nНе совпало ни с одним городом из БД было на расстоянии {min_distance}')
+            return False
+        except Exception as e:
+            logger.error(f'Ошибка в location_detection: {e}')
+            logger.error(f'Сломалось на локации {housing}')
 
-        if not mass_city:
-            logger.error(f'Проживание {housing}\nНе совпало ни с одним городом из БД')
         
 
 

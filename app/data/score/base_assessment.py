@@ -14,6 +14,7 @@ from dateutil.relativedelta import relativedelta
 from shapely import wkb
 from geoalchemy2.shape import to_shape
 
+
 class OverallTourismEvaluation:
     def __init__(self, segment_scores=3, general_infra=3, safety=3, flow=3, nights=3, climate=3, prices=3, distance=3):
         """
@@ -188,6 +189,7 @@ class TourismEvaluation:
                     like_count_locations = self.get_tour_flow_rating(x=row.count_locations, 
                                                                     pcts=percentiles_cities 
                                                                     if id =='city' else percentiles_regions)
+                    like_count_locations = like_count_locations if like_count_locations > 2 else 2.0
                     like_count_locations = str(like_count_locations)
                     logger.info(f'Оценка для {id}-{row.id_city if id == "city" else row.id_region} = {like_count_locations}')
                     m.loading_info( id_mv=info_locations[0][-1] if info_locations else '',
@@ -206,7 +208,7 @@ class TourismEvaluation:
         """
         # 1. Если x меньше первого перцентиля
         if x < pcts[0]:
-            return 1.0
+            return 2.0
         
         # 2. Если x больше последнего перцентиля
         if x > pcts[-1]:
@@ -259,20 +261,20 @@ class TourismEvaluation:
             if id_region and id_city:
                 logger.error("Указаны сразу регион и город, должно быть что-то одно")
                 return False
-            logger.info("Запуск рассчета составных частей оценки сегмента - calculation_segment_parts")
+            logger.info(f"Запуск рассчета составных частей оценки сегмента для id_r - {id_region}, id_c - {id_city}")
             segments = import_json_file(file_path=r'app\files\segments.json')
             calc = Region_calc(id_city=id_city, id_region=id_region)
             for name_segment, loc in segments.items():
                 dictionary = calc.get_segment_calc(segment={name_segment:loc})
                 # Средняя оценка основных локаций
                 o = np.mean([v for k, v in dictionary[name_segment]['lvl1'].items()])
-                o = round(o, 2)
+                o = round(o, 2) if o > 2 else 2.0
                 # Средняя оценка количества основных локаций
                 n = np.mean([v for k, v in dictionary[name_segment]['count']['lvl1'].items()])
-                n = round(n, 2)
+                n = round(n, 2) if n > 2 else 2.0
                 # Средняя оценка количества дополнительных локаций
                 l = np.mean([v for k, v in dictionary[name_segment]['count']['lvl2'].items()])
-                l = round(l, 2)
+                l = round(l, 2) if l > 2 else 2.0
                 # Оценка погоды
                 w = dictionary['like_weather']
                 m = MetricRepository()
@@ -339,18 +341,20 @@ class TourismEvaluation:
         '''
         Рассчет и загрузка составных составных частей комплексной оценки
         '''
-        logger.info(f"Рассчет составных частей комплексной оценки для id_r = {id_region}, id_c = {id_city}")
-        self.calculating_complex_tur_nig(id_region=id_region,
-                                         id_city=id_city)
-        self.calculating_complex_distance(id_region=id_region,
-                                         id_city=id_city)
-        if id_city:
-            self.calculating_complex_segments(id_city=id_city)
-            self.calculating_complex_price(id_city=id_city)
-        else:
-            self.calculating_complex_segments(id_region=id_region)
-            self.calculating_complex_price(id_region=id_region)
-        
+        try:
+            logger.info(f"Рассчет составных частей комплексной оценки для id_r = {id_region}, id_c = {id_city}")
+            self.calculating_complex_tur_nig(id_region=id_region,
+                                            id_city=id_city)
+            self.calculating_complex_distance(id_region=id_region,
+                                            id_city=id_city)
+            if id_city:
+                self.calculating_complex_segments(id_city=id_city)
+                self.calculating_complex_price(id_city=id_city)
+            else:
+                self.calculating_complex_segments(id_region=id_region)
+                self.calculating_complex_price(id_region=id_region)
+        except Exception as e:
+            logger.error(f"Ошибка в calculating_complex_parts: {e}")
 
     def calculating_complex_tur_nig(self, id_region, id_city=''):
         """
@@ -365,7 +369,8 @@ class TourismEvaluation:
                 percentiles = df['value'].quantile([i*0.01 for i in range(1,101)])
                 percentiles = [percentiles[i*0.01] for i in range(1,101)]
                 value = df[df['id_region'] == id_region].value
-                like_count = self.get_tour_flow_rating(x=float(value), 
+                value = float(value.iloc[0])
+                like_count = self.get_tour_flow_rating(x=value, 
                                                         pcts=percentiles
                                                         )
                 like_count = round(like_count, 2) if like_count >= 2 else 2
@@ -378,9 +383,9 @@ class TourismEvaluation:
                                 id_metric=metrics[key],
                                 id_city=id_city,
                                 id_region=id_region,
-                                value = like_count
+                                value = str(like_count)
                                 )
-                logger.info(f'Добавлена метрика {key} со значением {like_count}')
+                # logger.info(f'Добавлена метрика {key} со значением {like_count}')
         except Exception as e:
             logger.error(f'Ошибка в методе calculating_complex_tur_nig: {e}')
 
@@ -453,7 +458,7 @@ class TourismEvaluation:
                             id_metric = 285,
                             id_region = id_region,
                             id_city = id_city,
-                            value = like_distance)
+                            value = str(like_distance))
         except Exception as e:
             logger.error(f'Ошибка в методе calculating_complex_distance: {e}')
     
@@ -474,43 +479,122 @@ class TourismEvaluation:
                         id_metric = 217,
                         id_region = id_region,
                         id_city = id_city,
-                        value = like)
+                        value = str(like))
         
-    def calculating_complex_price(self, ):
+    def calculating_complex_price(self, id_city='', id_region=''):
         """
-        Рассчитывает среднюю стоимость проживания в городах и регионах
+        Рассчитывает среднюю стоимость проживания, оценку проживания в регионах
         """
-        return 2
+        r = Region_calc(id_region='150')
+        mv = MetricValueRepository()
+        h_f = r.get_housing()
+
+        def prepare_df(data):
+            """
+            достает цены жилья и преобразует
+            возвразает dataframe
+            """
+            df = pd.DataFrame(data)
+            if df.empty:
+                return pd.DataFrame(columns=['id_city', 'id_region', 'price'])
+            df['price'] = df['characters'].apply(lambda c: c.get('Цена') if c and c.get('Цена') is not None else None)
+            df['price'] = pd.to_numeric(df['price'], errors='coerce')
+            df = df.dropna(subset=['price'])
+            return df
+
+        df_hotel = prepare_df(h_f.get('hotel', []))
+        df_flat = prepare_df(h_f.get('flat', []))
+
+        # Определяем по чему группируем
+        group_key = None
+        if id_city:
+            group_key = 'id_city'
+        elif id_region:
+            group_key = 'id_region'
+        else:
+            raise ValueError("Необходимо указать id_city или id_region для группировки")
+
+        # Группируем, считаем среднее и перцентиля
+        df_hotel = df_hotel.loc[df_hotel['price'] <= 15000]
+        mean_hotel = df_hotel.groupby(group_key)['price'].mean()
+        percentiles_hotel = df_hotel['price'].quantile([i*0.01 for i in range(1,101)])
+        percentiles_hotel = [percentiles_hotel[i*0.01] for i in range(1,101)]
+
+        df_flat = df_flat.loc[df_flat['price'] <= 15000]
+        mean_flat = df_flat.groupby(group_key)['price'].mean()
+        percentiles_flat = df_flat['price'].quantile([i*0.01 for i in range(1,101)])
+        percentiles_flat = [percentiles_flat[i*0.01] for i in range(1,101)]
+
+        # Получаем средние цены по конкретному id_city или id_region
+        mean_price_hotel = 0
+        mean_price_flat = 0
+
+        if id_city and id_city in mean_hotel.index:
+            mean_price_hotel = mean_hotel.loc[id_city]
+        elif id_region and id_region in mean_hotel.index:
+            mean_price_hotel = mean_hotel.loc[id_region]
+
+        if id_city and id_city in mean_flat.index:
+            mean_price_flat = mean_flat.loc[id_city]
+        elif id_region and id_region in mean_flat.index:
+            mean_price_flat = mean_flat.loc[id_region]
+
+        like_hotel = self.get_tour_flow_rating(x=mean_price_hotel, 
+                                        pcts=percentiles_hotel) if mean_price_hotel else 0.0
+        like_flat = self.get_tour_flow_rating(x=mean_price_flat, 
+                                        pcts=percentiles_flat) if mean_price_flat else 0.0
+        like = round((like_hotel+like_flat)/2, 2)
+        like = like if like >=2 else 2.0
+        calc = {
+            '287': str(round(mean_price_hotel, 2)),
+            '288': str(round(mean_price_flat, 2)),
+            '286': str(like) if isinstance(like, float) and like >= 2 else '2.0'
+        }
+        for id_metric in calc:
+            metric = mv.get_info_metricvalue(id_metric = id_metric,
+                                            id_region = id_region,
+                                            id_city = id_city)
+            id_mv = metric[0].id_mv if metric else ''
+            mv.loading_info(id_mv = id_mv,
+                            id_metric = id_metric,
+                            id_region = id_region,
+                            id_city = id_city,
+                            value = calc[id_metric])
+            logger.info(f'Стоимости и оценка f {mean_price_flat}; h {mean_price_hotel}; like {like}')
+        
     
     def calculating_complex_like(self, id_region, id_city = ''):
         """
         Рассчет комплексной оценки
         """
-        logger.info(f"Рассчет комплексной оценки id_region = {id_region}, id_city = {id_city}")
-        r = Region_calc(id_city=id_city, 
-                        id_region=id_region)
-        mv = MetricValueRepository()
-        metrics_value = r.get_like_parts_complex()
-        complex_like = (0.35 * metrics_value['complex_t']) + (
-                        0.2 * metrics_value['complex_o']) + (
-                        0.1 * (
-                            (0.7 * metrics_value['complex_n']) + (
-                            0.3 * metrics_value['complex_l']))
-                        ) + (
-                        0.1 * metrics_value['complex_tru']) + (
-                        0.1 * metrics_value['complex_night']) + (
-                        0.05 * metrics_value['complex_distance']) + (
-                        0.1 * metrics_value['complex_price'])
-        complex_like = round(complex_like, 2) if complex_like >= 2 else 2
-        metric = mv.get_info_metricvalue(id_metric = 282,
-                                        id_region = id_region,
-                                        id_city = id_city)
-        id_mv = metric[0].id_mv if metric else ''
-        mv.loading_info(id_mv = id_mv,
-                        id_metric = 282,
-                        id_region = id_region,
-                        id_city = id_city,
-                        value = complex_like)
+        try:
+            logger.info(f"Рассчет комплексной оценки id_region = {id_region}, id_city = {id_city}")
+            r = Region_calc(id_city=id_city, 
+                            id_region=id_region)
+            mv = MetricValueRepository()
+            metrics_value = r.get_like_parts_complex()
+            complex_like = (0.35 * metrics_value['complex_t']) + (
+                            0.2 * metrics_value['complex_o']) + (
+                            0.1 * (
+                                (0.7 * metrics_value['complex_n']) + (
+                                0.3 * metrics_value['complex_l']))
+                            ) + (
+                            0.1 * metrics_value['complex_tru']) + (
+                            0.1 * metrics_value['complex_night']) + (
+                            0.05 * metrics_value['complex_distance']) + (
+                            0.1 * metrics_value['complex_price'])
+            complex_like = round(complex_like, 2) if complex_like >= 2 else 2
+            metric = mv.get_info_metricvalue(id_metric = 282,
+                                            id_region = id_region,
+                                            id_city = id_city)
+            id_mv = metric[0].id_mv if metric else ''
+            mv.loading_info(id_mv = id_mv,
+                            id_metric = 282,
+                            id_region = id_region,
+                            id_city = id_city,
+                            value = str(complex_like))
+        except Exception as e:
+            logger.error(f'Ошибка в методе calculating_complex_like: {e}')
 
 
 

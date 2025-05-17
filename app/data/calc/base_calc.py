@@ -15,10 +15,10 @@ class Calc:
 
 class Region_calc(Calc):
     def __init__(self, id_region = None, id_city = None):
-        self.id_region = int(id_region) if id_region else None
+        self.id_region = int(id_region) if id_region and not id_city else None
         self.id_city = int(id_city) if id_city else None
-        if self.id_city and self.id_region:
-            raise ValueError('Нельзя указывать одновременно id_city и id_region')
+        # if self.id_city and self.id_region:
+        #     raise ValueError('Нельзя указывать одновременно id_city и id_region')
 
     def get_overall_metrics(self)->dict:
         """
@@ -185,7 +185,7 @@ class Region_calc(Calc):
         Получает погоду в городе
         """
         try:
-            if segment == 'sports':
+            if segment == 'sports' or segment == 'complex':
                 return None
             if self.id_region:
                 r = RegionRepository()
@@ -199,6 +199,9 @@ class Region_calc(Calc):
                                 id_city=self.id_city,
                                 id_metric = id_metric
                                 )
+            if not weathers:
+                logger.warning(f'Данных о погоне нет у города {self.id_city} ')
+                return 2
             mass = [weather.__dict__ for weather in weathers]
             df = pd.DataFrame(mass)
             df_weather = df[['id_region', 'id_city', 'value', 'month']]
@@ -208,17 +211,17 @@ class Region_calc(Calc):
                 if month.value and re.match(r"\d+\.*\d*", month.value) and like_month[0] <= float(month.value) <= like_month[1]:
                         count_month += 1
             # Оценка количества теплых месяцев
-            like = {0:1, 1:2, 2:3, 3:4, 4:5}
+            like = {0:2, 1:3, 2:4, 3:5}
             if count_month in like:
                 return like[count_month]
-            elif count_month > 4:
+            elif count_month > 3:
                 return 5
-            return 0
+            return 2
         except:
             logger.error(f"""Произошла ошибка в get_weather_calc, 
                          при обработке id_r - {self.id_region}, id_c - {self.id_city}
                         segment - {segment}""")
-            return 0
+            return 2
     
     def get_weather_calc_beach(self):
         """
@@ -244,19 +247,19 @@ class Region_calc(Calc):
                             if like_month[1][0] <= float(temperature[1][index]['value']) <= like_month[1][1]:
                                 count_month += 1
             # Оценка количества теплых месяцев
-            like = {0:1, 1:2, 2:3, 3:4, 4:5}
+            like = {0:2, 1:3, 2:4, 3:5}
             if count_month in like:
                 return like[count_month]
-            elif count_month > 4:
+            elif count_month > 3:
                 return 5
             logger.warning(f"""В get_weather_calc_beach не выбран ни один из вариантов, 
                            количество месяцев = {count_month}""")
-            return 0
+            return 2
         except:
             logger.error(f"""Произошла ошибка в get_weather_calc_beach, 
                          при обработке id_r - {self.id_region}, id_c - {self.id_city}
                         segment - beach""")
-            return 0
+            return 2
 
         
     def get_like_locations(self, segment):
@@ -443,8 +446,22 @@ class Region_calc(Calc):
                     id_city = self.id_city,
                     id_region = self.id_region
                 )
-                metric_value[metric] = float(value[0].value) if value else 0
+                metric_value[metric] = float(value[0].value) if value else 2
             return metric_value
         except Exception as e:
             logger.error(f'Ошибка в методе get_like_segments: {e}')
+
+    def get_housing(self):
+        """
+        Получение жилья для дальнейшего подсчета средних цен проживания и оценки
+        """
+        housing = {'hotel':[],'flat':[]}
+        l = LocationsRepository()
+        locations = l.get_by_type(type_location='calc')
+        for location in locations:
+            if 'flat' in location['characters']['type']:
+                housing['flat'].append(location)
+            else:
+                housing['hotel'].append(location)
+        return housing
 

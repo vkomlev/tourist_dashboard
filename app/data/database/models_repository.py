@@ -132,6 +132,11 @@ class RegionRepository(Database):
     def full_region_by_id(self) -> Optional[Region]:
         regions = self.get_by_fields(model=Region)
         return [i.id_region for i in regions]
+    
+    @manage_session
+    def full_region(self) -> Optional[Region]:
+        regions = self.get_by_fields(model=Region)
+        return regions
 
 class MetricRepository(Database):
     """
@@ -362,13 +367,11 @@ class MetricValueRepository(Database):
             if id_mv:
                 mv.id_mv = id_mv
                 self.update(obj=mv)
-                self.session.close()
             
             else:
                 self.add(obj=mv)
-                self.session.close()
                 metric = self.get_info_metricvalue(**kwargs)[0]
-                logger.info(f"Добавлена значение Метрики: N/A - Value: {metric.value} (ID: {metric.id_mv})")
+                logger.info(f"Добавлена значение Метрики: {metric.id_metric} - Value: {metric.value} (ID: {metric.id_mv})")
         except Exception as e:
             logger.error(f'Ошибка в loading_info: {e}')
     
@@ -378,7 +381,6 @@ class MetricValueRepository(Database):
         Получение данных из БД
         """
         result = self.get_by_fields(model=MetricValue, **kwargs)
-        self.session.close()
         return result
         
 
@@ -568,6 +570,83 @@ class LocationsRepository(JSONRepository):
         except Exception as e:
             logger.error(f"Ошибка при поиске локаций: {str(e)}")
             return []
+    
+    @manage_session
+    def get_by_type(self, type_location: str, name_key = 'type') -> list[dict]:
+        """
+        Ищет локации по типу в JSON-поле characters.
+
+        Args:
+            type_location (str): Тип локации для поиска
+            name_key (str): Название ключа для поиска типа локации
+
+        Returns:
+            list[dict]: Список словарей с данными локаций
+        """
+        try:
+            # Формируем запрос с проверкой JSON-поля
+            query = (
+                self.session.query(
+                    self.model.location_name,
+                    self.model.id_location,
+                    self.model.id_city,
+                    self.model.id_region,
+                    self.model.characters
+                )
+                .filter(
+                    # self.model.characters.has_key('types'),  # Проверка наличия ключа
+                    # func.jsonb_array_length(self.model.characters['types']) > 0,  # Проверка наличия элементов
+                    self.model.characters[name_key].cast(JSONB).contains([type_location])  # Поиск в массиве
+                )
+            )
+
+            result = []
+            for loc in query.all():
+                # Извлекаем данные из JSON-поля
+                characters = loc.characters or {}
+                if characters:
+                    result.append({
+                        'id_location': loc.id_location,
+                        'id_city': loc.id_city,
+                        'id_region': loc.id_region,
+                        'characters': characters,
+                        'location_name':loc.location_name,
+                    })
+
+            logger.debug(f"Найдено {len(result)} локаций типа '{type_location}'")
+            return result
+
+        except Exception as e:
+            logger.error(f"Ошибка при поиске локаций: {str(e)}")
+            return []
+    
+    @manage_session
+    def loading_info_locationsrepository(self, id_location = '', **kwargs):
+        """
+        Загружает расчитанные значения по локациям в БД
+        """
+        try:
+            l = Location()
+            for key, value in kwargs.items():
+                if value:
+                    setattr(l, key, value)
+            if id_location:
+                l.id_location = id_location
+                self.update(obj=l)
+            
+            else:
+                self.add(obj=l)
+                location = self.get_location(**kwargs)[0]
+                logger.info(f"Добавлена локация: Типы: {location.characters['type']} (ID: {location.id_location})")
+        except Exception as e:
+            logger.error(f'Ошибка в loading_info_locationsrepository: {e}')
+
+    @manage_session
+    def get_location(self, **kwargs):
+        """
+        Получение локаций которые совпадут по фильтрам
+        """
+        return self.get_by_fields(model=Location, **kwargs)
 
 
 class ReviewRepository(Database):
@@ -724,6 +803,6 @@ class CitiesRepository(JSONRepository):
     @manage_session
     def get_cities_full(self, **kwargs):
         """
-        Получение полного списка id городов
+        Получение полного списка городов
         """
         return self.get_by_fields(model=City, **kwargs)

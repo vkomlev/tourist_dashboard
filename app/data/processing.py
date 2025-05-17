@@ -8,10 +8,11 @@ from typing import Any, Dict, List, Tuple, Optional
 from app.data.compare import CompareRegions, CompareCities, CompareYandex
 from app.data.database import (
     SyncRepository, Database, LocationsRepository, ReviewRepository, PhotoRepository, CitiesRepository,
-    MetricValueRepository, LocationTypeRepository
+    MetricValueRepository, LocationTypeRepository, RegionRepository
 )
-from app.data.parsing import ParseYandexMap, ParseWeather
+from app.data.parsing import ParseYandexMap, ParseWeather, ParseSutochnoXML
 from app.models import City, Region, Location
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -289,5 +290,97 @@ class SyncProcessor:
         except Exception as e:
             logger.error(f"Ошибка при синхронизации регионов и городов: {e}")
             raise ProcessingError(f"Ошибка синхронизации: {e}") from e
-        
+
+class Sutochno:
+    """
+    Предназначен для загрузки в БД мест проживания с определенным местоположением
+    """
+
+    def loading_sutochno(self, file_path, sheet_name = ''):
+        try:
+            s = ParseSutochnoXML(file_path=file_path,
+                                sheet_name=sheet_name)
+            c = CitiesRepository()
+            r = RegionRepository()
+            l = LocationsRepository()
+
+            rows = s.get_hotels_realty()
+            cities = c.get_cities_full()
+            regions = r.full_region()
+
+            for row in rows:
+                here = s.location_detection(housing=row,
+                                    cities=cities,
+                                    regions=regions)
+                if here:
+                    try:
+                        location_name = row['Название отеля'] if 'Название отеля' in row else ''
+                        lat_str, lon_str = row['Координаты'].split(',') if 'Координаты' in row else ('', '')
+                        
+                        if not (lat_str and lon_str):
+                            lat_str, lon_str = row['Широта'], row['Долгота'] if 'Широта' in row else ('','')
+
+                        lat_str = lat_str.strip() if isinstance(lat_str, str) else lat_str
+                        lon_str = lon_str.strip() if isinstance(lon_str, str) else lon_str
+
+                        latitude = float(lat_str.strip()) if lat_str and pd.isnull(lat_str) else ""
+                        longitude = float(lon_str.strip()) if lon_str and pd.isnull(lon_str) else ""
+                        coordinates_str = f"SRID=4326;POINT({longitude} {latitude})" if latitude and longitude else ""
+                        coordinates = coordinates_str
+                    except Exception as e:
+                        logger.error(f'Ошибка при получении координат loading_sutochno: {e}')
+                        continue
+
+                    id_city = here.id_city
+                    id_region = here.id_region
+                    characters = {}
+                    restart = False
+                    for key, value in row.items():
+                        if key in ['Тип отеля','Категория']:
+                            # Если тип места жительства не определен то не добавляем локацию
+                            if value and pd.isnull(value):
+                                restart = True
+                                break
+                            value = [value, 'sutochno']
+                            if value[0] in ['flat', 
+                                        'Отель',
+                                        'Отель эконом-класса',
+                                        'Апартаменты',
+                                        'Апарт-отель',
+                                        'Бутик-отель',
+                                        'Гостиница',
+                                        'Мини-гостиница',
+                                        'Парк отель',
+                                        ]:
+                                value.append('calc')
+                            characters['type'] = value
+                        else :
+                            if value and (not pd.isnull(value)):
+                                characters[key] = value
+                            else: 
+                                characters[key] = ''
+
+                    if restart:
+                        continue
+
+                    id_location = l.get_location(location_name = location_name,
+                                                coordinates = coordinates,
+                                                characters = characters
+                                                )
+                                                
+                    if id_location:
+                        logger.info(f"Локация уже есть в базе id - {id_location}")
+                        continue
+
+                    l.loading_info_locationsrepository(location_name = location_name,
+                                                    coordinates = coordinates,
+                                                    id_city = id_city,
+                                                    id_region = id_region,
+                                                    characters = characters
+                                                    )
+        except Exception as e:
+            logger.error(f'Ошибка в loading_sutochno: {e}')
+                
+                
+
 

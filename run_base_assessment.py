@@ -3,7 +3,6 @@ from app.data.imports.import_json import import_json_file
 from app.data.database.models_repository import RegionRepository, CitiesRepository
 import time
 
-
 # Оценка сегмента
 start_time = time.time()
 t = TourismEvaluation()
@@ -17,25 +16,27 @@ for id_region in regions:
     # Оценка сегментов
     t.calculating_segments_score(id_region=id_region)
     # Оценка составных частей комплексной оценки
-    t.calculating_complex_parts(id_region=id_region, id_city=7215)
+    t.calculating_complex_parts(id_region=id_region)
     # Комплексная оценка туризма
     t.calculating_complex_like(id_region=id_region)
     cities = c.get_cities_in_region(id_region=id_region)
     # cities = [(7216,)]
     for id_city in cities:
+        id_city = id_city[0]
         # Оценка составных частей сегментов
-        t.calculation_segment_parts(id_city=id_city[0])
+        t.calculation_segment_parts(id_city=id_city)
         # Оценка сегментов
-        t.calculating_segments_score(id_city=id_city[0])
+        t.calculating_segments_score(id_city=id_city)
         # Оценка составных частей комплексной оценки
-        t.calculating_complex_parts(id_region=id_region, id_city=7216)
+        t.calculating_complex_parts(id_region=id_region, 
+                                    id_city=id_city)
         # Комплексная оценка туризма
         t.calculating_complex_like(id_region=id_region,
                                    id_city=id_city)
 
-end_time = time.time()
-execution_time = end_time - start_time
-print(f"Время выполнения: {execution_time:.2f} секунд")
+# end_time = time.time()
+# execution_time = end_time - start_time
+# print(f"Время выполнения: {execution_time:.2f} секунд")
 
 
 # # Оценка важных и не важных локаций 
