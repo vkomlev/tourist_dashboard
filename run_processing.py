@@ -11,18 +11,18 @@ from time import sleep
 # import pandas as pd
 
 
-# files_path = [
-#                 r'C:\Works\tourist_dashboard\app\files\hotels_info.xlsx', 
-#                 r'C:\Works\tourist_dashboard\app\files\realty_info.xlsx'
-#                 ]
-# for file_path in files_path:
-#     s = Sutochno()
-#     s.loading_sutochno(file_path=file_path,
-#                         sheet_name='Sheet1')
+files_path = [
+                # r'C:\Works\tourist_dashboard\app\files\hotels_info.xlsx', 
+                r'C:\Works\tourist_dashboard\app\files\realty_info.xlsx'
+                ]
+for file_path in files_path:
+    s = Sutochno()
+    s.loading_sutochno(file_path=file_path,
+                        sheet_name='Sheet1')
 
 # Сбор локаций
-dp = DataProcessor()
-dp.process_yandex_locations(specific_region=('Свердловская область', "Черноисточинск"), level_loc_type = 1, restart=False)
+# dp = DataProcessor()
+# dp.process_yandex_locations(specific_region=('Свердловская область', "Черноисточинск"), level_loc_type = 1, restart=False)
 
 # dp = Region_page_dashboard()
 # dp.get_region_mean_night(id_region=150, year=2023)

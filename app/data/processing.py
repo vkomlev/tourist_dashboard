@@ -307,8 +307,10 @@ class Sutochno:
             rows = s.get_hotels_realty()
             cities = c.get_cities_full()
             regions = r.full_region()
+            count = len(rows)
 
-            for row in rows:
+            for index, row in enumerate(rows):
+                logger.info(f'Работа с жильем номер {index} из {count}')
                 here = s.location_detection(housing=row,
                                     cities=cities,
                                     regions=regions)

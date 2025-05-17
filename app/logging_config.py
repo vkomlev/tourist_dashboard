@@ -10,7 +10,7 @@ log_directory.mkdir(exist_ok=True)
 
 handler = RotatingFileHandler(
     log_directory / 'app.log',  # Использование Path для построения пути
-    maxBytes=100 * 1024 * 1024,  # 100 MB
+    maxBytes=30 * 1024 * 1024,  # 100 MB
     backupCount=5,  # Количество резервных файлов
     encoding='utf-8'
 )

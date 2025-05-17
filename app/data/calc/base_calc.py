@@ -51,6 +51,8 @@ class Region_calc(Calc):
             give = dp.get_info_metricvalue(id_metric=i, 
                                            id_region=self.id_region,
                                            id_city = self.id_city)
+            if self.id_region and not self.id_city and len(give) > 0:
+                give = [i for i in give if not i.id_city]
             if give:
                 final.append(float(give[0][0]))
             else:
@@ -185,7 +187,7 @@ class Region_calc(Calc):
         Получает погоду в городе
         """
         try:
-            if segment == 'sports' or segment == 'complex':
+            if segment == 'sports':
                 return None
             if self.id_region:
                 r = RegionRepository()
@@ -199,6 +201,8 @@ class Region_calc(Calc):
                                 id_city=self.id_city,
                                 id_metric = id_metric
                                 )
+            if self.id_region and not self.id_city and len(weathers) > 0:
+                weathers = [i for i in weathers if not i.id_city]
             if not weathers:
                 logger.warning(f'Данных о погоне нет у города {self.id_city} ')
                 return 2
@@ -237,6 +241,8 @@ class Region_calc(Calc):
                                     id_city=self.id_city,
                                     id_metric = id_metric[i]
                                     )
+                if self.id_region and not self.id_city and len(weathers) > 0:
+                    weathers = [i for i in weathers if not i.id_city]
                 mass = [weather.__dict__ for weather in weathers]
                 temperature[i] = mass
             count_month = 0
@@ -303,6 +309,8 @@ class Region_calc(Calc):
                 loc = m.get_info_metricvalue(id_metric = 236, 
                                 id_location=location
                                 )
+                if self.id_region and not self.id_city and len(loc) > 0:
+                    loc = [i for i in loc if not i.id_city]
                 if not loc:
                     continue
                 value = loc[0].value
@@ -328,6 +336,8 @@ class Region_calc(Calc):
                             id_city = self.id_city,
                             id_region = self.id_region
                             )
+            if self.id_region and not self.id_city and len(loc) > 0:
+                loc = [i for i in loc if not i.id_city]
             if not loc:
                 continue
             value = round(float(loc[0].value), 2) if loc[0].value else 0
@@ -349,6 +359,8 @@ class Region_calc(Calc):
                 metric = mv.get_info_metricvalue(id_metric=id_metric,
                                         id_city=self.id_city,
                                         id_region=self.id_region)
+                if self.id_region and not self.id_city and len(metric) > 0:
+                    metric = [i for i in metric if not i.id_city]
                 if metric:
                     metric = metric[0]
                     if metric.value and metric.value != 'None':
@@ -418,6 +430,8 @@ class Region_calc(Calc):
                     id_city = self.id_city,
                     id_region = self.id_region
                 )
+                if self.id_region and not self.id_city and len(value) > 0:
+                    value = [i for i in value if not i.id_city]
                 segments[metric] = float(value[0].value) if value else 0
             return segments
         except Exception as e:
@@ -446,6 +460,8 @@ class Region_calc(Calc):
                     id_city = self.id_city,
                     id_region = self.id_region
                 )
+                if self.id_region and not self.id_city and len(value) > 0:
+                    value = [i for i in value if not i.id_city]
                 metric_value[metric] = float(value[0].value) if value else 2
             return metric_value
         except Exception as e:

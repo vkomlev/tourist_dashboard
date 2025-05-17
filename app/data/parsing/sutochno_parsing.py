@@ -182,7 +182,7 @@ class ParseSutochnoXML():
         df = pd.read_excel(self.file_path, sheet_name=self.sheet_name)
         # Преобразуем в список словарей
         rows = df.to_dict(orient='records')
-        return rows
+        return rows[::-1]
 
     def location_detection(self, housing, cities, regions):
         """

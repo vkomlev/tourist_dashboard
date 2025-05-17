@@ -80,7 +80,7 @@ class TourismEvaluation:
         logger.info('Инициализация get_like_locations - оценка локаций и количеств локаций')
         segments = import_json_file(file_path=r'app\files\segments.json')
         lvl1 = segments[name_segment]['lvl1']
-        self.calculate_like_locations_lvl1(lvl1)
+        # self.calculate_like_locations_lvl1(lvl1)
         lvl2 = segments[name_segment]['lvl2']
         lvl2 = lvl2 + [i for i in lvl1.keys()]
         self.calculate_like_locations_lvl2(lvl2)
@@ -180,6 +180,8 @@ class TourismEvaluation:
                                             id_region=int(row.id_region) if 'id_region' in row and (not pd.isna(row.id_region)) else '',
                                             type_location=type_location
                                             )
+                    if id == 'region':
+                        info_locations = [i for i in info_locations if not i.id_city ]
                     # if info_locations:
                     #     # проверка на давность рассчитанной метрики
                     #     if self.check_limit_month(date=info_locations[0].modify_time):
@@ -192,7 +194,7 @@ class TourismEvaluation:
                     like_count_locations = like_count_locations if like_count_locations > 2 else 2.0
                     like_count_locations = str(like_count_locations)
                     logger.info(f'Оценка для {id}-{row.id_city if id == "city" else row.id_region} = {like_count_locations}')
-                    m.loading_info( id_mv=info_locations[0][-1] if info_locations else '',
+                    m.loading_info( id_mv=info_locations[0].id_mv if info_locations else '',
                                     id_metric=239, 
                                     type_location=type_location,
                                     id_city=int(row.id_city) if 'id_city' in row and (not pd.isna(row.id_city)) else '',
@@ -287,6 +289,8 @@ class TourismEvaluation:
                     metric = mv.get_info_metricvalue(id_metric=id_metric,
                                                     id_city=id_city,
                                                     id_region=id_region)
+                    if id_region and not id_city and len(metric) > 0:
+                        metric = [i for i in metric if not i.id_city]
                     id_mv = metric[0].id_mv if metric else ''
                     mv.loading_info(id_mv=id_mv,
                                     id_metric=id_metric,
@@ -322,7 +326,7 @@ class TourismEvaluation:
                     metrics = mv.get_info_metricvalue(id_metric=id_metric,
                                                     id_city=id_city,
                                                     id_region=id_region)
-                    if id_region and metrics:
+                    if id_region and not id_city and len(metrics) > 0:
                         metrics = [i for i in metrics if not i.id_city]
                     if len(metrics) >= 2:
                         logger.error(f'Найдено несколько значений для метрики {id_metric}, id_r={id_region}, id_c={id_city}')
@@ -378,6 +382,8 @@ class TourismEvaluation:
                                                 id_city=id_city,
                                                 id_region=id_region
                                                 )
+                if id_region and not id_city and len(metric) > 0:
+                    metric = [i for i in metric if not i.id_city]
                 id_mv = metric[0].id_mv if metric else ''
                 mv.loading_info(id_mv = id_mv,
                                 id_metric=metrics[key],
@@ -453,6 +459,8 @@ class TourismEvaluation:
             metric = mv.get_info_metricvalue(id_metric = 285,
                                             id_region = id_region,
                                             id_city = id_city)
+            if id_region and not id_city and len(metric) > 0:
+                metric = [i for i in metric if not i.id_city]
             id_mv = metric[0].id_mv if metric else ''
             mv.loading_info(id_mv = id_mv,
                             id_metric = 285,
@@ -474,6 +482,8 @@ class TourismEvaluation:
         metric = mv.get_info_metricvalue(id_metric = 217,
                                         id_region = id_region,
                                         id_city = id_city)
+        if id_region and not id_city and len(metric) > 0:
+            metric = [i for i in metric if not i.id_city]
         id_mv = metric[0].id_mv if metric else ''
         mv.loading_info(id_mv = id_mv,
                         id_metric = 217,
@@ -554,6 +564,8 @@ class TourismEvaluation:
             metric = mv.get_info_metricvalue(id_metric = id_metric,
                                             id_region = id_region,
                                             id_city = id_city)
+            if id_region and not id_city and len(metric) > 0:
+                metric = [i for i in metric if not i.id_city]
             id_mv = metric[0].id_mv if metric else ''
             mv.loading_info(id_mv = id_mv,
                             id_metric = id_metric,
@@ -587,6 +599,8 @@ class TourismEvaluation:
             metric = mv.get_info_metricvalue(id_metric = 282,
                                             id_region = id_region,
                                             id_city = id_city)
+            if id_region and not id_city and len(metric) > 0:
+                metric = [i for i in metric if not i.id_city]
             id_mv = metric[0].id_mv if metric else ''
             mv.loading_info(id_mv = id_mv,
                             id_metric = 282,
