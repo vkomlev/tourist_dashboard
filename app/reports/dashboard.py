@@ -107,14 +107,13 @@ def create_region_layout(region_id: int):
     Компоновка дашборда региона.
     Собирает KPI, графики абсолютных значений и кнопку экспорта.
     """
-    repo = MetricValueRepository()
     region_repo = RegionRepository()
     rpp = Region_page_plot()
     # Пытаемся получить экземпляр региона
     region = region_repo.find_region_by_id(region_id)
     region_name = region.region_name if region else f"#{region_id}"
     # KPI
-    cards = rpp.make_kpi_cards(region_id, repo)
+    cards = rpp.make_kpi_cards(region_id)
 
     # Графики
     flow_block = rpp.flow_graph_with_year_selector(region_id)

@@ -461,7 +461,7 @@ class Region_page_dashboard(City_page_dashboard):
         'Оздоровительный': 275,
         'Деловой': 276,
         'Паломнический': 277,
-        'Образовательный': 278,
+        'Познавательный': 278,
         'Семейный': 279,
         'Спортивный': 280,
         'Эко-походный': 281,
@@ -484,4 +484,32 @@ class Region_page_dashboard(City_page_dashboard):
                     val = None
             records.append({'segment': name, 'value': val})
         df = pd.DataFrame(records)
+        df['value'] = df['value'].map(lambda v: f"{v:.2f}" if pd.notnull(v) else "—")
         return df.sort_values('value', ascending=False).reset_index(drop=True)
+    
+    def fetch_latest_metric_value(self,
+        id_metric: int,
+        id_region: int
+    ) -> Optional[float]:
+        """
+        Возвращает последнее числовое значение метрики для заданного региона.
+
+        Args:
+            repo: экземпляр MetricValueRepository.
+            id_metric: код метрики.
+            id_region: ID региона.
+
+        Returns:
+            Последнее значение value в виде float, или None.
+        """
+        try:
+            repo = MetricValueRepository()
+            mvs = repo.get_info_metricvalue(id_metric=id_metric, id_region=id_region, id_city=None, id_location=None)
+            if not mvs:
+                return None
+            raw = mvs[-1].value
+            return float(raw) if raw is not None else None
+        except Exception as e:
+            logger.warning("Ошибка при fetch_latest_value(metric=%s, region=%s): %s",
+                        id_metric, id_region, e)
+            return None
