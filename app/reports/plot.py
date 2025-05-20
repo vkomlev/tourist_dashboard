@@ -6,13 +6,13 @@ import os
 import plotly.express as px
 import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
-from dash import Dash, html, dcc, Input, Output, State
+from dash import Dash, html, dcc, Input, Output, State, dash_table
+import colorlover as cl
 from typing import List, Optional
 
 from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
 from app.data.database.models_repository import MetricValueRepository
 from app.logging_config import logger
-from app.data.metric_codes import METRIC_CODE_MAP
 from app.data.database.models_repository import MetricValueRepository
 
 
@@ -41,173 +41,6 @@ class Main_page_plot:
         plt.close()
 
 class Region_page_plot:
-    # Интерпретации оценок
-
-    def __init__(self): 
-        self.interpretations = { 
-            (1.0, 2.0): "Туристская инфраструктура слабо развита, требуется значительное улучшение.", 
-            (2.1, 3.0): "Средний уровень, подходит для локальных туристов, но имеет ограничения для международного туризма.", 
-            (3.1, 4.0): "Хорошая инфраструктура, пригодная для национальных и международных туристов.", 
-            (4.1, 5.0): "Высокий уровень инфраструктуры, готовый к приему большого турпотока и международных мероприятий." 
-        } 
- 
-    # Вспомогательная функция для интерпретации оценок
-    def get_interpretation(self, rating): 
-        for (low, high), text in self.interpretations.items(): 
-            if low <= rating <= high: 
-                return text 
-        return "Нет данных."
-    
-    def fetch_latest_value(self,
-        repo: MetricValueRepository,
-        id_metric: int,
-        id_region: int
-    ) -> Optional[float]:
-        """
-        Возвращает последнее числовое значение метрики для заданного региона.
-
-        Args:
-            repo: экземпляр MetricValueRepository.
-            id_metric: код метрики.
-            id_region: ID региона.
-
-        Returns:
-            Последнее значение value в виде float, или None.
-        """
-        try:
-            mvs = repo.get_info_metricvalue(id_metric=id_metric, id_region=id_region)
-            if not mvs:
-                return None
-            raw = mvs[-1].value
-            return float(raw) if raw is not None else None
-        except Exception as e:
-            logger.warning("Ошибка при fetch_latest_value(metric=%s, region=%s): %s",
-                        id_metric, id_region, e)
-            return None
-
-
-    def _choose_card_color(self, val: Optional[float]) -> str:
-        """
-        Выбирает цвет карточки по значению:
-         - None → secondary (серый)
-         - < 3.0 → danger (красный)
-         - 3.0–4.0 → warning (желтый)
-         - > 4.0 → success (зелёный)
-        """
-        if val is None:
-            return "secondary"
-        if val < 3.0:
-            return "danger"
-        if val < 4.0:
-            return "warning"
-        return "success"
-
-    def make_kpi_cards(self, region_id: int, repo: MetricValueRepository) -> List[dbc.Col]:
-        """
-        Формирует список карточек KPI для всех метрик из METRIC_CODE_MAP
-        с цветовой градацией оценки.
-        """
-        cards: List[dbc.Col] = []
-        for key, (code, rus_name) in METRIC_CODE_MAP.items():
-            val = self.fetch_latest_value(repo, code, region_id)
-            display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
-            color = self._choose_card_color(val)
-
-            card = dbc.Card(
-                [
-                    dbc.CardHeader(rus_name, className="text-white"),
-                    dbc.CardBody(html.H4(display, className="card-title text-white")),
-                ],
-                color=color,
-                inverse=True,  # делает фон карточки цветным, текст светлым
-                className="mb-3 shadow-sm",
-            )
-            cards.append(dbc.Col(card, xs=12, sm=6, md=4, lg=3))
-        return cards
-
-
-    def flow_graph_with_year_selector(self, region_id: int) -> html.Div:
-        """
-        Возвращает Div с Dropdown по годам и графиком турпотока.
-        Данные берутся из prepare_data.prepare_tourist_count_data().
-        """
-        rpd = Region_page_dashboard()
-        df = rpd.prepare_tourist_count_data(region_id)
-        years = sorted(df['year'].unique())
-        dropdown = dcc.Dropdown(
-            id='flow-year-dropdown',
-            options=[{'label': y, 'value': y} for y in years],
-            value=years[-1],
-            clearable=False
-        )
-        graph = dcc.Graph(id='flow-graph')
-        return html.Div([
-            html.H4("Турпоток по месяцам"),
-            dropdown,
-            graph
-        ])
-
-    def nights_graph_with_year_selector(self, region_id: int) -> html.Div:
-        """
-        То же для ночёвок, используя prepare_data.get_region_mean_night().
-        """
-        rpd = Region_page_dashboard()
-        # Получаем список доступных годов
-        raw = rpd.prepare_tourist_count_data(region_id)
-        years = sorted(raw['year'].unique())
-        dropdown = dcc.Dropdown(
-            id='nights-year-dropdown',
-            options=[{'label': y, 'value': y} for y in years],
-            value=years[-1],
-            clearable=False
-        )
-        graph = dcc.Graph(id='nights-graph')
-        return html.Div([
-            html.H4("Ночёвки по месяцам"),
-            dropdown,
-            graph
-        ])
-
-    def register_graph_callbacks(self, app_dash: Dash):
-        """
-        Регистрирует коллбеки обновления графиков по выбору года.
-        Должен быть вызван из register_callbacks.
-        """
-        rpd = Region_page_dashboard()
-
-        @app_dash.callback(
-            Output('flow-graph', 'figure'),
-            Input('flow-year-dropdown', 'value'),
-            State('url', 'pathname'),
-        )
-        def update_flow_chart(year, pathname):
-            region_id = int(pathname.split('/')[-1])
-            df = rpd.prepare_tourist_count_data(region_id)
-            df = df[df['year'] == year].sort_values('month')
-            fig = px.bar(df, x='month', y='value',
-                         labels={'value': 'Туристы', 'month': 'Месяц'},
-                         title=f"Турпоток за {year} год")
-            return fig
-
-        @app_dash.callback(
-            Output('nights-graph', 'figure'),
-            Input('nights-year-dropdown', 'value'),
-            State('url', 'pathname'),
-        )
-        def update_nights_chart(year, pathname):
-            region_id = int(pathname.split('/')[-1])
-            df = rpd.get_region_mean_night(region_id, year)
-            fig = px.line(df, x='Месяц', y='Количество ночевок',
-                          title=f"Ночёвки за {year} год")
-            return fig
-        
-    # app/reports/plot.py
-from dash import dcc
-import plotly.graph_objs as go
-from typing import Optional
-import pandas as pd
-
-class Region_page_plot:
         # Интерпретации оценок
 
     def __init__(self): 
@@ -216,7 +49,8 @@ class Region_page_plot:
             (2.1, 3.0): "Средний уровень, подходит для локальных туристов, но имеет ограничения для международного туризма.", 
             (3.1, 4.0): "Хорошая инфраструктура, пригодная для национальных и международных туристов.", 
             (4.1, 5.0): "Высокий уровень инфраструктуры, готовый к приему большого турпотока и международных мероприятий." 
-        } 
+        }
+        self.prepare =  Region_page_dashboard()
  
     # Вспомогательная функция для интерпретации оценок
     def get_interpretation(self, rating): 
@@ -225,33 +59,6 @@ class Region_page_plot:
                 return text 
         return "Нет данных."
     
-    def fetch_latest_value(self,
-        repo: MetricValueRepository,
-        id_metric: int,
-        id_region: int
-    ) -> Optional[float]:
-        """
-        Возвращает последнее числовое значение метрики для заданного региона.
-
-        Args:
-            repo: экземпляр MetricValueRepository.
-            id_metric: код метрики.
-            id_region: ID региона.
-
-        Returns:
-            Последнее значение value в виде float, или None.
-        """
-        try:
-            mvs = repo.get_info_metricvalue(id_metric=id_metric, id_region=id_region)
-            if not mvs:
-                return None
-            raw = mvs[-1].value
-            return float(raw) if raw is not None else None
-        except Exception as e:
-            logger.warning("Ошибка при fetch_latest_value(metric=%s, region=%s): %s",
-                        id_metric, id_region, e)
-            return None
-
 
     def _choose_card_color(self, val: Optional[float]) -> str:
         """
@@ -269,14 +76,14 @@ class Region_page_plot:
             return "warning"
         return "success"
 
-    def make_kpi_cards(self, region_id: int, repo: MetricValueRepository) -> List[dbc.Col]:
+    def make_kpi_cards(self, region_id: int) -> List[dbc.Col]:
         """
         Формирует список карточек KPI для всех метрик из METRIC_CODE_MAP
         с цветовой градацией оценки.
         """
         cards: List[dbc.Col] = []
-        for key, (code, rus_name) in METRIC_CODE_MAP.items():
-            val = self.fetch_latest_value(repo, code, region_id)
+        for rus_name, code  in self.prepare.METRIC_IDS.items():
+            val = self.prepare.fetch_latest_metric_value( code, region_id)
             display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
             color = self._choose_card_color(val)
 
@@ -297,9 +104,8 @@ class Region_page_plot:
         """
         Возвращает Div с Dropdown по годам и графиком турпотока.
         Данные берутся из prepare_data.prepare_tourist_count_data().
-        """
-        rpd = Region_page_dashboard()
-        df = rpd.prepare_tourist_count_data(region_id)
+        """ 
+        df = self.prepare.prepare_tourist_count_data(region_id)
         years = sorted(df['year'].unique())
         dropdown = dcc.Dropdown(
             id='flow-year-dropdown',
@@ -458,6 +264,45 @@ class Region_page_plot:
         }
 
         return dcc.Graph(figure=fig, config=config)
+    
+    def make_segments_table(self, region_id: int) -> dash_table.DataTable:
+        """
+        Строит DataTable с оценками сегментов для заданного региона.
+        Считывает данные через prepare_data.load_segment_scores().
+        """
+        # 1) Загружаем данные
+        df = Region_page_dashboard().load_segment_scores(region_id)
+        # 3) Генерируем градиент
+        colors = cl.scales['5']['div']['RdYlGn']
+        style_cond = []
+        for i, cell in enumerate(df['value']):
+            try:
+                num = float(cell)
+                frac = (num - 1.0) / 4.0
+                idx = min(int(frac * (len(colors)-1)), len(colors)-1)
+                bg = colors[idx]
+            except:
+                bg = 'lightgray'
+            style_cond.append({
+                'if': {'row_index': i, 'column_id': 'value'},
+                'backgroundColor': bg,
+                'color': 'black'
+            })
+
+        # 4) Собираем и возвращаем DataTable
+        return dash_table.DataTable(
+            columns=[
+                {'name': 'Сегмент', 'id': 'segment', 'type': 'text'},
+                {'name': 'Оценка', 'id': 'value',  'type': 'numeric'},
+            ],
+            data=df.to_dict('records'),
+            sort_action='native',
+            style_cell={'textAlign': 'center', 'padding': '4px'},
+            style_header={'fontWeight': 'bold'},
+            style_data_conditional=style_cond,
+            page_action='none',
+            style_table={'maxHeight': '300px', 'overflowY': 'auto'},
+        )
 
 
 class City_page_plot:

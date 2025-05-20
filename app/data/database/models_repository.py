@@ -378,11 +378,31 @@ class MetricValueRepository(Database):
     @manage_session
     def get_info_metricvalue(self, **kwargs):
         """
-        Получение данных из БД
+        Получение значений метрик из БД
         """
-        result = self.get_by_fields(model=MetricValue, **kwargs)
-        return result
-        
+        id_metric = kwargs.get('id_metric')
+        id_region = kwargs.get('id_region',0)
+        id_city = kwargs.get('id_city',0)
+        id_location = kwargs.get('id_location',0)
+        q = self.session.query(MetricValue)
+        if id_metric:
+            q = q.filter(MetricValue.id_metric == id_metric)
+        if id_region != 0:
+            q = q.filter(MetricValue.id_region == id_region)
+        if 'id_city' != 0:
+            # Разница в том, что мы хотим именно IS NULL, а не проигнорировать None
+            if id_city is None:
+                q = q.filter(MetricValue.id_city.is_(None))
+            else:
+                q = q.filter(MetricValue.id_city == id_city)
+        if 'id_location' != 0:
+            if id_location is None:
+                q = q.filter(MetricValue.id_location.is_(None))
+            else:
+                q = q.filter(MetricValue.id_location == id_location)
+        self.session.close()
+        return q.all()
+       
 
     
 

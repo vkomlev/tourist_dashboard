@@ -107,20 +107,22 @@ def create_region_layout(region_id: int):
     Компоновка дашборда региона.
     Собирает KPI, графики абсолютных значений и кнопку экспорта.
     """
-    repo = MetricValueRepository()
     region_repo = RegionRepository()
     rpp = Region_page_plot()
     # Пытаемся получить экземпляр региона
     region = region_repo.find_region_by_id(region_id)
     region_name = region.region_name if region else f"#{region_id}"
     # KPI
-    cards = rpp.make_kpi_cards(region_id, repo)
+    cards = rpp.make_kpi_cards(region_id)
 
     # Графики
     flow_block = rpp.flow_graph_with_year_selector(region_id)
     nights_block = rpp.nights_graph_with_year_selector(region_id)
     # муниципалитеты
     muni = rpp.make_municipalities_map(region_id)
+
+    # Таблица сегментов
+    seg_table = rpp.make_segments_table(region_id)
 
     return dbc.Container([
         dbc.Row(
@@ -137,6 +139,9 @@ def create_region_layout(region_id: int):
          # Карта городов
         dbc.Row(dbc.Col(html.H4("Муниципалитеты и города"), width=12)),
         dbc.Row(dbc.Col(muni, width=12), className="mb-4"),
+        dbc.Row(dbc.Col(html.H4("Оценки сегментов туризма"), width=12), className="mt-4"),
+        dbc.Row(dbc.Col(seg_table, width=12), className="mb-4"),
+
         dbc.Row([
             dbc.Col(dbc.Button("Скачать метрики в Excel", id="btn-download", color="primary"),
                     width="auto"),
