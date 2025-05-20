@@ -26,25 +26,25 @@ regions = [
             # 151
             ]
 for id_region in regions:
-    # Оценка составных частей сегментов
-    t.calculation_segment_parts(id_region=id_region)
+    # # Оценка составных частей сегментов
+    # t.calculation_segment_parts(id_region=id_region)
     # # Оценка сегментов
     # t.calculating_segments_score(id_region=id_region)
-    # # Оценка составных частей комплексной оценки
-    # t.calculating_complex_parts(id_region=id_region)
+    # Оценка составных частей комплексной оценки
+    t.calculating_complex_parts(id_region=id_region)
     # # Комплексная оценка туризма
     # t.calculating_complex_like(id_region=id_region)
     cities = c.get_cities_in_region(id_region=id_region)
     # cities = [(7215,)]
     for id_city in cities:
         id_city = id_city[0]
-        # Оценка составных частей сегментов
-        t.calculation_segment_parts(id_city=id_city)
+        # # Оценка составных частей сегментов
+        # t.calculation_segment_parts(id_city=id_city)
         # # Оценка сегментов
         # t.calculating_segments_score(id_city=id_city)
-        # # Оценка составных частей комплексной оценки
-        # t.calculating_complex_parts(id_region=id_region, 
-        #                             id_city=id_city)
+        # Оценка составных частей комплексной оценки
+        t.calculating_complex_parts(id_region=id_region, 
+                                    id_city=id_city)
         # # Комплексная оценка туризма
         # t.calculating_complex_like(id_region=id_region,
         #                            id_city=id_city)

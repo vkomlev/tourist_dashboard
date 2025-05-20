@@ -347,15 +347,15 @@ class TourismEvaluation:
         '''
         try:
             logger.info(f"Рассчет составных частей комплексной оценки для id_r = {id_region}, id_c = {id_city}")
-            self.calculating_complex_tur_nig(id_region=id_region,
-                                            id_city=id_city)
-            self.calculating_complex_distance(id_region=id_region,
-                                            id_city=id_city)
+            # self.calculating_complex_tur_nig(id_region=id_region,
+            #                                 id_city=id_city)
+            # self.calculating_complex_distance(id_region=id_region,
+            #                                 id_city=id_city)
             if id_city:
-                self.calculating_complex_segments(id_city=id_city)
+                # self.calculating_complex_segments(id_city=id_city)
                 self.calculating_complex_price(id_city=id_city)
             else:
-                self.calculating_complex_segments(id_region=id_region)
+                # self.calculating_complex_segments(id_region=id_region)
                 self.calculating_complex_price(id_region=id_region)
         except Exception as e:
             logger.error(f"Ошибка в calculating_complex_parts: {e}")
@@ -550,9 +550,13 @@ class TourismEvaluation:
             mean_price_flat = mean_flat.loc[id_region]
 
         like_hotel = self.get_tour_flow_rating(x=mean_price_hotel, 
-                                        pcts=percentiles_hotel) if mean_price_hotel else 0.0
+                                        pcts=percentiles_hotel) if mean_price_hotel and (
+                                            mean_price_hotel != 0
+                                        ) else 2.0
         like_flat = self.get_tour_flow_rating(x=mean_price_flat, 
-                                        pcts=percentiles_flat) if mean_price_flat else 0.0
+                                        pcts=percentiles_flat) if mean_price_flat and (
+                                            mean_price_flat != 0
+                                        ) else 2.0
         like = round((like_hotel+like_flat)/2, 2)
         like = like if like >=2 else 2.0
         calc = {
@@ -572,7 +576,7 @@ class TourismEvaluation:
                             id_region = id_region,
                             id_city = id_city,
                             value = calc[id_metric])
-            logger.info(f'Стоимости и оценка f {mean_price_flat}; h {mean_price_hotel}; like {like}')
+        logger.info(f'Стоимости f {mean_price_flat}; h {mean_price_hotel} и оценка like {like}')
         
     
     def calculating_complex_like(self, id_region, id_city = ''):
