@@ -6,7 +6,7 @@ import os
 import plotly.express as px
 import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
-from dash import Dash, html, dcc, Input, Output, State, dash_table
+from dash import Dash, html, dcc, Input, Output, State, dash_table, MATCH
 import colorlover as cl
 from typing import List, Optional
 import pandas as pd
@@ -64,6 +64,9 @@ class BaseDashboardPlot:
         """
         Формирует layout карточек KPI для города или региона.
         """
+        def make_segment_link(label: str, entity_type: str, entity_id: int) -> html.Div:
+            url = f"/dashboard/segment/{entity_type}/main/{entity_id}"
+            return dcc.Link(label, href=url, style={"color": "white", "textDecoration": "underline", "cursor": "pointer"})
         kpis = self.data_prep.get_kpi_metrics(id_region=id_region, id_city=id_city)
         main_metric_key = 'Комплексная оценка развития туризма'
         infra_metrics = [
@@ -91,11 +94,14 @@ class BaseDashboardPlot:
             val = kpis[name]
             display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
             color = self._choose_card_color(val)
+            entity_type = "region" if id_region else "city"
+            entity_id = id_region if id_region else id_city
+            card_content = make_segment_link(display, entity_type, entity_id)
             infra_cards.append(
                 dbc.Card(
                     [
                         dbc.CardHeader(name, className="text-white"),
-                        dbc.CardBody(html.H4(display, className="card-title text-white")),
+                        dbc.CardBody(html.H4(card_content, className="card-title text-white")),
                     ],
                     color=color,
                     inverse=True,
@@ -111,11 +117,20 @@ class BaseDashboardPlot:
                 continue
             display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
             color = self._choose_card_color(val)
+            if name == 'Комплексная оценка сегментов':
+                body = html.H4(
+                    html.A(main_display, href="#segment-table", className="text-white", style={
+                        "textDecoration": "underline", "cursor": "pointer"
+                    }),
+                    className="card-title"
+                )
+            else:
+                body = html.H4(display, className="card-title text-white")
             other_cards.append(
                 dbc.Card(
                     [
                         dbc.CardHeader(name, className="text-white"),
-                        dbc.CardBody(html.H4(display, className="card-title text-white")),
+                        dbc.CardBody(body),
                     ],
                     color=color,
                     inverse=True,
@@ -138,36 +153,46 @@ class BaseDashboardPlot:
         """
         Строит DataTable с оценками сегментов для города или региона.
         """
-        df = self.data_prep.get_segment_scores(id_region=id_region, id_city=id_city)
-        colors = cl.scales['5']['div']['RdYlGn']
-        style_cond = []
-        for i, cell in enumerate(df['value']):
-            try:
-                num = float(cell)
-                frac = (num - 1.0) / 4.0
-                idx = min(int(frac * (len(colors)-1)), len(colors)-1)
-                bg = colors[idx]
-            except:
-                bg = 'lightgray'
-            style_cond.append({
-                'if': {'row_index': i, 'column_id': 'value'},
-                'backgroundColor': bg,
-                'color': 'black'
-            })
+        entity_type = "region" if id_region else "city"
+        entity_id = id_region if id_region else id_city
+        df = self.data_prep.get_segment_scores(id_region=entity_id if entity_type == "region" else None,
+                                           id_city=entity_id if entity_type == "city" else None)
+        thead = html.Thead(
+            html.Tr([
+                html.Th("Сегмент"),
+                html.Th("Оценка"),
+            ]),
+            className="table-primary"
+            )
 
-        return dash_table.DataTable(
-            columns=[
-                {'name': 'Сегмент', 'id': 'segment', 'type': 'text'},
-                {'name': 'Оценка', 'id': 'value',  'type': 'numeric'},
-            ],
-            data=df.to_dict('records'),
-            sort_action='native',
-            style_cell={'textAlign': 'center', 'padding': '4px'},
-            style_header={'fontWeight': 'bold'},
-            style_data_conditional=style_cond,
-            page_action='none',
-            style_table={'maxHeight': '300px', 'overflowY': 'auto'},
-        )
+        rows = []
+        for i, row in df.iterrows():
+            seg_name = row['segment']
+            value = row['value']
+            # Получаем key по русскому названию
+            key = self.data_prep.SEGMENT_LABEL_TO_KEY.get(seg_name)
+            if key:
+                prefix = self.data_prep.SEGMENTS[key]["url_prefix"]
+                url = f"/dashboard/segment/{entity_type}/{prefix}/{entity_id}"
+                cell = html.Td(
+                            html.A(
+                                seg_name,
+                                href=url,
+                                target="_blank",
+                                style={"textDecoration": "underline", "color": "#007bff", "cursor": "pointer"}
+                            )
+                )
+            else:
+                cell = html.Td(seg_name)
+            rows.append(html.Tr([cell, html.Td(value)]))
+        return html.Table(
+            [thead, html.Tbody(rows)],
+            className="table table-striped table-bordered table-hover align-middle text-center shadow-sm rounded mb-3",
+            id='segment-table',
+            style={"fontSize": "1.1rem"}
+    )
+            
+
 
     def make_weather_summary_card(self, summary: dict) -> dbc.Card:
         """
@@ -292,12 +317,12 @@ class RegionPagePlot(BaseDashboardPlot):
             return html.Div([html.P("Нет данных по турпотоку для выбранного региона/города.")])
         years = sorted(df['year'].unique())
         dropdown = dcc.Dropdown(
-            id='flow-year-dropdown',
+            id={'type': 'flow-year-dropdown', 'index': region_id},
             options=[{'label': y, 'value': y} for y in years],
             value=years[-1],
             clearable=False
         )
-        graph = dcc.Graph(id='flow-graph')
+        graph = dcc.Graph(id={'type': 'flow-graph', 'index': region_id})
         return html.Div([
             html.H4("Турпоток по месяцам"),
             dropdown,
@@ -310,18 +335,18 @@ class RegionPagePlot(BaseDashboardPlot):
         """
         rpd = RegionDashboardData()
         # Получаем список доступных годов
-        raw = rpd.prepare_tourist_count_data(id_region = region_id)
+        raw = rpd.get_region_mean_night(id_region = region_id)
         if raw.empty or 'year' not in raw.columns:
         # Вернуть красивый layout-заглушку
             return html.Div([html.P("Нет данных по ночевкам для выбранного региона/города.")])
         years = sorted(raw['year'].unique())
         dropdown = dcc.Dropdown(
-            id='nights-year-dropdown',
+            id={'type': 'nights-year-dropdown', 'index': region_id},
             options=[{'label': y, 'value': y} for y in years],
             value=years[-1],
             clearable=False
         )
-        graph = dcc.Graph(id='nights-graph')
+        graph = dcc.Graph(id={'type': 'nights-graph', 'index': region_id})
         return html.Div([
             html.H4("Ночёвки по месяцам"),
             dropdown,
@@ -336,13 +361,17 @@ class RegionPagePlot(BaseDashboardPlot):
         rpd = RegionDashboardData()
 
         @app_dash.callback(
-            Output('flow-graph', 'figure'),
-            Input('flow-year-dropdown', 'value'),
-            State('url', 'pathname'),
+            Output({'type': 'flow-graph', 'index': MATCH}, 'figure'),      # СНАЧАЛА все Output'ы
+            Input({'type': 'flow-year-dropdown', 'index': MATCH}, 'value'),# затем все Input'ы
+            State('url', 'pathname'),  
         )
         def update_flow_chart(year, pathname):
             region_id = int(pathname.split('/')[-1])
             df = rpd.prepare_tourist_count_data(id_region = region_id)
+            if df.empty or 'year' not in df.columns or 'month' not in df.columns:
+                return go.Figure(
+                    layout={"title": "Нет данных по турпотоку за выбранный год"}
+                )
             df = df[df['year'] == year].sort_values('month')
             fig = px.bar(df, x='month', y='value',
                          labels={'value': 'Туристы', 'month': 'Месяц'},
@@ -350,13 +379,18 @@ class RegionPagePlot(BaseDashboardPlot):
             return fig
 
         @app_dash.callback(
-            Output('nights-graph', 'figure'),
-            Input('nights-year-dropdown', 'value'),
+            Output({'type': 'nights-graph', 'index': MATCH}, 'figure'),
+            Input({'type': 'nights-year-dropdown', 'index': MATCH}, 'value'),
             State('url', 'pathname'),
         )
         def update_nights_chart(year, pathname):
             region_id = int(pathname.split('/')[-1])
-            df = rpd.get_region_mean_night(region_id, year)
+            df = rpd.get_region_mean_night(region_id)
+            if df.empty or 'year' not in df.columns or 'month' not in df.columns:
+                return go.Figure(
+                    layout={"title": "Нет данных по ночевкам за выбранный год"}
+                )
+            df = df[df['year'] == year].sort_values('month')
             fig = px.line(df, x='Месяц', y='Количество ночевок',
                           title=f"Ночёвки за {year} год")
             return fig
@@ -396,10 +430,17 @@ class RegionPagePlot(BaseDashboardPlot):
                 opacity=0.8
             ),
             text=[
-                f"{n}<br>Население: {pop or '—'}<br>Оценка: {m or '—'}"
-                for n, pop, m in zip(muni_df['name'], muni_df['population'], muni_df['metric_282'])
+                (
+                    f'<b><a href="/dashboard/city/{city_id}" target="_blank">{name}</a></b>'
+                    f'<br>Население: {format(pop, ",").replace(",", " ") if pop else "—"}'
+                    f'<br>Оценка: {m if m is not None else "—"}'
+                )
+                for city_id, name, pop, m in zip(
+                    muni_df['id_city'], muni_df['name'], muni_df['population'], muni_df['metric_282']
+                )
             ],
             hoverinfo='text',
+            hoverlabel=dict(namelength=-1),  # чтобы не обрезался label
             showlegend=False
         ))
 
@@ -451,5 +492,64 @@ class RegionPagePlot(BaseDashboardPlot):
         }
 
         return dcc.Graph(figure=fig, config=config)
-    
+
+class SegmentDashboardPlot (BaseDashboardPlot):
+    """
+    Класс для визуализации KPI одного сегмента туризма.
+    """
+    def __init__(self, data_prep: BaseDashboardData):
+        self.data_prep = data_prep
+
+    def make_segment_kpi_cards(
+        self,
+        segment_key: str,
+        *,
+        id_region: Optional[int] = None,
+        id_city: Optional[int] = None
+    ) -> List[dbc.Row]:
+        """
+        Формирует layout карточек KPI для выбранного сегмента.
+        """
+        kpis = self.data_prep.get_segment_kpi(segment_key, id_region=id_region, id_city=id_city)
+        if not kpis:
+            return [dbc.Row(dbc.Col(dbc.Alert("Нет данных для сегмента", color="secondary")))]
+
+        main_label = 'Главная оценка'
+        other_labels = self.data_prep.SEGMENT_METRIC_LABELS[1:4]
+
+        # Главная метрика
+        main_value = kpis.get(main_label)
+        main_display = f"{main_value:.2f}" if isinstance(main_value, (int, float)) else "—"
+        main_card = dbc.Card(
+            [
+                dbc.CardHeader(main_label, className="text-white fs-5"),
+                dbc.CardBody(html.H2(main_display, className="card-title text-white fw-bold"), className="text-center"),
+            ],
+            color= self._choose_card_color(float(main_value)),
+            inverse=True,
+            className="mb-3 shadow",
+            style={"minHeight": "140px", "fontSize": "1.8rem"}
+        )
+
+        # Остальные 3 метрики
+        other_cards = []
+        for name in other_labels:
+            val = kpis.get(name)
+            display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
+            other_cards.append(
+                dbc.Card(
+                    [
+                        dbc.CardHeader(name, className="text-white"),
+                        dbc.CardBody(html.H4(display, className="card-title text-white")),
+                    ],
+                    color= self._choose_card_color(float(val)),
+                    inverse=True,
+                    className="mb-3 shadow-sm",
+                    style={"minHeight": "110px"}
+                )
+            )
+        return [
+            dbc.Row(dbc.Col(main_card, width={"size": 6, "offset": 3}), className="mb-3"),
+            dbc.Row([dbc.Col(card, md=4) for card in other_cards], className="mb-3"),
+        ]
  

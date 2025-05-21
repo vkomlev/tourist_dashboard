@@ -6,7 +6,7 @@ from shapely.geometry import Point
 import json
 import os
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Tuple, ClassVar
 
 from app.data.database import MetricValueRepository, CitiesRepository, SyncRepository, RegionRepository
 from app.models import Region, City
@@ -86,7 +86,73 @@ class BaseDashboardData:
     Базовый универсальный класс для подготовки данных о метриках, сегментах и погоде
     для любых сущностей: регион или город.
     """
+    # Коды метрик, метки, url-префиксы для сегментов туризма
+    SEGMENTS: ClassVar[Dict[str, Dict[str, Any]]] = {
+        "main": {
+            "label": "Туризм в общем",
+            "url_prefix": "main",
+            "codes": [282, 218, 240, 241, 222]
+        },
+        "sport": {
+            "label": "Спортивный",
+            "url_prefix": "sport",
+            "codes": [280, 266, 267, 268, 269]
+        },
+        "pilgrimage": {
+            "label": "Паломнический",
+            "url_prefix": "pilgrimage",
+            "codes": [277, 254, 255, 256, 257]
+        },
+        "cognitive": {
+            "label": "Познавательный",
+            "url_prefix": "cognitive",
+            "codes": [278, 258, 259, 260, 261]
+        },
+        "business": {
+            "label": "Деловой",
+            "url_prefix": "business",
+            "codes": [276, 250, 251, 252, 253]
+        },
+        "family": {
+            "label": "Семейный",
+            "url_prefix": "family",
+            "codes": [279, 262, 263, 264, 265]
+        },
+        "wellness": {
+            "label": "Оздоровительный",
+            "url_prefix": "wellness",
+            "codes": [275, 246, 247, 248, 249]
+        },
+        "eco": {
+            "label": "Эко-походный",
+            "url_prefix": "eco",
+            "codes": [281, 270, 271, 272, 273]
+        },
+        "beach": {
+            "label": "Пляжный",
+            "url_prefix": "beach",
+            "codes": [274, 242, 243, 244, 245]
+        }
+    }
 
+    # Словарь для быстрого поиска ключа по русскому имени:
+    SEGMENT_LABEL_TO_KEY = {v["label"]: k for k, v in SEGMENTS.items()}
+
+    SEGMENT_METRIC_LABELS: ClassVar[List[str]] = [
+        'Главная оценка',
+        'Средняя оценка главных локаций',
+        'Количество главных локаций',
+        'Количество дополнительных локаций',
+        'Климат'
+    ]
+
+    @classmethod
+    def get_segment_patterns(cls) -> List[Tuple[str, str]]:
+        """
+        Возвращает список (ключ, url_prefix) для генерации роутов дашборда сегментов.
+        """
+        return [(key, segment["url_prefix"]) for key, segment in cls.SEGMENTS.items()]
+    
     METRIC_IDS = {
         'Комплексная оценка развития туризма': 282,
         'Комплексная оценка сегментов': 217,
@@ -150,6 +216,40 @@ class BaseDashboardData:
         except Exception as e:
             logger.warning(f"Ошибка при fetch_latest_metric_value(metric={id_metric}, region={id_region}, city={id_city}): {e}")
             return None
+    
+    def get_segment_kpi(
+        self,
+        segment_key: str,
+        *,
+        id_region: Optional[int] = None,
+        id_city: Optional[int] = None
+    ) -> Dict[str, Optional[float]]:
+        """
+        Возвращает словарь KPI по сегменту для региона или города.
+        """
+        result = {}
+        segment = self.SEGMENTS.get(segment_key)
+        if not segment:
+            logger.warning(f"Неизвестный сегмент: {segment_key}")
+            return result
+        for label, code in zip(self.SEGMENT_METRIC_LABELS, segment["codes"]):
+            val = self.fetch_latest_metric_value(code, id_region=id_region, id_city=id_city)
+            result[label] = val
+        return result
+
+    def get_all_segments_kpi(
+        self,
+        *,
+        id_region: Optional[int] = None,
+        id_city: Optional[int] = None
+    ) -> Dict[str, Dict[str, Optional[float]]]:
+        """
+        Возвращает dict всех сегментов: {segment_key: {label: value}}
+        """
+        data = {}
+        for key in self.SEGMENTS:
+            data[key] = self.get_segment_kpi(key, id_region=id_region, id_city=id_city)
+        return data
 
     def get_segment_scores(
         self,
@@ -191,10 +291,10 @@ class BaseDashboardData:
             day.sort(key = lambda s: s[1])
             mass_water = []
             for i in day:
-                if isinstance(i[0], str):
+                try:
                     mass_water.append(float(i[0]))
-                else:
-                    logger.warning(f'В дневной температуре было пустое значение {i} - id_city = {id_city}')
+                except:
+                    logger.warning(f'В дневной температуре было пустое/некорректное значение {i} - id_city = {id_city}')
                     return False
         else:
             return False
@@ -205,10 +305,10 @@ class BaseDashboardData:
             night.sort(key = lambda s: s[1])
             mass_water = []
             for i in night:
-                if isinstance(i[0], str):
+                try:
                     mass_water.append(float(i[0]))
-                else:
-                    logger.warning(f'В ночной температуре было пустое значение {i} - id_city = {id_city}')
+                except:
+                    logger.warning(f'В ночной температуре было пустое/некорректное значение {i} - id_city = {id_city}')
                     return False
         else:
             return False
@@ -230,10 +330,10 @@ class BaseDashboardData:
             rainfall.sort(key = lambda s: s[1])
             mass_water = []
             for i in rainfall:
-                if isinstance(i[0], str):
+                try:
                     mass_water.append(float(i[0]))
-                else:
-                    logger.warning(f'В осадках было пустое значение {i} - id_city = {id_city}')
+                except:
+                    logger.warning(f'В осадках было пустое/некорректное значение {i} - id_city = {id_city}')
                     return False
         else:
             return False
@@ -255,10 +355,10 @@ class BaseDashboardData:
             water.sort(key = lambda s: s[1])
             mass_water = []
             for i in water:
-                if isinstance(i[0], str):
-                    mass_water.append(float(i[0]))
-                else:
-                    logger.warning(f'В температуре воды было пустое значение {i} - id_city = {id_city}')
+                try:
+                   mass_water.append(float(i[0]))
+                except:
+                    logger.warning(f'В температуре воды было пустое или некорректное значение {i} - id_city = {id_city}')
                     return False
         else:
             return False
@@ -429,71 +529,79 @@ class RegionDashboardData(BaseDashboardData):
         return super().get_weather_summary(weather_data)
   
     
-    def get_region_mean_night(self, 
-                         id_region:int,
-                         year:int):
-        """Получение данных для графика среднего количества ночевок"""
-        month ={1: 'Январь', 
-                2: 'Февраль', 
-                3: 'Март', 
-                4: 'Апрель', 
-                5: 'Май', 
-                6: 'Июнь', 
-                7: 'Июль', 
-                8: 'Август', 
-                9: 'Сентябрь', 
-                10: 'Октябрь', 
-                11: 'Ноябрь', 
-                12: 'Декабрь'}
-        # получаем количество ночевок и преобразуем в словарь
-        dp = MetricValueRepository()
-        night = dp.get_region_metric_value(
-                id_region=id_region,
-                id_metric=3
-                )
-        night = [i for i in night if int(i[3]) == year]
-        filter_night = {'night':[],
-                        'month':[]
-                        }
-        for i in range(len(night)):
-            long = len(night)
-            if i != long - 1:
-                filter_night['night'].insert(
-                    0,
-                    int(night[long-1-i][1])-
-                    int(night[long-2-i][1]))
-                filter_night['month'].insert(0, night[long-1-i][2])
-            else:
-                filter_night['night'].insert(0, int(night[0][1]))
-                filter_night['month'].insert(0, night[0][2])
-        # получаем турпоток и преобразуем в словарь
-        # через турпоток сделать процентное отношение к ночевкам и так разделить их по месячно
-        tourist = dp.get_region_metric_value(
-                id_region=id_region,
-                id_metric=2
-                )
-        filter_tourist = {'tourist':[],
-                          'month':[]
-                          }
-        tourist = [i for i in tourist if int(i[3]) == year]
-        for i in tourist:
-            filter_tourist['tourist'].append(int(i[1]))
-            filter_tourist['month'].append(i[2])
+    def get_region_mean_night(self, id_region: int) -> pd.DataFrame:
+        """
+        Возвращает DataFrame с количеством ночевок по месяцам и годам для региона.
+        Колонки: ['year', 'month', 'Месяц', 'Количество ночевок']
+        """
+        month_names = {
+            1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель', 5: 'Май', 6: 'Июнь',
+            7: 'Июль', 8: 'Август', 9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+        }
 
-        # распределяем количество ночевок по месяцам, основываясь на распеределии турпотока
-        # в процентах по сезонам
-        filter_tourist_night = {'Количество ночевок':[],
-                                'Месяц':[]
-                                }
-        for x in filter_night['month']:
-            mass_tour = sum(filter_tourist['tourist'][x-3: x])
-            for y in range(x-3, x):
-                month_night = float(filter_night['night'][(x//3)-1]*(filter_tourist['tourist'][y]/mass_tour))
-                mean_night = (month_night/filter_tourist['tourist'][y])
-                filter_tourist_night['Количество ночевок'].append(mean_night)
-                filter_tourist_night['Месяц'].append(month[y+1])
-        df = pd.DataFrame(filter_tourist_night)
-        return df
+        dp = MetricValueRepository()
+        night_raw = dp.get_region_metric_value(id_region=id_region, id_metric=3)
+        tourist_raw = dp.get_region_metric_value(id_region=id_region, id_metric=2)
+
+        night_df = pd.DataFrame(night_raw, columns=['id_region', 'value', 'month', 'year'])
+        tourist_df = pd.DataFrame(tourist_raw, columns=['id_region', 'value', 'month', 'year'])
+
+        if night_df.empty or tourist_df.empty:
+            return pd.DataFrame(columns=['year', 'month', 'Месяц', 'Количество ночевок'])
+
+        night_df['month'] = night_df['month'].astype(int)
+        night_df['year'] = night_df['year'].astype(int)
+        night_df['value'] = night_df['value'].astype(float)
+        tourist_df['month'] = tourist_df['month'].astype(int)
+        tourist_df['year'] = tourist_df['year'].astype(int)
+        tourist_df['value'] = tourist_df['value'].astype(float)
+
+        result = []
+
+        for year in sorted(night_df['year'].unique()):
+            night_year = night_df[night_df['year'] == year].sort_values('month')
+            tourist_year = tourist_df[tourist_df['year'] == year].sort_values('month')
+
+            # квартальные значения: 3,6,9,12 месяц
+            quarters = [3, 6, 9, 12]
+            night_quarter_vals = []
+            for m in quarters:
+                val = night_year[night_year['month'] == m]['value']
+                night_quarter_vals.append(val.values[0] if not val.empty else None)
+
+            # Считаем разницу по кварталам (ночёвки за квартал)
+            for q_idx in range(4):
+                q_end = quarters[q_idx]
+                q_start = 0 if q_idx == 0 else quarters[q_idx-1]
+                night_end = night_quarter_vals[q_idx]
+                night_start = 0 if q_idx == 0 else night_quarter_vals[q_idx-1]
+                if night_end is None or (q_idx > 0 and night_start is None):
+                    continue  # нет данных по ночёвкам
+
+                # ночёвки за квартал
+                night_in_q = night_end - night_start
+                # месяцы квартала
+                months_in_q = list(range(q_end - 2, q_end + 1))
+                # турпоток за квартал
+                tourists_in_q = tourist_year[tourist_year['month'].isin(months_in_q)]['value'].sum()
+                # среднее на одного туриста (или просто среднее — как было в вашей логике)
+                mean_night = night_in_q / tourists_in_q if tourists_in_q > 0 else 0
+
+                # Заполняем все 3 месяца квартала одинаковым значением
+                for m in months_in_q:
+                    result.append({
+                        'year': year,
+                        'month': m,
+                        'Месяц': month_names[m],
+                        'Количество ночевок': mean_night
+                    })
+
+        df_result = pd.DataFrame(result)
+        return df_result
+
+
+
+
     
     def get_region_leisure_rating(self, id_region):
         dp = Region_calc(id_region=id_region) 
