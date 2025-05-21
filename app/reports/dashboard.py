@@ -160,7 +160,7 @@ def create_region_layout(region_id: int):
          # Карта городов
         dbc.Row(dbc.Col(html.H4("Муниципалитеты и города"), width=12)),
         dbc.Row(dbc.Col(muni, width=12), className="mb-4"),
-        dbc.Row(dbc.Col(html.H4("Оценки сегментов туризма"), width=12), className="mt-4"),
+        dbc.Row(dbc.Col(html.H4("Оценки сегментов туризма", id="segment-table"), width=12), className="mt-4"),
         dbc.Row(dbc.Col(seg_table, width=12), className="mb-4"),
         dbc.Row(dbc.Col(html.H4("Климат и погода региона"), width=12), className="mt-4"),
         dbc.Row(dbc.Col(weather_block, width=12), className="mb-4"),

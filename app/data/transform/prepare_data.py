@@ -135,6 +135,9 @@ class BaseDashboardData:
         }
     }
 
+    # Словарь для быстрого поиска ключа по русскому имени:
+    SEGMENT_LABEL_TO_KEY = {v["label"]: k for k, v in SEGMENTS.items()}
+
     SEGMENT_METRIC_LABELS: ClassVar[List[str]] = [
         'Главная оценка',
         'Средняя оценка главных локаций',

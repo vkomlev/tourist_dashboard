@@ -64,6 +64,9 @@ class BaseDashboardPlot:
         """
         Формирует layout карточек KPI для города или региона.
         """
+        def make_segment_link(label: str, entity_type: str, entity_id: int) -> html.Div:
+            url = f"/dashboard/segment/{entity_type}/main/{entity_id}"
+            return dcc.Link(label, href=url, style={"color": "white", "textDecoration": "underline", "cursor": "pointer"})
         kpis = self.data_prep.get_kpi_metrics(id_region=id_region, id_city=id_city)
         main_metric_key = 'Комплексная оценка развития туризма'
         infra_metrics = [
@@ -91,11 +94,14 @@ class BaseDashboardPlot:
             val = kpis[name]
             display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
             color = self._choose_card_color(val)
+            entity_type = "region" if id_region else "city"
+            entity_id = id_region if id_region else id_city
+            card_content = make_segment_link(display, entity_type, entity_id)
             infra_cards.append(
                 dbc.Card(
                     [
                         dbc.CardHeader(name, className="text-white"),
-                        dbc.CardBody(html.H4(display, className="card-title text-white")),
+                        dbc.CardBody(html.H4(card_content, className="card-title text-white")),
                     ],
                     color=color,
                     inverse=True,
@@ -111,11 +117,20 @@ class BaseDashboardPlot:
                 continue
             display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
             color = self._choose_card_color(val)
+            if name == 'Комплексная оценка сегментов':
+                body = html.H4(
+                    html.A(main_display, href="#segment-table", className="text-white", style={
+                        "textDecoration": "underline", "cursor": "pointer"
+                    }),
+                    className="card-title"
+                )
+            else:
+                body = html.H4(display, className="card-title text-white")
             other_cards.append(
                 dbc.Card(
                     [
                         dbc.CardHeader(name, className="text-white"),
-                        dbc.CardBody(html.H4(display, className="card-title text-white")),
+                        dbc.CardBody(body),
                     ],
                     color=color,
                     inverse=True,
@@ -138,36 +153,46 @@ class BaseDashboardPlot:
         """
         Строит DataTable с оценками сегментов для города или региона.
         """
-        df = self.data_prep.get_segment_scores(id_region=id_region, id_city=id_city)
-        colors = cl.scales['5']['div']['RdYlGn']
-        style_cond = []
-        for i, cell in enumerate(df['value']):
-            try:
-                num = float(cell)
-                frac = (num - 1.0) / 4.0
-                idx = min(int(frac * (len(colors)-1)), len(colors)-1)
-                bg = colors[idx]
-            except:
-                bg = 'lightgray'
-            style_cond.append({
-                'if': {'row_index': i, 'column_id': 'value'},
-                'backgroundColor': bg,
-                'color': 'black'
-            })
-        
-        return dash_table.DataTable(
-            columns=[
-                {'name': 'Сегмент', 'id': f'segment', 'type': 'text'},
-                {'name': 'Оценка', 'id': f'value',  'type': 'numeric'},
-            ],
-            data=df.to_dict('records'),
-            sort_action='native',
-            style_cell={'textAlign': 'center', 'padding': '4px'},
-            style_header={'fontWeight': 'bold'},
-            style_data_conditional=style_cond,
-            page_action='none',
-            style_table={'maxHeight': '300px', 'overflowY': 'auto'},
-        )
+        entity_type = "region" if id_region else "city"
+        entity_id = id_region if id_region else id_city
+        df = self.data_prep.get_segment_scores(id_region=entity_id if entity_type == "region" else None,
+                                           id_city=entity_id if entity_type == "city" else None)
+        thead = html.Thead(
+            html.Tr([
+                html.Th("Сегмент"),
+                html.Th("Оценка"),
+            ]),
+            className="table-primary"
+            )
+
+        rows = []
+        for i, row in df.iterrows():
+            seg_name = row['segment']
+            value = row['value']
+            # Получаем key по русскому названию
+            key = self.data_prep.SEGMENT_LABEL_TO_KEY.get(seg_name)
+            if key:
+                prefix = self.data_prep.SEGMENTS[key]["url_prefix"]
+                url = f"/dashboard/segment/{entity_type}/{prefix}/{entity_id}"
+                cell = html.Td(
+                            html.A(
+                                seg_name,
+                                href=url,
+                                target="_blank",
+                                style={"textDecoration": "underline", "color": "#007bff", "cursor": "pointer"}
+                            )
+                )
+            else:
+                cell = html.Td(seg_name)
+            rows.append(html.Tr([cell, html.Td(value)]))
+        return html.Table(
+            [thead, html.Tbody(rows)],
+            className="table table-striped table-bordered table-hover align-middle text-center shadow-sm rounded mb-3",
+            id='segment-table',
+            style={"fontSize": "1.1rem"}
+    )
+            
+
 
     def make_weather_summary_card(self, summary: dict) -> dbc.Card:
         """
