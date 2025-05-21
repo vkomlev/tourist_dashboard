@@ -168,7 +168,8 @@ def create_city_layout(city_id: int):
 
     # Получаем данные о городе
     city_repo = CitiesRepository()
-    city = city_repo.get_by_fields(model = City, id_city = city_id)[0]
+    cities = city_repo.get_by_fields(model=City, id_city=city_id)
+    city = cities[0] if cities else None
     city_name = city.city_name if city else f"#{city_id}"
 
     # Подготавливаем универсальные классы данных и визуализации

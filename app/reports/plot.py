@@ -6,7 +6,7 @@ import os
 import plotly.express as px
 import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
-from dash import Dash, html, dcc, Input, Output, State, dash_table
+from dash import Dash, html, dcc, Input, Output, State, dash_table, MATCH
 import colorlover as cl
 from typing import List, Optional
 import pandas as pd
@@ -154,11 +154,11 @@ class BaseDashboardPlot:
                 'backgroundColor': bg,
                 'color': 'black'
             })
-
+        
         return dash_table.DataTable(
             columns=[
-                {'name': 'Сегмент', 'id': 'segment', 'type': 'text'},
-                {'name': 'Оценка', 'id': 'value',  'type': 'numeric'},
+                {'name': 'Сегмент', 'id': f'segment', 'type': 'text'},
+                {'name': 'Оценка', 'id': f'value',  'type': 'numeric'},
             ],
             data=df.to_dict('records'),
             sort_action='native',
@@ -292,12 +292,12 @@ class RegionPagePlot(BaseDashboardPlot):
             return html.Div([html.P("Нет данных по турпотоку для выбранного региона/города.")])
         years = sorted(df['year'].unique())
         dropdown = dcc.Dropdown(
-            id='flow-year-dropdown',
+            id={'type': 'flow-year-dropdown', 'index': region_id},
             options=[{'label': y, 'value': y} for y in years],
             value=years[-1],
             clearable=False
         )
-        graph = dcc.Graph(id='flow-graph')
+        graph = dcc.Graph(id={'type': 'flow-graph', 'index': region_id})
         return html.Div([
             html.H4("Турпоток по месяцам"),
             dropdown,
@@ -310,18 +310,18 @@ class RegionPagePlot(BaseDashboardPlot):
         """
         rpd = RegionDashboardData()
         # Получаем список доступных годов
-        raw = rpd.prepare_tourist_count_data(id_region = region_id)
+        raw = rpd.get_region_mean_night(id_region = region_id)
         if raw.empty or 'year' not in raw.columns:
         # Вернуть красивый layout-заглушку
             return html.Div([html.P("Нет данных по ночевкам для выбранного региона/города.")])
         years = sorted(raw['year'].unique())
         dropdown = dcc.Dropdown(
-            id='nights-year-dropdown',
+            id={'type': 'nights-year-dropdown', 'index': region_id},
             options=[{'label': y, 'value': y} for y in years],
             value=years[-1],
             clearable=False
         )
-        graph = dcc.Graph(id='nights-graph')
+        graph = dcc.Graph(id={'type': 'nights-graph', 'index': region_id})
         return html.Div([
             html.H4("Ночёвки по месяцам"),
             dropdown,
@@ -336,13 +336,17 @@ class RegionPagePlot(BaseDashboardPlot):
         rpd = RegionDashboardData()
 
         @app_dash.callback(
-            Output('flow-graph', 'figure'),
-            Input('flow-year-dropdown', 'value'),
-            State('url', 'pathname'),
+            Output({'type': 'flow-graph', 'index': MATCH}, 'figure'),      # СНАЧАЛА все Output'ы
+            Input({'type': 'flow-year-dropdown', 'index': MATCH}, 'value'),# затем все Input'ы
+            State('url', 'pathname'),  
         )
         def update_flow_chart(year, pathname):
             region_id = int(pathname.split('/')[-1])
             df = rpd.prepare_tourist_count_data(id_region = region_id)
+            if df.empty or 'year' not in df.columns or 'month' not in df.columns:
+                return go.Figure(
+                    layout={"title": "Нет данных по турпотоку за выбранный год"}
+                )
             df = df[df['year'] == year].sort_values('month')
             fig = px.bar(df, x='month', y='value',
                          labels={'value': 'Туристы', 'month': 'Месяц'},
@@ -350,13 +354,18 @@ class RegionPagePlot(BaseDashboardPlot):
             return fig
 
         @app_dash.callback(
-            Output('nights-graph', 'figure'),
-            Input('nights-year-dropdown', 'value'),
+            Output({'type': 'nights-graph', 'index': MATCH}, 'figure'),
+            Input({'type': 'nights-year-dropdown', 'index': MATCH}, 'value'),
             State('url', 'pathname'),
         )
         def update_nights_chart(year, pathname):
             region_id = int(pathname.split('/')[-1])
-            df = rpd.get_region_mean_night(region_id, year)
+            df = rpd.get_region_mean_night(region_id)
+            if df.empty or 'year' not in df.columns or 'month' not in df.columns:
+                return go.Figure(
+                    layout={"title": "Нет данных по ночевкам за выбранный год"}
+                )
+            df = df[df['year'] == year].sort_values('month')
             fig = px.line(df, x='Месяц', y='Количество ночевок',
                           title=f"Ночёвки за {year} год")
             return fig
