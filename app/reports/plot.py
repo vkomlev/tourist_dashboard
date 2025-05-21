@@ -405,10 +405,17 @@ class RegionPagePlot(BaseDashboardPlot):
                 opacity=0.8
             ),
             text=[
-                f"{n}<br>Население: {pop or '—'}<br>Оценка: {m or '—'}"
-                for n, pop, m in zip(muni_df['name'], muni_df['population'], muni_df['metric_282'])
+                (
+                    f'<b><a href="/dashboard/city/{city_id}" target="_blank">{name}</a></b>'
+                    f'<br>Население: {format(pop, ",").replace(",", " ") if pop else "—"}'
+                    f'<br>Оценка: {m if m is not None else "—"}'
+                )
+                for city_id, name, pop, m in zip(
+                    muni_df['id_city'], muni_df['name'], muni_df['population'], muni_df['metric_282']
+                )
             ],
             hoverinfo='text',
+            hoverlabel=dict(namelength=-1),  # чтобы не обрезался label
             showlegend=False
         ))
 
@@ -460,5 +467,64 @@ class RegionPagePlot(BaseDashboardPlot):
         }
 
         return dcc.Graph(figure=fig, config=config)
-    
+
+class SegmentDashboardPlot (BaseDashboardPlot):
+    """
+    Класс для визуализации KPI одного сегмента туризма.
+    """
+    def __init__(self, data_prep: BaseDashboardData):
+        self.data_prep = data_prep
+
+    def make_segment_kpi_cards(
+        self,
+        segment_key: str,
+        *,
+        id_region: Optional[int] = None,
+        id_city: Optional[int] = None
+    ) -> List[dbc.Row]:
+        """
+        Формирует layout карточек KPI для выбранного сегмента.
+        """
+        kpis = self.data_prep.get_segment_kpi(segment_key, id_region=id_region, id_city=id_city)
+        if not kpis:
+            return [dbc.Row(dbc.Col(dbc.Alert("Нет данных для сегмента", color="secondary")))]
+
+        main_label = 'Главная оценка'
+        other_labels = self.data_prep.SEGMENT_METRIC_LABELS[1:4]
+
+        # Главная метрика
+        main_value = kpis.get(main_label)
+        main_display = f"{main_value:.2f}" if isinstance(main_value, (int, float)) else "—"
+        main_card = dbc.Card(
+            [
+                dbc.CardHeader(main_label, className="text-white fs-5"),
+                dbc.CardBody(html.H2(main_display, className="card-title text-white fw-bold"), className="text-center"),
+            ],
+            color= self._choose_card_color(float(main_value)),
+            inverse=True,
+            className="mb-3 shadow",
+            style={"minHeight": "140px", "fontSize": "1.8rem"}
+        )
+
+        # Остальные 3 метрики
+        other_cards = []
+        for name in other_labels:
+            val = kpis.get(name)
+            display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
+            other_cards.append(
+                dbc.Card(
+                    [
+                        dbc.CardHeader(name, className="text-white"),
+                        dbc.CardBody(html.H4(display, className="card-title text-white")),
+                    ],
+                    color= self._choose_card_color(float(val)),
+                    inverse=True,
+                    className="mb-3 shadow-sm",
+                    style={"minHeight": "110px"}
+                )
+            )
+        return [
+            dbc.Row(dbc.Col(main_card, width={"size": 6, "offset": 3}), className="mb-3"),
+            dbc.Row([dbc.Col(card, md=4) for card in other_cards], className="mb-3"),
+        ]
  

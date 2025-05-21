@@ -15,11 +15,13 @@ from app.data.database.models_repository import (
 )
 from app.reports.plot import (
     RegionPagePlot,
-    BaseDashboardPlot
+    BaseDashboardPlot,
+    SegmentDashboardPlot
 )
 from app.data.transform.prepare_data import (
     RegionDashboardData,
-    CityDashboardData
+    CityDashboardData,
+    BaseDashboardData
 )
 logger = logging.getLogger(__name__)
 
@@ -46,27 +48,38 @@ def register_callbacks(app_dash: Dash) -> None:
     """Регистрирует коллбеки для роутинга и экспорта."""
 
     @app_dash.callback(
-        Output("page-content", "children"),
-        Input("url", "pathname"),
+    Output("page-content", "children"),
+    Input("url", "pathname"),
     )
     def display_page(pathname: str):
         parts = pathname.rstrip("/").split("/")
-        if len(parts) >= 4:
-            if parts[2] == "region":
-                try:
-                    region_id = int(parts[3])
-                    return create_region_layout(region_id)
-                except ValueError as e:
-                    logger.error(f"Ошибка значения при формировании страницы региона: {e}")
-                    return page_not_found()
-            elif parts[2] == "city":
-                try:
-                    city_id = int(parts[3])
-                    return create_city_layout(city_id)
-                except ValueError as e:
-                    logger.error(f"Ошибка значения при формировании страницы города: {e}")
-                    return page_not_found()
+        # /dashboard/segment/region/beach/5
+        if len(parts) == 6 and parts[2] == "segment":
+            entity_type = parts[3]
+            segment_prefix = parts[4]
+            entity_id = int(parts[5])
+            for key, prefix in BaseDashboardData.get_segment_patterns():
+                if prefix == segment_prefix:
+                    return create_segment_dashboard(entity_type, entity_id, key)
+            return dbc.Alert("Сегмент не найден", color="warning")
+        # /dashboard/region/5
+        if len(parts) >= 4 and parts[2] == "region":
+            try:
+                region_id = int(parts[3])
+                return create_region_layout(region_id)
+            except ValueError as e:
+                logger.error(f"Ошибка значения при формировании страницы региона: {e}")
+                return page_not_found()
+        # /dashboard/city/123
+        if len(parts) >= 4 and parts[2] == "city":
+            try:
+                city_id = int(parts[3])
+                return create_city_layout(city_id)
+            except ValueError as e:
+                logger.error(f"Ошибка значения при формировании страницы города: {e}")
+                return page_not_found()
         return page_not_found()
+
 
 
     @app_dash.callback(
@@ -199,3 +212,35 @@ def create_city_layout(city_id: int):
             dcc.Download(id="download-dataframe-xlsx")
         ], justify="start"),
     ], fluid=True)
+
+def create_segment_dashboard(entity_type: str, entity_id: int, segment_key: str):
+    """
+    Формирует страницу дашборда по сегменту туризма для города или региона.
+    """
+    # Выбор класса данных
+    if entity_type == "region":
+        data_prep = RegionDashboardData()
+    elif entity_type == "city":
+        data_prep = CityDashboardData()
+    else:
+        return dbc.Alert("Неизвестный тип", color="danger")
+
+    plot = SegmentDashboardPlot(data_prep)
+    segment_config = data_prep.SEGMENTS.get(segment_key)
+    segment_label = segment_config["label"] if segment_config else segment_key
+
+    # Карточки KPI
+    kpi_cards = plot.make_segment_kpi_cards(
+        segment_key,
+        id_region=entity_id if entity_type == "region" else None,
+        id_city=entity_id if entity_type == "city" else None
+    )
+
+    return dbc.Container([
+        dbc.Row(
+            dbc.Col(html.H2(f"Дашборд сегмента: {segment_label} ({'регион' if entity_type == 'region' else 'город'})"),
+                    width=12), className="my-3"
+        ),
+        *kpi_cards
+    ], fluid=True)
+

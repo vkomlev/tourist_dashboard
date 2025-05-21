@@ -6,7 +6,7 @@ from shapely.geometry import Point
 import json
 import os
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Tuple, ClassVar
 
 from app.data.database import MetricValueRepository, CitiesRepository, SyncRepository, RegionRepository
 from app.models import Region, City
@@ -86,7 +86,70 @@ class BaseDashboardData:
     Базовый универсальный класс для подготовки данных о метриках, сегментах и погоде
     для любых сущностей: регион или город.
     """
+    # Коды метрик, метки, url-префиксы для сегментов туризма
+    SEGMENTS: ClassVar[Dict[str, Dict[str, Any]]] = {
+        "main": {
+            "label": "Туризм в общем",
+            "url_prefix": "main",
+            "codes": [282, 218, 240, 241, 222]
+        },
+        "sport": {
+            "label": "Спортивный",
+            "url_prefix": "sport",
+            "codes": [280, 266, 267, 268, 269]
+        },
+        "pilgrimage": {
+            "label": "Паломнический",
+            "url_prefix": "pilgrimage",
+            "codes": [277, 254, 255, 256, 257]
+        },
+        "cognitive": {
+            "label": "Познавательный",
+            "url_prefix": "cognitive",
+            "codes": [278, 258, 259, 260, 261]
+        },
+        "business": {
+            "label": "Деловой",
+            "url_prefix": "business",
+            "codes": [276, 250, 251, 252, 253]
+        },
+        "family": {
+            "label": "Семейный",
+            "url_prefix": "family",
+            "codes": [279, 262, 263, 264, 265]
+        },
+        "wellness": {
+            "label": "Оздоровительный",
+            "url_prefix": "wellness",
+            "codes": [275, 246, 247, 248, 249]
+        },
+        "eco": {
+            "label": "Эко-походный",
+            "url_prefix": "eco",
+            "codes": [281, 270, 271, 272, 273]
+        },
+        "beach": {
+            "label": "Пляжный",
+            "url_prefix": "beach",
+            "codes": [274, 242, 243, 244, 245]
+        }
+    }
 
+    SEGMENT_METRIC_LABELS: ClassVar[List[str]] = [
+        'Главная оценка',
+        'Средняя оценка главных локаций',
+        'Количество главных локаций',
+        'Количество дополнительных локаций',
+        'Климат'
+    ]
+
+    @classmethod
+    def get_segment_patterns(cls) -> List[Tuple[str, str]]:
+        """
+        Возвращает список (ключ, url_prefix) для генерации роутов дашборда сегментов.
+        """
+        return [(key, segment["url_prefix"]) for key, segment in cls.SEGMENTS.items()]
+    
     METRIC_IDS = {
         'Комплексная оценка развития туризма': 282,
         'Комплексная оценка сегментов': 217,
@@ -150,6 +213,40 @@ class BaseDashboardData:
         except Exception as e:
             logger.warning(f"Ошибка при fetch_latest_metric_value(metric={id_metric}, region={id_region}, city={id_city}): {e}")
             return None
+    
+    def get_segment_kpi(
+        self,
+        segment_key: str,
+        *,
+        id_region: Optional[int] = None,
+        id_city: Optional[int] = None
+    ) -> Dict[str, Optional[float]]:
+        """
+        Возвращает словарь KPI по сегменту для региона или города.
+        """
+        result = {}
+        segment = self.SEGMENTS.get(segment_key)
+        if not segment:
+            logger.warning(f"Неизвестный сегмент: {segment_key}")
+            return result
+        for label, code in zip(self.SEGMENT_METRIC_LABELS, segment["codes"]):
+            val = self.fetch_latest_metric_value(code, id_region=id_region, id_city=id_city)
+            result[label] = val
+        return result
+
+    def get_all_segments_kpi(
+        self,
+        *,
+        id_region: Optional[int] = None,
+        id_city: Optional[int] = None
+    ) -> Dict[str, Dict[str, Optional[float]]]:
+        """
+        Возвращает dict всех сегментов: {segment_key: {label: value}}
+        """
+        data = {}
+        for key in self.SEGMENTS:
+            data[key] = self.get_segment_kpi(key, id_region=id_region, id_city=id_city)
+        return data
 
     def get_segment_scores(
         self,
@@ -191,10 +288,10 @@ class BaseDashboardData:
             day.sort(key = lambda s: s[1])
             mass_water = []
             for i in day:
-                if isinstance(i[0], str):
+                try:
                     mass_water.append(float(i[0]))
-                else:
-                    logger.warning(f'В дневной температуре было пустое значение {i} - id_city = {id_city}')
+                except:
+                    logger.warning(f'В дневной температуре было пустое/некорректное значение {i} - id_city = {id_city}')
                     return False
         else:
             return False
@@ -205,10 +302,10 @@ class BaseDashboardData:
             night.sort(key = lambda s: s[1])
             mass_water = []
             for i in night:
-                if isinstance(i[0], str):
+                try:
                     mass_water.append(float(i[0]))
-                else:
-                    logger.warning(f'В ночной температуре было пустое значение {i} - id_city = {id_city}')
+                except:
+                    logger.warning(f'В ночной температуре было пустое/некорректное значение {i} - id_city = {id_city}')
                     return False
         else:
             return False
@@ -230,10 +327,10 @@ class BaseDashboardData:
             rainfall.sort(key = lambda s: s[1])
             mass_water = []
             for i in rainfall:
-                if isinstance(i[0], str):
+                try:
                     mass_water.append(float(i[0]))
-                else:
-                    logger.warning(f'В осадках было пустое значение {i} - id_city = {id_city}')
+                except:
+                    logger.warning(f'В осадках было пустое/некорректное значение {i} - id_city = {id_city}')
                     return False
         else:
             return False
@@ -255,10 +352,10 @@ class BaseDashboardData:
             water.sort(key = lambda s: s[1])
             mass_water = []
             for i in water:
-                if isinstance(i[0], str):
-                    mass_water.append(float(i[0]))
-                else:
-                    logger.warning(f'В температуре воды было пустое значение {i} - id_city = {id_city}')
+                try:
+                   mass_water.append(float(i[0]))
+                except:
+                    logger.warning(f'В температуре воды было пустое или некорректное значение {i} - id_city = {id_city}')
                     return False
         else:
             return False
