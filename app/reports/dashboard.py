@@ -9,12 +9,11 @@ from dash import Dash, html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 from flask import Flask
 
-from app.data.metric_codes import get_metric_code
 from app.data.database.models_repository import MetricValueRepository, RegionRepository
 from app.reports.plot import (
     Region_page_plot
 )
-
+from app.data.transform.prepare_data import Region_page_dashboard
 logger = logging.getLogger(__name__)
 
 
@@ -72,19 +71,18 @@ def register_callbacks(app_dash: Dash) -> None:
         entity_id = int(parts[3])
 
         # Только относительные KPI (те, что в METRIC_CODE_MAP)
-        metric_keys = list(get_metric_code.__self__.keys())  # словарь METRIC_CODE_MAP
+        #metric_keys = list(METRIC_IDS.keys())  # словарь METRIC_CODE_MAP
         records: Dict[str, Optional[float]] = {}
-
-        for key in metric_keys:
+        rpp = Region_page_dashboard()
+        for rus_name, code in rpp.METRIC_IDS.items():
             try:
-                code, rus_name = get_metric_code(key)
                 mvs = repo.get_info_metricvalue(id_metric=code, **{entity_field: entity_id})
                 if mvs:
                     records[rus_name] = float(mvs[-1].value)
                 else:
                     records[rus_name] = None
             except Exception as e:
-                logger.warning("Не удалось экспортировать %s: %s", key, e)
+                logger.warning("Не удалось экспортировать %s: %s", rus_name, code, e)
                 records[rus_name] = None
 
         df = pd.DataFrame([records])
@@ -123,6 +121,7 @@ def create_region_layout(region_id: int):
 
     # Таблица сегментов
     seg_table = rpp.make_segments_table(region_id)
+    weather_block = rpp.make_region_weather_block(region_id)  # <- добавили сюда
 
     return dbc.Container([
         dbc.Row(
@@ -141,6 +140,8 @@ def create_region_layout(region_id: int):
         dbc.Row(dbc.Col(muni, width=12), className="mb-4"),
         dbc.Row(dbc.Col(html.H4("Оценки сегментов туризма"), width=12), className="mt-4"),
         dbc.Row(dbc.Col(seg_table, width=12), className="mb-4"),
+        dbc.Row(dbc.Col(html.H4("Климат и погода региона"), width=12), className="mt-4"),
+        dbc.Row(dbc.Col(weather_block, width=12), className="mb-4"),
 
         dbc.Row([
             dbc.Col(dbc.Button("Скачать метрики в Excel", id="btn-download", color="primary"),

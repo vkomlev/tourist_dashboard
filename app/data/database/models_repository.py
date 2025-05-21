@@ -386,13 +386,13 @@ class MetricValueRepository(Database):
             q = q.filter(MetricValue.id_metric == id_metric)
         if id_region != 0:
             q = q.filter(MetricValue.id_region == id_region)
-        if 'id_city' != 0:
+        if id_city != 0:
             # Разница в том, что мы хотим именно IS NULL, а не проигнорировать None
             if id_city is None:
                 q = q.filter(MetricValue.id_city.is_(None))
             else:
                 q = q.filter(MetricValue.id_city == id_city)
-        if 'id_location' != 0:
+        if id_location != 0:
             if id_location is None:
                 q = q.filter(MetricValue.id_location.is_(None))
             else:

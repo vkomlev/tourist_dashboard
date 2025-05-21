@@ -8,10 +8,11 @@ import os
 
 from typing import Optional, Dict, Any
 
-from app.data.database import MetricValueRepository, CitiesRepository, SyncRepository
+from app.data.database import MetricValueRepository, CitiesRepository, SyncRepository, RegionRepository
 from app.models import Region, City
 from app.logging_config import logger
 from app.data.calc.base_calc import Region_calc
+
 
 
 class Main_page_dashboard:
@@ -91,9 +92,13 @@ class Weather_page_dashboard:
     """
     def __init__(self):
         self.mv = MetricValueRepository()
+        self.__weather_cache: Dict[int, Dict[str, pd.DataFrame]] = {'temp': {}, 'rainfall': {}, 'water': {}}
 
     def get_city_temp_day_night(self, id_city: int) -> pd.DataFrame:
         '''Получает данные для графика температуры дневной и ночной в городе'''
+        if id_city in self.__weather_cache.get('temp',{}):
+            return self.__weather_cache['temp'][id_city]
+        # Получаем данные о температуре воздуха в городе
         data = self.mv.get_city_weather(id_city=id_city, key_ratio=['day', 'night'])
         df = pd.DataFrame(data, columns=["month", 'day_t', 'night_t'])
         df['month'] = [i for i in range(1,13)]
@@ -125,10 +130,14 @@ class Weather_page_dashboard:
         else:
             return False
         df['night_t'] = mass_water
+        self.__weather_cache['temp'][id_city] = df
         return df
 
     def get_city_rainfall(self, id_city: int) -> pd.DataFrame:
         '''Получает данные для графика осадков в городе'''
+        if id_city in self.__weather_cache.get('rainfall',{}):
+            return self.__weather_cache['rainfall'][id_city]
+        # Получаем данные о температуре воздуха в городе
         data = self.mv.get_city_weather(id_city=id_city, key_ratio=['rainfall'])
         df = pd.DataFrame(data, columns=["month", 'rainfall'])
         df['month'] = [i for i in range(1,13)]
@@ -146,10 +155,14 @@ class Weather_page_dashboard:
         else:
             return False
         df['rainfall'] = mass_water
+        self.__weather_cache['rainfall'][id_city] = df
         return df
     
     def get_city_temp_water(self, id_city: int) -> pd.DataFrame:
         '''Получает данные для графика температуры воды в городе'''
+        if id_city in self.__weather_cache.get('water',{}):
+            return self.__weather_cache['water'][id_city]
+        # Получаем данные о температуре воды в городе
         data = self.mv.get_city_weather(id_city=id_city, key_ratio=['water'])
         df = pd.DataFrame(data, columns=["month", 'water'])
         df['month'] = [i for i in range(1,13)]
@@ -167,6 +180,7 @@ class Weather_page_dashboard:
         else:
             return False
         df['water'] = mass_water
+        self.__weather_cache['water'][id_city] = df
         return df
     
 class City_page_dashboard(Weather_page_dashboard):
@@ -208,6 +222,111 @@ class City_page_dashboard(Weather_page_dashboard):
 
 
 class Region_page_dashboard(City_page_dashboard):
+
+    def get_capital_city_id(self, id_region: int) -> Optional[int]:
+        """
+        Возвращает id_city для столицы региона.
+
+        Args:
+            id_region (int): Идентификатор региона.
+
+        Returns:
+            Optional[int]: Идентификатор столицы или None.
+        """
+        region_repo = RegionRepository()
+        region = region_repo.find_region_by_id(id_region)
+        if region and region.capital:
+            return region.capital
+        return None
+
+    def get_region_weather_data(self, id_region: int) -> Dict[str, Optional[pd.DataFrame]]:
+        """
+        Возвращает погодные данные (температуры, осадки, температура воды) по столице региона.
+        Отсутствующие метрики возвращает как None.
+
+        Args:
+            id_region (int): Идентификатор региона.
+
+        Returns:
+            Dict[str, Optional[pd.DataFrame]]: Словарь с DataFrame по погоде (может быть пустым).
+        """
+        id_city = self.get_capital_city_id(id_region)
+        if id_city is None:
+            return {}
+
+        temp = self.get_city_temp_day_night(id_city)
+        rainfall = self.get_city_rainfall(id_city)
+        water = self.get_city_temp_water(id_city)
+
+        return {
+            "temp": temp if isinstance(temp, pd.DataFrame) and not temp.empty else None,
+            "rainfall": rainfall if isinstance(rainfall, pd.DataFrame) and not rainfall.empty else None,
+            "water": water if isinstance(water, pd.DataFrame) and not water.empty else None
+        }
+
+
+    def get_region_weather_summary(self, id_region: int) -> Optional[Dict[str, Any]]:
+        """
+        Формирует summary по погоде для региона: самые теплые/холодные месяцы, осадки, сезон купания и пр.
+        Корректно обрабатывает отсутствие/разреженность данных.
+        """
+        weather_data = self.get_region_weather_data(id_region)
+        temp = weather_data.get("temp")
+        rainfall = weather_data.get("rainfall")
+        water = weather_data.get("water")
+
+        # Проверяем, что temp — DataFrame с данными по месяцам 1..12
+        if temp is None or temp.empty or 'month' not in temp.columns:
+            return None  # Без температуры нельзя собрать summary
+                                
+        # Валидируем значения месяцев
+        months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+        # Исправляем некорректные значения month и убираем дубликаты/NaN/None
+        temp = temp[temp['month'].apply(lambda x: isinstance(x, (int, float)) and 1 <= int(x) <= 12)].copy()
+        temp['month'] = temp['month'].astype(int)
+        temp['month_name'] = temp['month'].apply(lambda x: months[x - 1])
+
+        summary = {}
+        if not temp.empty:
+            warm = temp.nlargest(3, 'day_t')[['month_name', 'day_t']]
+            summary['warm'] = {row['month_name']: row['day_t'] for _, row in warm.iterrows()}
+            cold = temp.nsmallest(3, 'day_t')[['month_name', 'day_t']]
+            summary['cold'] = {row['month_name']: row['day_t'] for _, row in cold.iterrows()}
+            summary['t_min'] = float(temp['day_t'].min())
+            summary['t_max'] = float(temp['day_t'].max())
+            summary['t_mean'] = float(temp['day_t'].mean())
+        else:
+            summary['warm'] = {}
+            summary['cold'] = {}
+            summary['t_min'] = summary['t_max'] = summary['t_mean'] = None
+
+        # Аналогично для rainfall
+        if rainfall is not None and not rainfall.empty and 'month' in rainfall.columns and 'rainfall' in rainfall.columns:
+            rainfall = rainfall[rainfall['month'].apply(lambda x: isinstance(x, (int, float)) and 1 <= int(x) <= 12)].copy()
+            rainfall['month'] = rainfall['month'].astype(int)
+            rainfall['month_name'] = rainfall['month'].apply(lambda x: months[x - 1])
+            rain = rainfall.nlargest(3, 'rainfall')[['month_name', 'rainfall']]
+            summary['rainfall'] = {row['month_name']: row['rainfall'] for _, row in rain.iterrows()}
+        else:
+            summary['rainfall'] = {}
+
+        # Аналогично для воды
+        if water is not None and not water.empty and 'month' in water.columns and 'water' in water.columns:
+            water = water[water['month'].apply(lambda x: isinstance(x, (int, float)) and 1 <= int(x) <= 12)].copy()
+            water['month'] = water['month'].astype(int)
+            water['month_name'] = water['month'].apply(lambda x: months[x - 1])
+            warm_water = water.nlargest(3, 'water')[['month_name', 'water']]
+            summary['warm_water'] = {row['month_name']: row['water'] for _, row in warm_water.iterrows()}
+            swim = water[water['water'] > 18]
+            summary['swimming_season'] = [row['month_name'] for _, row in swim.iterrows()]
+        else:
+            summary['warm_water'] = {}
+            summary['swimming_season'] = []
+
+        return summary
+
+
+
     def get_region_tourist_flow_data(self, region_id):
         '''Получение данных о турпотоке в регионе'''
         db = MetricValueRepository()

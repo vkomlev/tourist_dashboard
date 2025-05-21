@@ -9,11 +9,11 @@ import dash_bootstrap_components as dbc
 from dash import Dash, html, dcc, Input, Output, State, dash_table
 import colorlover as cl
 from typing import List, Optional
+import pandas as pd
 
 from app.data.transform.prepare_data import Main_page_dashboard, Region_page_dashboard, Weather_page_dashboard, City_page_dashboard
-from app.data.database.models_repository import MetricValueRepository
 from app.logging_config import logger
-from app.data.database.models_repository import MetricValueRepository
+
 
 
 class Main_page_plot:
@@ -76,28 +76,91 @@ class Region_page_plot:
             return "warning"
         return "success"
 
-    def make_kpi_cards(self, region_id: int) -> List[dbc.Col]:
+    def make_kpi_cards(self, region_id: int) -> List[dbc.Row]:
         """
-        Формирует список карточек KPI для всех метрик из METRIC_CODE_MAP
-        с цветовой градацией оценки.
+        Формирует оптимизированный layout карточек KPI для региона.
         """
-        cards: List[dbc.Col] = []
-        for rus_name, code  in self.prepare.METRIC_IDS.items():
-            val = self.prepare.fetch_latest_metric_value( code, region_id)
+        prepare = self.prepare
+        METRIC_IDS = prepare.METRIC_IDS
+
+        # 1. Главная метрика — Комплексная оценка (282)
+        main_metric_key = 'Комплексная оценка развития туризма'
+        main_metric_id = METRIC_IDS[main_metric_key]
+        main_value = prepare.fetch_latest_metric_value(main_metric_id, region_id)
+        main_display = f"{main_value:.2f}" if isinstance(main_value, (int, float)) else "—"
+        main_color = self._choose_card_color(main_value)
+        main_card = dbc.Card(
+            [
+                dbc.CardHeader(main_metric_key, className="text-white fs-5"),
+                dbc.CardBody(html.H2(main_display, className="card-title text-white fw-bold"), className="text-center"),
+            ],
+            color=main_color,
+            inverse=True,
+            className="mb-3 shadow",
+            style={"minHeight": "140px", "fontSize": "1.8rem"}  # Можно увеличить minHeight/fontSize
+        )
+
+        # 2. Три метрики по инфраструктуре
+        infra_metrics = [
+            ('Средняя оценка отелей и других мест размещения', 218),
+            ('Количество отелей и других мест размещения', 240),
+            ('Количество кафе, ресторанов и пр. мест питания', 241)
+        ]
+        infra_cards = []
+        for rus_name, code in infra_metrics:
+            val = prepare.fetch_latest_metric_value(code, region_id)
             display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
             color = self._choose_card_color(val)
-
-            card = dbc.Card(
-                [
-                    dbc.CardHeader(rus_name, className="text-white"),
-                    dbc.CardBody(html.H4(display, className="card-title text-white")),
-                ],
-                color=color,
-                inverse=True,  # делает фон карточки цветным, текст светлым
-                className="mb-3 shadow-sm",
+            infra_cards.append(
+                dbc.Card(
+                    [
+                        dbc.CardHeader(rus_name, className="text-white"),
+                        dbc.CardBody(html.H4(display, className="card-title text-white")),
+                    ],
+                    color=color,
+                    inverse=True,
+                    className="mb-3 shadow-sm",
+                    style={"minHeight": "110px"}
+                )
             )
-            cards.append(dbc.Col(card, xs=12, sm=6, md=4, lg=3))
-        return cards
+
+        # 3. Остальные метрики
+        # Исключаем главную и инфраструктурные из общего списка
+        exclude_keys = [main_metric_key] + [m[0] for m in infra_metrics]
+        other_cards = []
+        for rus_name, code in METRIC_IDS.items():
+            if rus_name in exclude_keys:
+                continue
+            val = prepare.fetch_latest_metric_value(code, region_id)
+            display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
+            color = self._choose_card_color(val)
+            other_cards.append(
+                dbc.Card(
+                    [
+                        dbc.CardHeader(rus_name, className="text-white"),
+                        dbc.CardBody(html.H4(display, className="card-title text-white")),
+                    ],
+                    color=color,
+                    inverse=True,
+                    className="mb-3 shadow-sm",
+                    style={"minHeight": "110px"}
+                )
+            )
+
+        # Сборка финального layout
+        result = [
+            dbc.Row(dbc.Col(main_card, width={"size": 6, "offset": 3}), className="mb-3"),
+            dbc.Row([dbc.Col(card, md=4) for card in infra_cards], className="mb-3"),
+        ]
+
+        # Разбиваем остальные карточки по 3–4 в ряд
+        cols_in_row = 4
+        for i in range(0, len(other_cards), cols_in_row):
+            row = dbc.Row([dbc.Col(card, md=3) for card in other_cards[i:i+cols_in_row]], className="mb-3")
+            result.append(row)
+
+        return result
+
 
 
     def flow_graph_with_year_selector(self, region_id: int) -> html.Div:
@@ -302,6 +365,144 @@ class Region_page_plot:
             style_data_conditional=style_cond,
             page_action='none',
             style_table={'maxHeight': '300px', 'overflowY': 'auto'},
+        )
+
+    def plot_region_temperature(self, temp: pd.DataFrame, water: Optional[pd.DataFrame] = None) -> go.Figure:
+        """
+        Строит график температур по месяцам.
+
+        Args:
+            temp (pd.DataFrame): DataFrame с дневной и ночной температурой.
+            water (Optional[pd.DataFrame]): DataFrame с температурой воды.
+
+        Returns:
+            go.Figure: Plotly-график.
+        """
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=temp['month'], y=temp['day_t'],
+            mode='lines+markers', name='Днём', line=dict(color='orange')
+        ))
+        fig.add_trace(go.Scatter(
+            x=temp['month'], y=temp['night_t'],
+            mode='lines+markers', name='Ночью', line=dict(color='blue')
+        ))
+        if water is not None and not water.empty:
+            fig.add_trace(go.Scatter(
+                x=water['month'], y=water['water'],
+                mode='lines+markers', name='Вода', line=dict(color='cyan')
+            ))
+        fig.update_layout(
+            title="Температура по месяцам",
+            xaxis_title="Месяц",
+            yaxis_title="Температура (°C)",
+            xaxis=dict(tickmode='array', tickvals=list(range(1, 13)), ticktext=[
+                'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']),
+            legend=dict(orientation='h'),
+            margin=dict(l=10, r=10, t=30, b=10)
+        )
+        return fig
+
+    def plot_region_rainfall(self, rainfall: pd.DataFrame) -> go.Figure:
+        """
+        Строит график осадков по месяцам.
+
+        Args:
+            rainfall (pd.DataFrame): DataFrame с осадками.
+
+        Returns:
+            go.Figure: Plotly-график.
+        """
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=rainfall['month'],
+            y=rainfall['rainfall'],
+            name='Осадки',
+            marker_color='blue'
+        ))
+        fig.update_layout(
+            title="Осадки по месяцам",
+            xaxis_title="Месяц",
+            yaxis_title="Осадки (мм)",
+            xaxis=dict(tickmode='array', tickvals=list(range(1, 13)), ticktext=[
+                'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']),
+            margin=dict(l=10, r=10, t=30, b=10)
+        )
+        return fig
+
+    def make_region_weather_summary_card(self, summary: dict) -> dbc.Card:
+        """
+        Формирует информационную карточку с саммари по погоде.
+
+        Args:
+            summary (dict): Саммари, возвращённое get_region_weather_summary.
+
+        Returns:
+            dbc.Card: Карточка Dash Bootstrap.
+        """
+        if not summary:
+            return dbc.Card(
+                dbc.CardBody("Нет данных о погоде для региона."),
+                color="secondary"
+            )
+
+        # Форматирование сезонов для вывода
+        swim_str = ', '.join(summary['swimming_season']) if summary['swimming_season'] else "—"
+        return dbc.Card([
+            dbc.CardHeader("Климат: основные показатели"),
+            dbc.CardBody([
+                html.P(f"Самые теплые месяцы: {', '.join(f'{k} ({v:.1f}°C)' for k, v in summary['warm'].items())}"),
+                html.P(f"Самые холодные месяцы: {', '.join(f'{k} ({v:.1f}°C)' for k, v in summary['cold'].items())}"),
+                html.P(f"Дождливые месяцы: {', '.join(f'{k} ({v:.0f} мм)' for k, v in summary['rainfall'].items())}"),
+                html.P(f"Сезон для купания: {swim_str}"),
+                html.P(f"Минимум: {summary['t_min']:.1f}°C, максимум: {summary['t_max']:.1f}°C, среднегодовая: {summary['t_mean']:.1f}°C")
+            ])
+        ], color="info", outline=True)
+
+    def make_region_weather_block(self, region_id: int) -> dbc.Container:
+        """
+        Комплексный блок с погодными графиками и summary для региона.
+        Если какой-то тип данных отсутствует, он не отображается.
+        """
+        data_prep = Region_page_dashboard()
+        weather_data = data_prep.get_region_weather_data(region_id)
+        temp = weather_data.get('temp')
+        rainfall = weather_data.get('rainfall')
+        water = weather_data.get('water')
+        summary = data_prep.get_region_weather_summary(region_id)
+
+        # Проверка на отсутствие всех данных
+        has_data = any([
+            (df is not None and not df.empty)
+            for df in (temp, rainfall, water)
+        ])
+        if not has_data:
+            return dbc.Container(
+                dbc.Alert("Нет данных о погоде для региона.", color="secondary"),
+                className="mb-4"
+            )
+
+        blocks = []
+        if temp is not None and not temp.empty :
+            temp_fig = self.plot_region_temperature(
+                weather_data['temp'],
+                weather_data.get('water')  # water может быть None
+            )
+            blocks.append(dbc.Col(dcc.Graph(figure=temp_fig), md=8))
+        if summary:
+            summary_card = self.make_region_weather_summary_card(summary)
+            blocks.append(dbc.Col(summary_card, md=4))
+        row_temp = dbc.Row(blocks, className="mb-2") if blocks else None
+
+        # График осадков, если есть данные
+        rain_row = None
+        if weather_data.get('rainfall') is not None:
+            rain_fig = self.plot_region_rainfall(weather_data['rainfall'])
+            rain_row = dbc.Row([dbc.Col(dcc.Graph(figure=rain_fig), md=12)])
+
+        return dbc.Container(
+            [row_temp, rain_row] if rain_row else [row_temp],
+            className="mb-4"
         )
 
 
