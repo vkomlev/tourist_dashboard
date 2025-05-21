@@ -9,11 +9,18 @@ from dash import Dash, html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 from flask import Flask
 
-from app.data.database.models_repository import MetricValueRepository, RegionRepository
-from app.reports.plot import (
-    Region_page_plot
+from app.data.database.models_repository import (
+    MetricValueRepository, 
+    RegionRepository
 )
-from app.data.transform.prepare_data import Region_page_dashboard
+from app.reports.plot import (
+    RegionPagePlot,
+    BaseDashboardPlot
+)
+from app.data.transform.prepare_data import (
+    RegionDashboardData,
+    CityDashboardData
+)
 logger = logging.getLogger(__name__)
 
 
@@ -44,54 +51,55 @@ def register_callbacks(app_dash: Dash) -> None:
     )
     def display_page(pathname: str):
         parts = pathname.rstrip("/").split("/")
-        if len(parts) >= 4 and parts[2] == "region":
-            try:
-                region_id = int(parts[3])
-                return create_region_layout(region_id)
-            except ValueError as e:
-                logger.error(f"Ошибка значения при формировании страницы : {e}")
-                return page_not_found()
-        logger.error(f"Ошибка значения при формировании страницы : {e}")
+        if len(parts) >= 4:
+            if parts[2] == "region":
+                try:
+                    region_id = int(parts[3])
+                    return create_region_layout(region_id)
+                except ValueError as e:
+                    logger.error(f"Ошибка значения при формировании страницы региона: {e}")
+                    return page_not_found()
+            elif parts[2] == "city":
+                try:
+                    city_id = int(parts[3])
+                    return create_city_layout(city_id)
+                except ValueError as e:
+                    logger.error(f"Ошибка значения при формировании страницы города: {e}")
+                    return page_not_found()
         return page_not_found()
 
+
     @app_dash.callback(
-        Output("download-dataframe-xlsx", "data"),
-        Input("btn-download", "n_clicks"),
-        State("url", "pathname"),
-        prevent_initial_call=True,
-    )
+    Output("download-dataframe-xlsx", "data"),
+    Input("btn-download", "n_clicks"),
+    State("url", "pathname"),
+    prevent_initial_call=True,
+)
     def download_metrics(n_clicks: int, pathname: str):
-        """
-        Формирует и отдает Excel-файл с последними KPI-метриками региона.
-        """
         buffer = io.BytesIO()
-        repo = MetricValueRepository()
         parts = pathname.rstrip("/").split("/")
-        entity_field = f"id_{parts[2]}"
+        entity_type = parts[2]
         entity_id = int(parts[3])
 
-        # Только относительные KPI (те, что в METRIC_CODE_MAP)
-        #metric_keys = list(METRIC_IDS.keys())  # словарь METRIC_CODE_MAP
-        records: Dict[str, Optional[float]] = {}
-        rpp = Region_page_dashboard()
-        for rus_name, code in rpp.METRIC_IDS.items():
-            try:
-                mvs = repo.get_info_metricvalue(id_metric=code, **{entity_field: entity_id})
-                if mvs:
-                    records[rus_name] = float(mvs[-1].value)
-                else:
-                    records[rus_name] = None
-            except Exception as e:
-                logger.warning("Не удалось экспортировать %s: %s", rus_name, code, e)
-                records[rus_name] = None
+        # Универсальный сборщик
+        if entity_type == "region":
+            data_prep = RegionDashboardData()
+            metrics = data_prep.get_kpi_metrics(id_region=entity_id)
+        elif entity_type == "city":
+            data_prep = CityDashboardData()
+            metrics = data_prep.get_kpi_metrics(id_city=entity_id)
+        else:
+            return None
 
-        df = pd.DataFrame([records])
+        df = pd.DataFrame([metrics])
         with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
             df.to_excel(writer, index=False, sheet_name="Metrics")
         buffer.seek(0)
-        filename = f"{parts[2]}_{entity_id}_metrics.xlsx"
+        filename = f"{entity_type}_{entity_id}_metrics.xlsx"
         return dcc.send_bytes(buffer.read(), filename)
-    rpp = Region_page_plot()
+    
+    region_data = RegionDashboardData()
+    rpp = RegionPagePlot(region_data)
     rpp.register_graph_callbacks(app_dash)
 
 
@@ -106,12 +114,13 @@ def create_region_layout(region_id: int):
     Собирает KPI, графики абсолютных значений и кнопку экспорта.
     """
     region_repo = RegionRepository()
-    rpp = Region_page_plot()
+    region_data = RegionDashboardData()
+    rpp = RegionPagePlot(region_data)
     # Пытаемся получить экземпляр региона
     region = region_repo.find_region_by_id(region_id)
     region_name = region.region_name if region else f"#{region_id}"
     # KPI
-    cards = rpp.make_kpi_cards(region_id)
+    cards = rpp.make_kpi_cards(id_region = region_id)
 
     # Графики
     flow_block = rpp.flow_graph_with_year_selector(region_id)
@@ -120,8 +129,8 @@ def create_region_layout(region_id: int):
     muni = rpp.make_municipalities_map(region_id)
 
     # Таблица сегментов
-    seg_table = rpp.make_segments_table(region_id)
-    weather_block = rpp.make_region_weather_block(region_id)  # <- добавили сюда
+    seg_table = rpp.make_segments_table(id_region = region_id)
+    weather_block = rpp.make_weather_block(id_region = region_id)  # <- добавили сюда
 
     return dbc.Container([
         dbc.Row(
@@ -143,6 +152,46 @@ def create_region_layout(region_id: int):
         dbc.Row(dbc.Col(html.H4("Климат и погода региона"), width=12), className="mt-4"),
         dbc.Row(dbc.Col(weather_block, width=12), className="mb-4"),
 
+        dbc.Row([
+            dbc.Col(dbc.Button("Скачать метрики в Excel", id="btn-download", color="primary"),
+                    width="auto"),
+            dcc.Download(id="download-dataframe-xlsx")
+        ], justify="start"),
+    ], fluid=True)
+
+def create_city_layout(city_id: int):
+    """
+    Компоновка дашборда города.
+    """
+    from app.data.database.models_repository import CitiesRepository
+    from app.models import City
+
+    # Получаем данные о городе
+    city_repo = CitiesRepository()
+    city = city_repo.get_by_fields(model = City, id_city = city_id)[0]
+    city_name = city.city_name if city else f"#{city_id}"
+
+    # Подготавливаем универсальные классы данных и визуализации
+    city_data = CityDashboardData()
+    plot = BaseDashboardPlot(city_data)
+
+    # KPI карточки
+    cards = plot.make_kpi_cards(id_city=city_id)
+    # Таблица сегментов
+    seg_table = plot.make_segments_table(id_city=city_id)
+    # Погода
+    weather_block = plot.make_weather_block(id_city=city_id)
+
+    return dbc.Container([
+        dbc.Row(
+            dbc.Col(html.H2(f"Дашборд города: {city_name}"), width=12),
+            className="my-3"
+        ),
+        dbc.Row(cards, className="mb-4"),
+        dbc.Row(dbc.Col(html.H4("Оценки сегментов туризма"), width=12), className="mt-4"),
+        dbc.Row(dbc.Col(seg_table, width=12), className="mb-4"),
+        dbc.Row(dbc.Col(html.H4("Климат и погода города"), width=12), className="mt-4"),
+        dbc.Row(dbc.Col(weather_block, width=12), className="mb-4"),
         dbc.Row([
             dbc.Col(dbc.Button("Скачать метрики в Excel", id="btn-download", color="primary"),
                     width="auto"),
