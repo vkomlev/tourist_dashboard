@@ -8,10 +8,16 @@ import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
 from dash import Dash, html, dcc, Input, Output, State, dash_table, MATCH
 import colorlover as cl
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 import pandas as pd
 
-from app.data.transform.prepare_data import Main_page_dashboard, BaseDashboardData, RegionDashboardData, CityDashboardData
+from app.data.transform.prepare_data import (
+    Main_page_dashboard, 
+    BaseDashboardData, 
+    RegionDashboardData, 
+    CityDashboardData, 
+    SegmentMapping,
+)
 from app.logging_config import logger
 
 
@@ -552,4 +558,200 @@ class SegmentDashboardPlot (BaseDashboardPlot):
             dbc.Row(dbc.Col(main_card, width={"size": 6, "offset": 3}), className="mb-3"),
             dbc.Row([dbc.Col(card, md=4) for card in other_cards], className="mb-3"),
         ]
+
+    @staticmethod
+    def get_location_types_options(segment: str) -> List[Dict[str, str]]:
+        """Возвращает список опций для мультивыбора типов локаций lvl1."""
+        types = SegmentMapping.get_location_types_for_segment(segment)["lvl1"]
+        return [{"label": t, "value": t} for t in types]
+
+    @staticmethod
+    def make_layout(
+        segment: str,
+        initial_rating_range: Tuple[float, float] = (1.0, 5.0),
+        region_id: Optional[int] = None,
+        city_id: Optional[int] = None
+    ) -> html.Div:
+        """
+        Основной layout с фильтрами, таблицей и картой.
+        """
+        # Опции типов локаций
+        location_types_options = SegmentDashboardPlot.get_location_types_options(segment)
+
+        return html.Div([
+            dbc.Row([
+                dbc.Col([
+                    html.Label("Диапазон главной оценки:"),
+                    dcc.RangeSlider(
+                        id="main-rating-slider",
+                        min=1, max=5, step=0.01,
+                        value=list(initial_rating_range),
+                        marks={i: str(i) for i in range(1, 6)},
+                        tooltip={"placement": "bottom", "always_visible": False}
+                    ),
+                ], md=6),
+                dbc.Col([
+                    html.Label("Тип локаций:"),
+                    dcc.Dropdown(
+                        id="location-types-dropdown",
+                        options=location_types_options,
+                        value=[opt["value"] for opt in location_types_options],
+                        multi=True,
+                        placeholder="Выберите типы локаций"
+                    ),
+                ], md=6),
+            ], className="mb-2"),
+            dbc.Row([
+                dbc.Col([
+                    dash_table.DataTable(
+                        id="locations-table",
+                        columns=[
+                            {"name": "Название", "id": "Название"},
+                            {"name": "Главная оценка", "id": "Главная оценка", "type": "numeric"},
+                            {"name": "Отзывы Яндекс", "id": "Отзывы Яндекс", "type": "numeric"},
+                            {"name": "Средняя Яндекс", "id": "Средняя Яндекс", "type": "numeric"},
+                            {"name": "Оценка количества", "id": "Оценка количества", "type": "numeric"},
+                        ],
+                        page_current=0,
+                        page_size=10,
+                        sort_action="custom",
+                        sort_mode="single",
+                        sort_by=[{"column_id": "Главная оценка", "direction": "desc"}],
+                        filter_action="none",
+                        style_table={"overflowX": "auto"},
+                        style_cell={"fontSize": "1rem", "textAlign": "center"},
+                        style_header={"backgroundColor": "#f8f9fa", "fontWeight": "bold"},
+                        style_data={"backgroundColor": "#fff"},
+                    )
+                ], md=12)
+            ], className="mb-4"),
+            dbc.Row([
+                dbc.Col([
+                    dcc.Loading(
+                        dcc.Graph(id="locations-map"),
+                        type="circle"
+                    )
+                ], md=12)
+            ])
+        ])
+
+    @staticmethod
+    def register_callbacks(app):
+        """
+        Регистрирует один коллбэк для обновления таблицы и карты
+        в layout, созданном через make_layout().
+        """
+        @app.callback(
+            Output("locations-table", "data"),
+            Output("locations-table", "page_count"),
+            Output("locations-map", "figure"),
+            Input("main-rating-slider", "value"),
+            Input("location-types-dropdown", "value"),
+            Input("locations-table", "page_current"),
+            Input("locations-table", "page_size"),
+            Input("locations-table", "sort_by"),
+            Input("url", "pathname"),   # <-- станем читать сегмент и id из URL
+        )
+        def update_table_and_map(
+            rating_range: List[float],
+            selected_types: List[str],
+            page_current: int,
+            page_size: int,
+            sort_by: List[Dict[str, str]],
+            pathname: str
+        ):
+            logger.info(
+                f"[segment] Фильтры: рейтинг={rating_range}, типы={selected_types}, "
+                f"страница={page_current}, сортировка={sort_by}, url={pathname}"
+            )
+
+            # 1) Парсим URL: /dashboard/segment/{entity_type}/{prefix}/{id}
+            parts = pathname.rstrip("/").split("/")
+            if len(parts) < 6 or parts[2] != "segment":
+                # некорректный URL — возвращаем пустые данные
+                return [], 0, go.Figure()
+            entity_type, prefix, entity_id = parts[3], parts[4], int(parts[5])
+
+            # 2) Определяем segment_key по prefix
+            patterns = BaseDashboardData.get_segment_patterns()
+            segment_key = None
+            for key, url_pref in patterns:
+                if url_pref == prefix:
+                    segment_key = key
+                    break
+            if segment_key is None:
+                return [], 0, go.Figure()
+
+            # 3) Сортировка
+            sort_column = "Главная оценка"
+            sort_order = "desc"
+            if sort_by:
+                sort_column = sort_by[0]["column_id"]
+                sort_order  = sort_by[0]["direction"]
+
+            # 4) Фильтруем region_id / city_id
+            region_id = entity_id if entity_type == "region" else None
+            city_id   = entity_id if entity_type == "city"  else None
+
+            # 5) Готовим данные
+            result = BaseDashboardData.prepare_location_data(
+                segment=segment_key,
+                rating_range=(rating_range[0], rating_range[1]),
+                location_types=selected_types,
+                region_id=region_id,
+                city_id=city_id,
+                page=page_current + 1,
+                page_size=page_size,
+                sort_by=sort_column,
+                sort_order=sort_order
+            )
+            table_data = result["data"]
+            total_rows = result["total"]
+            page_count = (total_rows + page_size - 1) // page_size if page_size else 1
+
+            # 6) Строим mapbox
+            if table_data:
+                lats   = [r["lat"] for r in table_data if r["lat"] is not None]
+                lons   = [r["lon"] for r in table_data if r["lon"] is not None]
+                scores = [r["Главная оценка"] for r in table_data]
+                hover  = [
+                    f"<b>{r['Название']}</b><br>"
+                    f"Главная: {r['Главная оценка']}<br>"
+                    f"Яндекс ср.: {r['Средняя Яндекс']}<br>"
+                    f"Отзывы: {r['Отзывы Яндекс']}"
+                    for r in table_data
+                ]
+                fig = go.Figure(go.Scattermapbox(
+                    lat=lats, lon=lons, mode="markers",
+                    marker=dict(
+                        size=12,
+                        color=scores,
+                        colorscale="YlGnBu",
+                        cmin=1, cmax=5,
+                        colorbar=dict(title="Главная оценка")
+                    ),
+                    text=hover, hoverinfo="text"
+                ))
+                fig.update_layout(
+                    mapbox=dict(
+                        style="open-street-map",
+                        center=dict(
+                            lat=sum(lats)/len(lats) if lats else 55,
+                            lon=sum(lons)/len(lons) if lons else 37
+                        ),
+                        zoom=7 if lats and lons else 3
+                    ),
+                    margin={"l":0,"r":0,"t":0,"b":0},
+                    height=480
+                )
+            else:
+                # пустая карта
+                fig = go.Figure()
+                fig.update_layout(
+                    mapbox=dict(style="open-street-map", center=dict(lat=55, lon=37), zoom=3),
+                    margin={"l":0,"r":0,"t":0,"b":0},
+                    height=480
+                )
+
+            return table_data, page_count, fig
  

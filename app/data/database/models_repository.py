@@ -454,7 +454,42 @@ class MetricValueRepository(Database):
                         MetricValue.location_types.overlap(types))
             return q.all()
         finally:
-            self.session.close()              
+            self.session.close()
+
+    @manage_session
+    def get_locations_from_metric_list(
+        self,
+        types: List[str],
+        id_metrics: List[int],
+        id_region: Optional[int] = None,
+        id_city: Optional[int] = None
+    ) -> List[MetricValue]:
+        """
+        Получает значения метрик для локаций указанных типов и метрик (OR по метрикам).
+
+        Args:
+            types (List[str]): Список типов локаций.
+            id_metrics (List[int]): Список идентификаторов метрик.
+            id_region (Optional[int]): Идентификатор региона.
+            id_city (Optional[int]): Идентификатор города.
+
+        Returns:
+            List[MetricValue]: Список объектов MetricValue, соответствующих условиям.
+        """
+        try:
+            q = self.session.query(MetricValue)
+            if id_region:
+                q = q.filter(MetricValue.id_region == id_region)
+            if id_city:
+                q = q.filter(MetricValue.id_city == id_city)
+            q = q.filter(MetricValue.location_types.op("&&")(types))
+            if id_metrics:
+                q = q.filter(MetricValue.id_metric.in_(id_metrics))
+            result = q.all()
+            logger.debug(f"Найдено {len(result)} записей MetricValue по типам {types}, метрикам {id_metrics}, региону {id_region}, городу {id_city}")
+            return result
+        finally:
+            self.session.close()             
        
 
     
@@ -660,7 +695,7 @@ class LocationsRepository(JSONRepository):
                 q = q.filter(Location.id_region == id_region)
             if id_city:
                 q = q.filter(Location.id_city == id_city)
-            q = q.filter(Location.location_types.overlap(types))
+            q = q.filter(Location.location_types.op("&&")(types))
             return q.all()
         finally:
             self.session.close()

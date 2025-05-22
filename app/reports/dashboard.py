@@ -114,8 +114,7 @@ def register_callbacks(app_dash: Dash) -> None:
     region_data = RegionDashboardData()
     rpp = RegionPagePlot(region_data)
     rpp.register_graph_callbacks(app_dash)
-
-
+    SegmentDashboardPlot.register_callbacks(app_dash)
 def page_not_found():
     """Заглушка для нераспознанных URL."""
     return dbc.Alert("Страница не найдена", color="danger")
@@ -249,10 +248,17 @@ def create_segment_dashboard(entity_type: str, entity_id: int, segment_key: str)
         id_region=entity_id if entity_type == "region" else None,
         id_city=entity_id if entity_type == "city" else None
     )
+    locations_block = SegmentDashboardPlot.make_layout(
+        segment=segment_key,
+        initial_rating_range=(1.0, 5.0),
+        region_id=(entity_id if entity_type == "region" else None),
+        city_id=(entity_id if entity_type == "city"  else None)
+    )
 
     return dbc.Container([
-        dbc.Row(
-            dbc.Col(html.H2(title), width=12), className="my-3"),
-        *kpi_cards
+        dbc.Row(dbc.Col(html.H2(title), width=12), className="my-3"),
+        *kpi_cards,
+        dbc.Row(dbc.Col(html.Hr(), width=12), className="my-4"),
+        dbc.Row(dbc.Col(locations_block, width=12)),
     ], fluid=True)
 

@@ -243,7 +243,7 @@ class Location(Base):
         ForeignKey('location_type.id_location_type', ondelete='RESTRICT'),
         doc='Идентификатор типа локации',
     )
-    location_types  = Column(ARRAY(Text), nullable=True)
+    location_types  = Column(ARRAY(Text), nullable=True, doc = 'Список типов локации')
 
     city: Optional['City'] = relationship(
         'City',
@@ -347,7 +347,7 @@ class MetricValue(Base):
         ForeignKey('locations.id_location', ondelete='CASCADE'),
         doc='Идентификатор локации',
     )
-    location_types  = Column(ARRAY(Text), nullable=True)
+    location_types  = Column(ARRAY(Text), nullable=True, doc = 'Список типов локации')
     create_time: Mapped[Optional[datetime.datetime]] = Column(DateTime(True), server_default=text('now()'))
     modify_time: Mapped[Optional[datetime.datetime]] = Column(DateTime(True), server_default=text('now()'))
     type_location: Mapped[Optional[str]] = Column(String)
