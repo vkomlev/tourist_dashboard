@@ -89,7 +89,7 @@ class BaseDashboardData:
     # Коды метрик, метки, url-префиксы для сегментов туризма
     SEGMENTS: ClassVar[Dict[str, Dict[str, Any]]] = {
         "main": {
-            "label": "Туризм в общем",
+            "label": "Главная инфраструктура",
             "url_prefix": "main",
             "codes": [282, 218, 240, 241, 222]
         },

@@ -217,17 +217,31 @@ def create_segment_dashboard(entity_type: str, entity_id: int, segment_key: str)
     """
     Формирует страницу дашборда по сегменту туризма для города или региона.
     """
-    # Выбор класса данных
+    # Получаем данные сегмента
     if entity_type == "region":
         data_prep = RegionDashboardData()
+        # Получаем название региона
+        from app.data.database.models_repository import RegionRepository
+        region = RegionRepository().find_region_by_id(entity_id)
+        place_name = region.region_name if region else f"#{entity_id}"
     elif entity_type == "city":
         data_prep = CityDashboardData()
+        from app.data.database.models_repository import CitiesRepository
+        from app.models import City
+        city_list = CitiesRepository().get_by_fields(model=City, id_city=entity_id)
+        city = city_list[0] if city_list else None
+        place_name = city.city_name if city else f"#{entity_id}"
     else:
         return dbc.Alert("Неизвестный тип", color="danger")
 
     plot = SegmentDashboardPlot(data_prep)
     segment_config = data_prep.SEGMENTS.get(segment_key)
     segment_label = segment_config["label"] if segment_config else segment_key
+    if segment_label != 'Главная инфраструктура':
+        segment_label += ' туризм'
+
+    # Красивый заголовок
+    title = f'Дашборд сегмента: "{segment_label}". {place_name}'
 
     # Карточки KPI
     kpi_cards = plot.make_segment_kpi_cards(
@@ -238,9 +252,7 @@ def create_segment_dashboard(entity_type: str, entity_id: int, segment_key: str)
 
     return dbc.Container([
         dbc.Row(
-            dbc.Col(html.H2(f"Дашборд сегмента: {segment_label} ({'регион' if entity_type == 'region' else 'город'})"),
-                    width=12), className="my-3"
-        ),
+            dbc.Col(html.H2(title), width=12), className="my-3"),
         *kpi_cards
     ], fluid=True)
 
