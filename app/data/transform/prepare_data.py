@@ -5,15 +5,110 @@ from geoalchemy2.shape import to_shape
 from shapely.geometry import Point
 import json
 import os
+from pathlib import Path
 
 from typing import Optional, Dict, Any, List, Tuple, ClassVar
 
-from app.data.database import MetricValueRepository, CitiesRepository, SyncRepository, RegionRepository
+from app.data.database import MetricValueRepository, CitiesRepository, SyncRepository, RegionRepository, LocationsRepository
 from app.models import Region, City
 from app.logging_config import logger
 from app.data.calc.base_calc import Region_calc
 
 
+class SegmentMapping:
+    """
+    Класс для загрузки и обработки сегментных маппингов из segments.json.
+    """
+
+    SEGMENTS_PATH: ClassVar[Path] = Path("app/files/segments.json")
+
+    # Ключи внутренних сегментов соответствуют ключам из основной структуры сегментов
+    SEGMENT_KEY_MAP: ClassVar[Dict[str, str]] = {
+        "beach": "beach",
+        "wellness": "health",
+        "business": "business",
+        "pilgrimage": "pilgrimage",
+        "cognitive": "educational",
+        "family": "family",
+        "sport": "sports",
+        "eco": "eco_hiking",
+        "main": "complex",
+    }
+
+    _mapping_cache: ClassVar[Optional[Dict[str, Any]]] = None
+
+    @classmethod
+    def _load_segments_json(cls) -> Dict[str, Any]:
+        """
+        Загружает и кэширует segments.json.
+        """
+        if cls._mapping_cache is not None:
+            logger.debug("Используем кэш для segments.json")
+            return cls._mapping_cache
+
+        try:
+            with cls.SEGMENTS_PATH.open(encoding="utf-8") as f:
+                cls._mapping_cache = json.load(f)
+            logger.info(f"Файл segments.json успешно загружен из {cls.SEGMENTS_PATH}")
+            return cls._mapping_cache
+        except FileNotFoundError:
+            logger.error(f"Файл {cls.SEGMENTS_PATH} не найден!")
+            raise
+        except Exception as exc:
+            logger.error(f"Ошибка загрузки файла segments.json: {exc}")
+            raise
+
+    @classmethod
+    def get_location_types_for_segment(
+        cls,
+        segment_key: str
+    ) -> Dict[str, List[str]]:
+        """
+        Возвращает типы локаций (основные - lvl1, вспомогательные - lvl2) для сегмента.
+
+        :param segment_key: ключ сегмента (например, 'business', 'beach' и т.д.)
+        :return: {"lvl1": [названия основных типов], "lvl2": [названия дополнительных типов]}
+        """
+        mapping = cls._load_segments_json()
+
+        # Приводим ключ к структуре segments.json
+        json_key = cls.SEGMENT_KEY_MAP.get(segment_key, segment_key)
+
+        if json_key not in mapping:
+            logger.warning(f"Сегмент {segment_key} (json: {json_key}) отсутствует в файле segments.json")
+            return {"lvl1": [], "lvl2": []}
+
+        lvl1 = list(mapping[json_key].get("lvl1", {}).keys())
+        lvl2 = mapping[json_key].get("lvl2", [])
+
+        logger.debug(f"Для сегмента '{segment_key}' (json: {json_key}) найдено основных: {len(lvl1)}, вспомогательных: {len(lvl2)}")
+        return {"lvl1": lvl1, "lvl2": lvl2}
+
+    @classmethod
+    def get_lvl1_prompt(
+        cls,
+        segment_key: str,
+        location_type: str
+    ) -> Optional[str]:
+        """
+        Получить текст промта для основного типа локации (lvl1) в сегменте.
+
+        :param segment_key: ключ сегмента (например, 'business', 'beach' и т.д.)
+        :param location_type: название типа локации (например, 'Пляж')
+        :return: текст промта (str) или None
+        """
+        mapping = cls._load_segments_json()
+        json_key = cls.SEGMENT_KEY_MAP.get(segment_key, segment_key)
+        lvl1 = mapping.get(json_key, {}).get("lvl1", {})
+        return lvl1.get(location_type)
+
+    @classmethod
+    def get_all_segments(cls) -> List[str]:
+        """
+        Получить список всех ключей сегментов из segments.json.
+        """
+        mapping = cls._load_segments_json()
+        return list(mapping.keys())
 
 class Main_page_dashboard:
     @staticmethod
@@ -89,7 +184,7 @@ class BaseDashboardData:
     # Коды метрик, метки, url-префиксы для сегментов туризма
     SEGMENTS: ClassVar[Dict[str, Dict[str, Any]]] = {
         "main": {
-            "label": "Туризм в общем",
+            "label": "Главная инфраструктура",
             "url_prefix": "main",
             "codes": [282, 218, 240, 241, 222]
         },
@@ -494,6 +589,148 @@ class BaseDashboardData:
             result[rus_name] = val
         return result
     
+    @classmethod
+    def prepare_location_data(
+        cls,
+        segment: str,
+        rating_range: Tuple[float, float],
+        location_types: Optional[List[str]] = None,
+        region_id: Optional[int] = None,
+        city_id: Optional[int] = None,
+        page: int = 1,
+        page_size: int = 10,
+        sort_by: str = "Главная оценка",
+        sort_order: str = "desc"
+    ) -> Dict[str, Any]:
+        """
+        Формирует данные для таблицы и карты по основным локациям сегмента туризма.
+
+        :param segment: Ключ сегмента туризма (например, 'business', 'beach').
+        :param rating_range: Диапазон главной оценки (мин, макс) по метрике 236.
+        :param location_types: Список выбранных типов локаций (мультивыбор из lvl1), если None — все.
+        :param region_id: ID региона (опционально).
+        :param city_id: ID города (опционально).
+        :param page: Номер страницы (по умолчанию 1).
+        :param page_size: Размер страницы (по умолчанию 10).
+        :param sort_by: Столбец для сортировки.
+        :param sort_order: 'asc' или 'desc'.
+        :return: Словарь с ключами: "data" (строки), "total", "page", "page_size".
+        """
+
+        logger.info(
+            f"[prepare_location_data] Сегмент: {segment}, Диапазон: {rating_range}, Типы: {location_types}, "
+            f"Регион: {region_id}, Город: {city_id}, page: {page}, page_size: {page_size}"
+        )
+
+        # Получаем все lvl1 типы сегмента
+        lvl1_types = SegmentMapping.get_location_types_for_segment(segment)["lvl1"]
+        selected_types = location_types or lvl1_types
+
+        logger.debug(f"[prepare_location_data] Используемые типы локаций: {selected_types}")
+
+        # Получаем список локаций нужных типов
+        lr = LocationsRepository()
+        locations = lr.get_locations_by_types(
+            types = selected_types,
+            id_region=region_id,
+            id_city=city_id
+        )
+        if not locations:
+            logger.warning(f"[prepare_location_data] Нет локаций для типов: {selected_types}")
+            return {"data": [], "total": 0, "page": page, "page_size": page_size}
+
+        # Получаем id всех локаций
+        location_id_map = {loc.id_location: loc for loc in locations}
+        location_ids = list(location_id_map.keys())
+
+        logger.debug(f"[prepare_location_data] Получаем метрики для {len(location_ids)} локаций")
+
+        # Получаем метрики одним запросом (OR по id_metric)
+        METRIC_CODES = [236, 237, 238]
+        mv = MetricValueRepository()        
+        metric_values = mv.get_locations_from_metric_list(
+            types=selected_types,
+            id_metrics=METRIC_CODES,
+            id_region=region_id,
+            id_city=city_id
+        )
+
+        # Группируем метрики по location_id
+        metrics_by_location: Dict[int, Dict[int, Any]] = {}
+        for mv in metric_values:
+            lid = mv.id_location
+            if lid not in metrics_by_location:
+                metrics_by_location[lid] = {}
+            try:
+                metrics_by_location[lid][mv.id_metric] = float(mv.value.replace(',','.'))
+            except:
+                metrics_by_location[lid][mv.id_metric] = 2
+
+        logger.debug(f"[prepare_location_data] Получены метрики для {len(metrics_by_location)} локаций")
+
+        # Собираем строки для таблицы
+        table_rows: List[Dict[str, Any]] = []
+        for loc_id, loc in location_id_map.items():
+            m = metrics_by_location.get(loc_id, {})
+            if loc.coordinates:
+                try:
+                    pt = to_shape(loc.coordinates)  # shapely Point
+                    lon, lat = pt.x, pt.y
+                except Exception as e:
+                    logger.warning(f"Не удалось распарсить координаты для loc_id={loc_id}: {e}")
+            row = {
+                "Название": loc.location_name,
+                "Главная оценка": m.get(236),
+                "Количество отзывов": m.get(237),
+                "Средняя оценка Яндекс": m.get(238),
+                "lat": lat,
+                "lon": lon,
+                "Типы локации": loc.location_types
+            }
+            table_rows.append(row)
+
+        logger.debug(f"[prepare_location_data] Всего строк до фильтрации: {len(table_rows)}")
+
+        # Фильтрация по диапазону главной оценки
+        min_rating, max_rating = rating_range
+        filtered_rows = [
+            row for row in table_rows
+            if row["Главная оценка"] is not None and min_rating <= row["Главная оценка"] <= max_rating
+        ]
+        logger.debug(f"[prepare_location_data] После фильтрации по диапазону: {len(filtered_rows)}")
+
+        # Фильтрация по типу локации, если задано (на всякий случай)
+        if location_types:
+            filtered_rows = [
+                row for row in filtered_rows
+                if set(row["Типы локации"]) & set(location_types)
+            ]
+            logger.debug(f"[prepare_location_data] После фильтрации по типу: {len(filtered_rows)}")
+
+        # Сортировка
+        reverse = sort_order == "desc"
+        if filtered_rows and sort_by in filtered_rows[0]:
+            filtered_rows.sort(key=lambda x: (x[sort_by] is None, x[sort_by]), reverse=reverse)
+        else:
+            logger.warning(f"[prepare_location_data] Некорректное поле сортировки: {sort_by}")
+
+        # Пагинация
+        total = len(filtered_rows)
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        paginated_rows = filtered_rows[start_idx:end_idx]
+
+        logger.info(
+            f"[prepare_location_data] Возвращаем {len(paginated_rows)} строк (страница {page}, размер {page_size}), всего найдено: {total}"
+        )
+
+        return {
+            "data": paginated_rows,
+            "total": total,
+            "page": page,
+            "page_size": page_size
+        }
+    
 class CityDashboardData(BaseDashboardData):
 
     def get_weather_data(self, *, id_city: int, id_region: Optional[int] = None) -> Dict[str, Optional[pd.DataFrame]]:
@@ -598,9 +835,6 @@ class RegionDashboardData(BaseDashboardData):
 
         df_result = pd.DataFrame(result)
         return df_result
-
-
-
 
     
     def get_region_leisure_rating(self, id_region):

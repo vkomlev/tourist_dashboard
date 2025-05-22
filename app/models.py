@@ -14,7 +14,8 @@ from sqlalchemy import (
     ForeignKey,
     Sequence,
     text,
-    DateTime
+    DateTime,
+    ARRAY,
 )
 import datetime
 from sqlalchemy.ext.declarative import declarative_base
@@ -191,6 +192,7 @@ class LocationType(Base):
         doc='Локации данного типа',
     )
 
+
     def __repr__(self):
         return (f"<LocationType(id_location_type={self.id_location_type}, "
                 f"location_type_value='{self.location_type_value}', name='{self.name}')>")
@@ -241,6 +243,7 @@ class Location(Base):
         ForeignKey('location_type.id_location_type', ondelete='RESTRICT'),
         doc='Идентификатор типа локации',
     )
+    location_types  = Column(ARRAY(Text), nullable=True, doc = 'Список типов локации')
 
     city: Optional['City'] = relationship(
         'City',
@@ -344,6 +347,7 @@ class MetricValue(Base):
         ForeignKey('locations.id_location', ondelete='CASCADE'),
         doc='Идентификатор локации',
     )
+    location_types  = Column(ARRAY(Text), nullable=True, doc = 'Список типов локации')
     create_time: Mapped[Optional[datetime.datetime]] = Column(DateTime(True), server_default=text('now()'))
     modify_time: Mapped[Optional[datetime.datetime]] = Column(DateTime(True), server_default=text('now()'))
     type_location: Mapped[Optional[str]] = Column(String)
