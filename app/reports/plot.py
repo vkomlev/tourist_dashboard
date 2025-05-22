@@ -610,9 +610,8 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                     columns=[
                         {"name": "Название",            "id": "Название"},
                         {"name": "Главная оценка",      "id": "Главная оценка", "type": "numeric"},
-                        {"name": "Отзывы Яндекс",       "id": "Отзывы Яндекс",  "type": "numeric"},
-                        {"name": "Средняя Яндекс",      "id": "Средняя Яндекс", "type": "numeric"},
-                        {"name": "Оценка количества",   "id": "Оценка количества", "type": "numeric"},
+                        {"name": "Количество отзывов",       "id": "Количество отзывов",  "type": "numeric"},
+                        {"name": "Средняя оценка Яндекс",      "id": "Средняя оценка Яндекс", "type": "numeric"},
                     ],
                     page_current=0,
                     page_size=10,
@@ -779,8 +778,8 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                     hover_text = [
                         f"<b>{r['Название']}</b><br>"
                         f"Главная: {r['Главная оценка']}<br>"
-                        f"Яндекс ср.: {r['Средняя Яндекс']}<br>"
-                        f"Отзывы: {r['Отзывы Яндекс']}"
+                        f"Яндекс ср.: {r['Средняя оценка Яндекс']}<br>"
+                        f"Отзывы: {r['Количество отзывов']}"
                         for r in all_rows
                     ]
                     fig = go.Figure(go.Scattermapbox(

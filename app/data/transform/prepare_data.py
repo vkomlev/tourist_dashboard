@@ -646,7 +646,7 @@ class BaseDashboardData:
         logger.debug(f"[prepare_location_data] Получаем метрики для {len(location_ids)} локаций")
 
         # Получаем метрики одним запросом (OR по id_metric)
-        METRIC_CODES = [236, 237, 238, 239]
+        METRIC_CODES = [236, 237, 238]
         mv = MetricValueRepository()        
         metric_values = mv.get_locations_from_metric_list(
             types=selected_types,
@@ -662,7 +662,7 @@ class BaseDashboardData:
             if lid not in metrics_by_location:
                 metrics_by_location[lid] = {}
             try:
-                metrics_by_location[lid][mv.id_metric] = float(mv.value)
+                metrics_by_location[lid][mv.id_metric] = float(mv.value.replace(',','.'))
             except:
                 metrics_by_location[lid][mv.id_metric] = 2
 
@@ -681,9 +681,8 @@ class BaseDashboardData:
             row = {
                 "Название": loc.location_name,
                 "Главная оценка": m.get(236),
-                "Отзывы Яндекс": m.get(237),
-                "Средняя Яндекс": m.get(238),
-                "Оценка количества": m.get(239),
+                "Количество отзывов": m.get(237),
+                "Средняя оценка Яндекс": m.get(238),
                 "lat": lat,
                 "lon": lon,
                 "Типы локации": loc.location_types
