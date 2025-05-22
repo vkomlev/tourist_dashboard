@@ -13,6 +13,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from shapely import wkb
 from geoalchemy2.shape import to_shape
+from geopy.distance import geodesic
 
 
 class OverallTourismEvaluation:
@@ -349,14 +350,14 @@ class TourismEvaluation:
             logger.info(f"Рассчет составных частей комплексной оценки для id_r = {id_region}, id_c = {id_city}")
             # self.calculating_complex_tur_nig(id_region=id_region,
             #                                 id_city=id_city)
-            # self.calculating_complex_distance(id_region=id_region,
-            #                                 id_city=id_city)
-            if id_city:
-                # self.calculating_complex_segments(id_city=id_city)
-                self.calculating_complex_price(id_city=id_city)
-            else:
-                # self.calculating_complex_segments(id_region=id_region)
-                self.calculating_complex_price(id_region=id_region)
+            self.calculating_complex_distance(id_region=id_region,
+                                            id_city=id_city)
+            # if id_city:
+            #     self.calculating_complex_segments(id_city=id_city)
+            #     self.calculating_complex_price(id_city=id_city)
+            # else:
+            #     self.calculating_complex_segments(id_region=id_region)
+            #     self.calculating_complex_price(id_region=id_region)
         except Exception as e:
             logger.error(f"Ошибка в calculating_complex_parts: {e}")
 
@@ -415,9 +416,11 @@ class TourismEvaluation:
             for city in distance['cities']:
                 point = to_shape(city.coordinates)
                 longitude_city, latitude_city = point.x, point.y
-                longitude = (longitude_city - longitude_capital)**2
-                latitude = (latitude_city - latitude_capital)**2
-                length = (longitude + latitude)**0.5
+                # Получаем координаты города и столицы
+                point_city = (latitude_city, longitude_city)
+                point_capital = (latitude_capital, longitude_capital)
+                # Вычисляем расстояние в километрах
+                length = geodesic(point_city, point_capital).kilometers
                 mass.append(length)
             mass.sort()
             df =  pd.DataFrame({'length':mass})
@@ -426,9 +429,11 @@ class TourismEvaluation:
             city = [i for i in distance['cities'] if i.id_city == id_city][0]
             point = to_shape(city.coordinates)
             longitude_city, latitude_city = point.x, point.y
-            longitude = (longitude_city - longitude_capital)**2
-            latitude = (latitude_city - latitude_capital)**2
-            length = (longitude + latitude)**0.5
+            # Получаем координаты города и столицы
+            point_city = (latitude_city, longitude_city)
+            point_capital = (latitude_capital, longitude_capital)
+            # Вычисляем расстояние в километрах
+            length = geodesic(point_city, point_capital).kilometers
             
             pcts = percentiles
             x = length
@@ -449,13 +454,16 @@ class TourismEvaluation:
                         
                         # 5. Индекс процентиля i + alpha
                         # 6. Переводим в шкалу 1..5:
-                        rating = 1 + 4 * ((len(pcts) - 1 - i + alpha) / 99.0)
+                        rating = 2 + 4 * ((len(pcts) - 1 - i + alpha) / 99.0)
                         
                         # 7. Округляем
-                        like_distance = round(rating, 2)
+                        like_distance = round(rating, 2) if rating < 5 else 5.0
+                        break
 
             like_distance = round(like_distance, 2) if like_distance >= 2 else 2
             mv = MetricValueRepository()
+            if id_region:
+                id_city = ''
             metric = mv.get_info_metricvalue(id_metric = 285,
                                             id_region = id_region,
                                             id_city = id_city)

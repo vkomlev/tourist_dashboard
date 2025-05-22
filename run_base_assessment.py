@@ -19,12 +19,12 @@ start_time = time.time()
 t = TourismEvaluation()
 r = RegionRepository()
 c = CitiesRepository()
-# regions = r.full_region_by_id()
-regions = [
-            150, 
-            # 155, 
-            # 151
-            ]
+regions = r.full_region_by_id()
+# regions = [
+#             150, 
+#             155, 
+#             # 151
+#             ]
 for id_region in regions:
     # # Оценка составных частей сегментов
     # t.calculation_segment_parts(id_region=id_region)
