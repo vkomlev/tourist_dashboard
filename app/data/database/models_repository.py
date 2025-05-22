@@ -257,6 +257,39 @@ class MetricValueRepository(Database):
             f"Получено {len(records)} записей по метрике {id_metric} для региона {id_region}."
         )
         return records
+    
+    @manage_session
+    def get_city_metric_value(
+        self, id_city: int, id_metric: int,
+    ) -> List[MetricValue]:
+        """
+        Получает данные туристического потока по конкретному региону.
+        Ранее назывался get_tourist_count_data_by_region
+
+        Args:
+            region_id (int): Идентификатор региона.
+
+        Returns:
+            List[MetricValue]: Список записей MetricValue.
+        """
+        records = (
+            self.get_session()
+            .query(
+                MetricValue.id_region,
+                MetricValue.value,
+                MetricValue.month,
+                MetricValue.year,
+            )
+            .filter(
+                MetricValue.id_metric == id_metric,
+                MetricValue.id_city == id_city,
+            )
+            .all()
+        )
+        logger.debug(
+            f"Получено {len(records)} записей по метрике {id_metric} для города {id_city}."
+        )
+        return records
 
     @manage_session
     def fill_weather(
@@ -395,6 +428,7 @@ class MetricValueRepository(Database):
                 q = q.filter(MetricValue.id_city.is_(None))
             elif id_city:
                 q = q.filter(MetricValue.id_city == id_city)
+        if id_location != 0:
         if id_location != 0:
             if id_location is None:
                 q = q.filter(MetricValue.id_location.is_(None))
