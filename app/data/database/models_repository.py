@@ -429,7 +429,6 @@ class MetricValueRepository(Database):
             elif id_city:
                 q = q.filter(MetricValue.id_city == id_city)
         if id_location != 0:
-        if id_location != 0:
             if id_location is None:
                 q = q.filter(MetricValue.id_location.is_(None))
             elif id_location:

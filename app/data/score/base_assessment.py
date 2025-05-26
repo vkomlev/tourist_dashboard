@@ -348,16 +348,16 @@ class TourismEvaluation:
         '''
         try:
             logger.info(f"Рассчет составных частей комплексной оценки для id_r = {id_region}, id_c = {id_city}")
-            # self.calculating_complex_tur_nig(id_region=id_region,
-            #                                 id_city=id_city)
+            self.calculating_complex_tur_nig(id_region=id_region,
+                                            id_city=id_city)
             self.calculating_complex_distance(id_region=id_region,
                                             id_city=id_city)
-            # if id_city:
-            #     self.calculating_complex_segments(id_city=id_city)
-            #     self.calculating_complex_price(id_city=id_city)
-            # else:
-            #     self.calculating_complex_segments(id_region=id_region)
-            #     self.calculating_complex_price(id_region=id_region)
+            if id_city:
+                self.calculating_complex_segments(id_city=id_city)
+                self.calculating_complex_price(id_city=id_city)
+            else:
+                self.calculating_complex_segments(id_region=id_region)
+                self.calculating_complex_price(id_region=id_region)
         except Exception as e:
             logger.error(f"Ошибка в calculating_complex_parts: {e}")
 
