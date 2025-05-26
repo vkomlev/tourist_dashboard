@@ -435,6 +435,64 @@ class MetricValueRepository(Database):
                 q = q.filter(MetricValue.id_location == id_location)
         self.session.close()
         return q.all()
+    
+    @manage_session
+    def get_locations_from_mv(self, types:List[str], id_metric:int,id_region: Optional[int] = None, id_city: Optional[int] = None) -> List[MetricValue]:
+        """
+        Получает значения метрик для локаций указанного типа и метрики.
+
+        Args:
+            types (List[str]): Список типов локаций.
+            id_metric (int): Идентификатор метрики.
+            id_region (int): Идентификатор региона (необязательный).
+            id_city (int): Идентификатор города (необязательный).
+        """
+        try:
+            q = self.session.query(MetricValue)
+            if id_region:
+                q = q.filter(MetricValue.id_region == id_region)
+            if id_city:
+                q = q.filter(MetricValue.id_city == id_city)
+            q = q.filter(MetricValue.id_metric == id_metric,
+                        MetricValue.location_types.overlap(types))
+            return q.all()
+        finally:
+            self.session.close()
+
+    @manage_session
+    def get_locations_from_metric_list(
+        self,
+        types: List[str],
+        id_metrics: List[int],
+        id_region: Optional[int] = None,
+        id_city: Optional[int] = None
+    ) -> List[MetricValue]:
+        """
+        Получает значения метрик для локаций указанных типов и метрик (OR по метрикам).
+
+        Args:
+            types (List[str]): Список типов локаций.
+            id_metrics (List[int]): Список идентификаторов метрик.
+            id_region (Optional[int]): Идентификатор региона.
+            id_city (Optional[int]): Идентификатор города.
+
+        Returns:
+            List[MetricValue]: Список объектов MetricValue, соответствующих условиям.
+        """
+        try:
+            q = self.session.query(MetricValue)
+            if id_region:
+                q = q.filter(MetricValue.id_region == id_region)
+            if id_city:
+                q = q.filter(MetricValue.id_city == id_city)
+            q = q.filter(MetricValue.location_types.op("&&")(types))
+            if id_metrics:
+                q = q.filter(MetricValue.id_metric.in_(id_metrics))
+            result = q.all()
+            logger.debug(f"Найдено {len(result)} записей MetricValue по типам {types}, метрикам {id_metrics}, региону {id_region}, городу {id_city}")
+            return result
+        finally:
+            self.session.close()             
        
 
     
@@ -625,81 +683,25 @@ class LocationsRepository(JSONRepository):
             return []
     
     @manage_session
-    def get_by_type(self, type_location: str, name_key = 'type') -> list[dict]:
+    def get_locations_by_types(self, types:List[str], id_region: Optional[int] = None, id_city: Optional[int] = None) -> List[MetricValue]:
         """
-        Ищет локации по типу в JSON-поле characters.
+        Получает значения метрик для локаций указанного типа и метрики.
 
         Args:
-            type_location (str): Тип локации для поиска
-            name_key (str): Название ключа для поиска типа локации
-
-        Returns:
-            list[dict]: Список словарей с данными локаций
+            types (List[str]): Список типов локаций.
+            id_region (int): Идентификатор региона (необязательный).
+            id_city (int): Идентификатор города (необязательный).
         """
         try:
-            # Формируем запрос с проверкой JSON-поля
-            query = (
-                self.session.query(
-                    self.model.location_name,
-                    self.model.id_location,
-                    self.model.id_city,
-                    self.model.id_region,
-                    self.model.characters
-                )
-                .filter(
-                    # self.model.characters.has_key('types'),  # Проверка наличия ключа
-                    # func.jsonb_array_length(self.model.characters['types']) > 0,  # Проверка наличия элементов
-                    self.model.characters[name_key].cast(JSONB).contains([type_location])  # Поиск в массиве
-                )
-            )
-
-            result = []
-            for loc in query.all():
-                # Извлекаем данные из JSON-поля
-                characters = loc.characters or {}
-                if characters:
-                    result.append({
-                        'id_location': loc.id_location,
-                        'id_city': loc.id_city,
-                        'id_region': loc.id_region,
-                        'characters': characters,
-                        'location_name':loc.location_name,
-                    })
-
-            logger.debug(f"Найдено {len(result)} локаций типа '{type_location}'")
-            return result
-
-        except Exception as e:
-            logger.error(f"Ошибка при поиске локаций: {str(e)}")
-            return []
-    
-    @manage_session
-    def loading_info_locationsrepository(self, id_location = '', **kwargs):
-        """
-        Загружает расчитанные значения по локациям в БД
-        """
-        try:
-            l = Location()
-            for key, value in kwargs.items():
-                if value:
-                    setattr(l, key, value)
-            if id_location:
-                l.id_location = id_location
-                self.update(obj=l)
-            
-            else:
-                self.add(obj=l)
-                location = self.get_location(**kwargs)[0]
-                logger.info(f"Добавлена локация: Типы: {location.characters['type']} (ID: {location.id_location})")
-        except Exception as e:
-            logger.error(f'Ошибка в loading_info_locationsrepository: {e}')
-
-    @manage_session
-    def get_location(self, **kwargs):
-        """
-        Получение локаций которые совпадут по фильтрам
-        """
-        return self.get_by_fields(model=Location, **kwargs)
+            q = self.session.query(Location)
+            if id_region:
+                q = q.filter(Location.id_region == id_region)
+            if id_city:
+                q = q.filter(Location.id_city == id_city)
+            q = q.filter(Location.location_types.op("&&")(types))
+            return q.all()
+        finally:
+            self.session.close()
 
 
 class ReviewRepository(Database):
