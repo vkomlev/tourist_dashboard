@@ -10,7 +10,7 @@ from app.data.processing import DataProcessor,WeatherProcessor
 
 
 dp = DataProcessor()
-dp.process_yandex_locations(specific_region=('Челябинская область',), level_loc_type = 1, restart=False)
+dp.process_yandex_locations(specific_region=('Карачаево-Черкесская Республика',), level_loc_type = 1, restart=False)
 
 # dp = Region_page_dashboard()
 # dp.get_region_mean_night(id_region=150, year=2023)
