@@ -58,6 +58,10 @@ class BaseDashboardPlot:
         self.data_prep = data_prep
 
     def _choose_card_color(self, val: Optional[float]) -> str:
+        try:
+            val = float(val)
+        except:
+            val = None
         if val is None:
             return "secondary"
         if val < 3.0:
@@ -531,7 +535,7 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                 dbc.CardHeader(main_label, className="text-white fs-5"),
                 dbc.CardBody(html.H2(main_display, className="card-title text-white fw-bold"), className="text-center"),
             ],
-            color= self._choose_card_color(float(main_value)),
+            color= self._choose_card_color(main_value),
             inverse=True,
             className="mb-3 shadow",
             style={"minHeight": "140px", "fontSize": "1.8rem"}
@@ -548,7 +552,7 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                         dbc.CardHeader(name, className="text-white"),
                         dbc.CardBody(html.H4(display, className="card-title text-white")),
                     ],
-                    color= self._choose_card_color(float(val)),
+                    color= self._choose_card_color(val),
                     inverse=True,
                     className="mb-3 shadow-sm",
                     style={"minHeight": "110px"}
