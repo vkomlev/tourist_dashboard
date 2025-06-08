@@ -76,7 +76,7 @@ class BaseDashboardPlot:
         """
         def make_segment_link(label: str, entity_type: str, entity_id: int) -> html.Div:
             url = f"/dashboard/segment/{entity_type}/main/{entity_id}"
-            return dcc.Link(label, href=url, style={"color": "white", "textDecoration": "underline", "cursor": "pointer"})
+            return dcc.Link(label, href=url, target='_blank', style={"color": "white", "textDecoration": "underline", "cursor": "pointer"})
         kpis = self.data_prep.get_kpi_metrics(id_region=id_region, id_city=id_city)
         main_metric_key = 'Комплексная оценка развития туризма'
         infra_metrics = [
