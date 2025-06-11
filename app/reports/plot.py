@@ -8,7 +8,7 @@ import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
 from dash import Dash, html, dcc, Input, Output, State, dash_table, MATCH, callback_context, no_update
 import colorlover as cl
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 import pandas as pd
 
 from app.data.transform.prepare_data import (
@@ -58,6 +58,10 @@ class BaseDashboardPlot:
         self.data_prep = data_prep
 
     def _choose_card_color(self, val: Optional[float]) -> str:
+        try:
+            val = float(val)
+        except:
+            val = None
         if val is None:
             return "secondary"
         if val < 3.0:
@@ -72,7 +76,7 @@ class BaseDashboardPlot:
         """
         def make_segment_link(label: str, entity_type: str, entity_id: int) -> html.Div:
             url = f"/dashboard/segment/{entity_type}/main/{entity_id}"
-            return dcc.Link(label, href=url, style={"color": "white", "textDecoration": "underline", "cursor": "pointer"})
+            return dcc.Link(label, href=url, target='_blank', style={"color": "white", "textDecoration": "underline", "cursor": "pointer"})
         kpis = self.data_prep.get_kpi_metrics(id_region=id_region, id_city=id_city)
         main_metric_key = 'Комплексная оценка развития туризма'
         infra_metrics = [
@@ -531,7 +535,7 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                 dbc.CardHeader(main_label, className="text-white fs-5"),
                 dbc.CardBody(html.H2(main_display, className="card-title text-white fw-bold"), className="text-center"),
             ],
-            color= self._choose_card_color(float(main_value)),
+            color= self._choose_card_color(main_value),
             inverse=True,
             className="mb-3 shadow",
             style={"minHeight": "140px", "fontSize": "1.8rem"}
@@ -548,7 +552,7 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                         dbc.CardHeader(name, className="text-white"),
                         dbc.CardBody(html.H4(display, className="card-title text-white")),
                     ],
-                    color= self._choose_card_color(float(val)),
+                    color= self._choose_card_color(val),
                     inverse=True,
                     className="mb-3 shadow-sm",
                     style={"minHeight": "110px"}
@@ -573,13 +577,55 @@ class SegmentDashboardPlot (BaseDashboardPlot):
         city_id: Optional[int] = None
     ) -> html.Div:
         """
-       Основной layout с фильтрами, таблицей, кастомной пагинацией и картой.
+        Layout с:
+         - RangeSlider
+         - Dropdown (все типы локаций: lvl1, lvl2 и остальные)
+         - DataTable
+         - Кнопки пагинации
+         - Mapbox
         """
-        store = dcc.Store(id='page-store', data=0)
-        types_opts = SegmentDashboardPlot.get_location_types_options(segment)
+        # 1) Формируем списки типов локаций
+        mapping: Dict[str, List[str]] = SegmentMapping.get_location_types_for_segment(segment)
+        lvl1_types: List[str] = mapping["lvl1"]
+        lvl2_types: List[str] = mapping["lvl2"]
 
+        # 2) Загружаем все типы из segments.json
+        full_map: Dict[str, Any] = SegmentMapping._load_segments_json()
+        all_types: List[str] = []
+        for seg_info in full_map.values():
+            all_types.extend(list(seg_info.get("lvl1", {}).keys()))
+            all_types.extend(seg_info.get("lvl2", []))
+
+        # 3) Убираем дубликаты, сохраняя порядок
+        seen: set = set()
+        ordered_all: List[str] = []
+        for t in all_types:
+            if t not in seen:
+                seen.add(t)
+                ordered_all.append(t)
+
+        # 4) Выделяем остальные типы (не lvl1 и не lvl2 текущего сегмента)
+        other_types: List[str] = [
+            t for t in ordered_all if t not in lvl1_types + lvl2_types
+        ]
+
+        # 5) Собираем финальный список опций: сначала lvl1, затем lvl2, затем остальные
+        dropdown_types: List[str] = lvl1_types + lvl2_types + other_types
+        types_opts: List[Dict[str, str]] = [
+            {"label": t, "value": t} for t in dropdown_types
+        ]
+        default_selected: List[str] = lvl1_types.copy()
+
+        logger.debug(
+            f"[make_layout] Для сегмента '{segment}': "
+            f"lvl1={len(lvl1_types)}, lvl2={len(lvl2_types)}, others={len(other_types)}"
+        )
+
+        # 6) Собираем сам макет
         return html.Div([
-            store,
+            dcc.Store(id='page-store', data=0),
+
+            # фильтры
             dbc.Row([
                 dbc.Col([
                     html.Label("Диапазон главной оценки:"),
@@ -588,45 +634,43 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                         min=1, max=5, step=0.01,
                         value=list(initial_rating_range),
                         marks={i: str(i) for i in range(1, 6)},
-                        tooltip={"placement": "bottom", "always_visible": False}
+                        tooltip={"placement": "bottom"}
                     ),
                 ], md=6),
+
                 dbc.Col([
                     html.Label("Тип локаций:"),
                     dcc.Dropdown(
                         id="location-types-dropdown",
                         options=types_opts,
-                        value=[opt["value"] for opt in types_opts],
-                        multi=True,
-                        placeholder="Выберите типы локаций"
+                        value=default_selected,
+                        multi=True
                     ),
                 ], md=6),
             ], className="mb-2"),
 
-            # сама таблица, без встроенной пагинации
+            # таблица без встроенной пагинации
             dbc.Row([
                 dbc.Col(dash_table.DataTable(
                     id="locations-table",
                     columns=[
-                        {"name": "Название",            "id": "Название"},
-                        {"name": "Главная оценка",      "id": "Главная оценка", "type": "numeric"},
-                        {"name": "Количество отзывов",       "id": "Количество отзывов",  "type": "numeric"},
-                        {"name": "Средняя оценка Яндекс",      "id": "Средняя оценка Яндекс", "type": "numeric"},
+                        {"name": "Название",          "id": "Название"},
+                        {"name": "Главная оценка",    "id": "Главная оценка", "type": "numeric"},
+                        {"name": "Количество отзывов",     "id": "Количество отзывов",  "type": "numeric"},
+                        {"name": "Средняя оценка Яндекс",    "id": "Средняя оценка Яндекс", "type": "numeric"},
                     ],
                     page_current=0,
                     page_size=10,
-                    page_action="none",        # Отключаем встроенные контролы
+                    page_action="none",
                     sort_action="custom",
                     sort_mode="single",
                     sort_by=[{"column_id": "Главная оценка", "direction": "desc"}],
                     style_table={"overflowX": "auto"},
-                    style_cell={"fontSize": "1rem", "textAlign": "center"},
-                    style_header={"backgroundColor": "#f8f9fa", "fontWeight": "bold"},
-                    style_data={"backgroundColor": "#fff"},
+                    style_cell={"textAlign": "center"},
                 ), md=12)
             ], className="mb-2"),
 
-            # кастомная пагинация, выравненная по центру
+            # кастомная пагинация (центрировано)
             dbc.Row([
                 dbc.Col(html.Button("⏮️", id='first-page-btn'), width='auto'),
                 dbc.Col(html.Button("−10",  id='minus10-page-btn'), width='auto'),
@@ -635,7 +679,7 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                 dbc.Col(html.Button("▶️",  id='next-page-btn'),    width='auto'),
                 dbc.Col(html.Button("+10",  id='plus10-page-btn'), width='auto'),
                 dbc.Col(html.Button("⏭️", id='last-page-btn'),     width='auto'),
-            ], justify="center", className="mb-4 align-items-center"),
+            ], justify="center", align="center", className="mb-4"),
 
             # карта
             dbc.Row([
@@ -645,54 +689,42 @@ class SegmentDashboardPlot (BaseDashboardPlot):
 
     @staticmethod
     def register_callbacks(app):
+        page_buttons = {
+            "first-page-btn", "prev-page-btn", "minus10-page-btn",
+            "plus10-page-btn", "next-page-btn", "last-page-btn"
+        }
+
         @app.callback(
-        Output("locations-table", "data"),
-        Output("locations-table", "page_count"),
-        Output("locations-map", "figure"),
-        Output("locations-table", "page_current"),
-        Output("page-store", "data"),
-        Output("page-indicator", "children"),
-        # фильтры
-        Input("main-rating-slider", "value"),
-        Input("location-types-dropdown", "value"),
-        # сортировка
-        Input("locations-table", "sort_by"),
-        # пагинационные кнопки
-        Input("first-page-btn",   "n_clicks"),
-        Input("prev-page-btn",    "n_clicks"),
-        Input("minus10-page-btn", "n_clicks"),
-        Input("plus10-page-btn",  "n_clicks"),
-        Input("next-page-btn",    "n_clicks"),
-        Input("last-page-btn",    "n_clicks"),
-        # и URL, чтобы знать сегмент и id
-        Input("url", "pathname"),
-        # размер страницы
-        State("locations-table", "page_size"),
-        # текущее положение
-        State("locations-table", "page_current"),
-        State("page-store", "data"),
+            Output("locations-table", "data"),
+            Output("locations-table", "page_count"),
+            Output("locations-map", "figure"),
+            Output("locations-table", "page_current"),
+            Output("page-store", "data"),
+            Output("page-indicator", "children"),
+            Input("main-rating-slider", "value"),
+            Input("location-types-dropdown", "value"),
+            Input("locations-table", "sort_by"),
+            Input("first-page-btn",   "n_clicks"),
+            Input("prev-page-btn",    "n_clicks"),
+            Input("minus10-page-btn", "n_clicks"),
+            Input("plus10-page-btn",  "n_clicks"),
+            Input("next-page-btn",    "n_clicks"),
+            Input("last-page-btn",    "n_clicks"),
+            Input("url", "pathname"),
+            State("locations-table", "page_size"),
+            State("locations-table", "page_current"),
+            State("page-store", "data"),
         )
         def _update_all(
             rating_range,
             selected_types,
             sort_by,
-
-            first_btn,
-            prev_btn,
-            m10_btn,
-            p10_btn,
-            next_btn,
-            last_btn,
-
-            pathname,
-            page_size,
-            page_current,
-            stored_page
+            first_btn, prev_btn, m10_btn, p10_btn, next_btn, last_btn,
+            pathname, page_size, page_current, stored_page
         ):
-            # --- 0) парсим URL как раньше ---
+            # 0) Разбор URL
             parts = pathname.rstrip("/").split("/")
             if len(parts) < 6 or parts[2] != "segment":
-                # неверный URL
                 empty_fig = go.Figure().update_layout(
                     mapbox=dict(style="open-street-map", center=dict(lat=55, lon=37), zoom=3),
                     margin={"l":0,"r":0,"t":0,"b":0}, height=480
@@ -700,28 +732,14 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                 return [], 0, empty_fig, 0, 0, "Страница 0 из 0"
 
             entity_type, prefix, entity_id = parts[3], parts[4], int(parts[5])
-            seg_key = None
-            for key, url_pref in BaseDashboardData.get_segment_patterns():
-                if url_pref == prefix:
-                    seg_key = key
-                    break
+            seg_key = next((k for k, p in BaseDashboardData.get_segment_patterns() if p == prefix), None)
             if seg_key is None:
                 return [], 0, go.Figure(), 0, 0, ""
 
-            # --- 1) какая кнопка нажата? ---
-            triggered = callback_context.triggered
-            if triggered:
-                prop_id = triggered[0].get("prop_id", "")
-                trig = prop_id.split(".")[0]
-            else:
-                trig = None
+            # 1) Определяем, что триггернуло
+            trig = callback_context.triggered[0]["prop_id"].split(".")[0] if callback_context.triggered else None
 
-            page_buttons = [
-                "first-page-btn", "prev-page-btn", "minus10-page-btn",
-                "plus10-page-btn", "next-page-btn", "last-page-btn"
-            ]
-
-            # --- 2) получаем ВСЕ строки по фильтрам (без пагинации) ---
+            # 2) Берём _все_ строки по текущим фильтрам+сортировке
             full = BaseDashboardData.prepare_location_data(
                 segment=seg_key,
                 rating_range=(rating_range[0], rating_range[1]),
@@ -734,11 +752,10 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                 sort_order=(sort_by[0]["direction"] if sort_by else "desc")
             )
             all_rows = full["data"]
-            total = full["total"]
+            total    = full["total"]
             page_count = (total + page_size - 1)//page_size if page_size else 1
 
-            # --- 3) пересчитываем page_current по кнопкам ---
-            # если хранилище не пустое, берем оттуда
+            # 3) Пересчитываем page_current
             page_current = stored_page or page_current
             if trig == "first-page-btn":
                 page_current = 0
@@ -747,20 +764,20 @@ class SegmentDashboardPlot (BaseDashboardPlot):
             elif trig == "minus10-page-btn":
                 page_current = max(page_current - 10, 0)
             elif trig == "plus10-page-btn":
-                page_current = min(page_current + 10, page_count - 1)
+                page_current = min(page_current + 10, page_count-1)
             elif trig == "next-page-btn":
-                page_current = min(page_current + 1, page_count - 1)
+                page_current = min(page_current + 1, page_count-1)
             elif trig == "last-page-btn":
-                page_current = page_count - 1
+                page_current = page_count-1
 
-            # --- 4) готовим данные для текущей страницы ---
+            # 4) Собираем данные для таблицы (текущая страница)
             res = BaseDashboardData.prepare_location_data(
                 segment=seg_key,
                 rating_range=(rating_range[0], rating_range[1]),
                 location_types=selected_types,
                 region_id=(entity_id if entity_type=="region" else None),
                 city_id=(entity_id if entity_type=="city" else None),
-                page=page_current + 1,  # prepare 1-based
+                page=page_current + 1,  # 1-based внутри prepare
                 page_size=page_size,
                 sort_by=(sort_by[0]["column_id"] if sort_by else "Главная оценка"),
                 sort_order=(sort_by[0]["direction"] if sort_by else "desc")
@@ -772,23 +789,37 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                 fig = no_update
             else:
                 if all_rows:
+                    # собираем координаты и оценки
                     latitudes  = [r["lat"] for r in all_rows if r["lat"] is not None]
                     longitudes = [r["lon"] for r in all_rows if r["lon"] is not None]
                     scores     = [r["Главная оценка"] for r in all_rows]
-                    hover_text = [
-                        f"<b>{r['Название']}</b><br>"
-                        f"Главная: {r['Главная оценка']}<br>"
-                        f"Яндекс ср.: {r['Средняя оценка Яндекс']}<br>"
-                        f"Отзывы: {r['Количество отзывов']}"
-                        for r in all_rows
-                    ]
+
+                    # выбираем ключи под «средняя» и «отзывы» в зависимости от того, какие поля есть в строке
+                    hover_text = []
+                    for r in all_rows:
+                        # если вы в таблице называете столбец 'Средняя оценка Яндекс', иначе — 'Средняя Яндекс'
+                        mean_key = "Средняя оценка Яндекс" if "Средняя оценка Яндекс" in r else "Средняя Яндекс"
+                        # если вы в таблице называете столбец 'Количество отзывов', иначе — 'Отзывы Яндекс'
+                        reviews_key = "Количество отзывов" if "Количество отзывов" in r else "Отзывы Яндекс"
+
+                        hover_text.append(
+                            f"<b>{r['Название']}</b><br>"
+                            f"Главная оценка: {r['Главная оценка']}<br>"
+                            f"Яндекс ср.: {r.get(mean_key, '—')}<br>"
+                            f"Отзывы: {r.get(reviews_key, '—')}"
+                        )
+
                     fig = go.Figure(go.Scattermapbox(
                         lat=latitudes, lon=longitudes, mode="markers",
                         marker=dict(
-                            size=12, color=scores, colorscale="YlGnBu",
-                            cmin=1, cmax=5, colorbar=dict(title="Главная оценка")
+                            size=12,
+                            color=scores,
+                            colorscale="YlGnBu",
+                            cmin=1, cmax=5,
+                            colorbar=dict(title="Главная оценка"),
                         ),
-                        text=hover_text, hoverinfo="text"
+                        text=hover_text,
+                        hoverinfo="text",
                     ))
                     fig.update_layout(
                         mapbox=dict(
@@ -797,17 +828,19 @@ class SegmentDashboardPlot (BaseDashboardPlot):
                                 lat=sum(latitudes)/len(latitudes),
                                 lon=sum(longitudes)/len(longitudes)
                             ),
-                            zoom=7
+                            zoom=7,
                         ),
-                        margin={"l":0,"r":0,"t":0,"b":0}, height=480
+                        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+                        height=480,
                     )
                 else:
                     fig = go.Figure().update_layout(
                         mapbox=dict(style="open-street-map", center=dict(lat=55, lon=37), zoom=3),
-                        margin={"l":0,"r":0,"t":0,"b":0}, height=480
+                        margin={"l":0,"r":0,"t":0,"b":0},
+                        height=480
                     )
 
-            # --- 6) индикатор ---
+            # 6) Индикатор
             indicator = f"Страница {page_current+1} из {page_count}"
 
             return (
