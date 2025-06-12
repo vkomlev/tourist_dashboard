@@ -241,6 +241,58 @@ class BaseDashboardData:
         'Климат'
     ]
 
+    RECOMMENDATION_PATH: ClassVar[Path] = Path("app/files/recommendation.json")
+    _recommendation_cache: ClassVar[Optional[Dict[str, Any]]] = None
+
+    @classmethod
+    def _load_recommendations_json(cls) -> Dict[str, Any]:
+        """
+        Загружает и кеширует recommendation.json.
+        """
+        if cls._recommendation_cache is not None:
+            logger.debug("Используем кэш для recommendations.json")
+            return cls._recommendation_cache
+
+        try:
+            with cls.RECOMMENDATION_PATH.open(encoding="utf-8") as f:
+                cls._recommendation_cache = json.load(f)
+            logger.info(f"Файл recommendations.json загружен из {cls.RECOMMENDATION_PATH}")
+            return cls._recommendation_cache
+        except FileNotFoundError:
+            logger.error(f"Файл {cls.RECOMMENDATION_PATH} не найден!")
+            raise
+        except Exception as exc:
+            logger.error(f"Ошибка при чтении recommendations.json: {exc}")
+            raise
+
+    @classmethod
+    def get_recommendation(
+        cls,
+        metric_id: int,
+        value: Optional[float]
+    ) -> Optional[str]:
+        """
+        Возвращает текст рекомендаций для заданной метрики и её значения.
+        Lower bound exclusive, upper bound inclusive.
+        """
+        if value is None:
+            return None
+
+        rec_map = cls._load_recommendations_json().get(str(metric_id))
+        if not rec_map:
+            return None
+
+        for range_key, text in rec_map.items():
+            try:
+                low_str, high_str = range_key.split("-")
+                low, high = float(low_str), float(high_str)
+            except Exception:
+                continue
+            if value > low and value <= high:
+                return text
+
+        return None
+
     @classmethod
     def get_segment_patterns(cls) -> List[Tuple[str, str]]:
         """
