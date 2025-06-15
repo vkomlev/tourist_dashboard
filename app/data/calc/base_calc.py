@@ -7,6 +7,7 @@ from app.data.database.models_repository import (MetricValueRepository,
                                                  RegionRepository)
 import random
 import pandas as pd
+import numpy as np
 import re
 from app.data.imports.import_json import import_json_file
 
@@ -309,8 +310,8 @@ class Region_calc(Calc):
                 loc = m.get_info_metricvalue(id_metric = 236, 
                                 id_location=location
                                 )
-                if self.id_region and not self.id_city and len(loc) > 0:
-                    loc = [i for i in loc if not i.id_city]
+                # if self.id_region and not self.id_city and len(loc) > 0:
+                #     loc = [i for i in loc if not i.id_city]
                 if not loc:
                     continue
                 value = loc[0].value
@@ -318,7 +319,7 @@ class Region_calc(Calc):
                     mass_value.append(float(value))
                 else:
                     continue
-            value =  round(sum(mass_value)/len(mass_value), 2) if mass_value else 0
+            value =  np.mean(mass_value) if mass_value else 2
             result[type_location] = value
         return result
     
@@ -330,17 +331,19 @@ class Region_calc(Calc):
         m = MetricValueRepository()
         # перебор типов локаций
         for type_location in types_locations:
-            # получение метрик по локациям
+            # получение метрики
             loc = m.get_info_metricvalue(id_metric = 239, 
                             type_location = type_location,
                             id_city = self.id_city,
                             id_region = self.id_region
                             )
-            if self.id_region and not self.id_city and len(loc) > 0:
-                loc = [i for i in loc if not i.id_city]
+            # if self.id_region and not self.id_city and len(loc) > 0:
+            #     loc = [i for i in loc if not i.id_city]
             if not loc:
                 continue
-            value = round(float(loc[0].value), 2) if loc[0].value else 0
+            loc = [i for i in loc if i.type_location == type_location]
+            mean = np.mean([float(k.value) for k in loc])
+            value = round(mean, 2) if mean and (not pd.isna(mean)) else 2
             result[type_location] = value
         return result
     
@@ -473,7 +476,7 @@ class Region_calc(Calc):
         """
         housing = {'hotel':[],'flat':[]}
         l = LocationsRepository()
-        locations = l.get_by_type(type_location='calc')
+        locations = l.get_locations_by_types_2(types='calc')
         for location in locations:
             if 'flat' in location['characters']['type']:
                 housing['flat'].append(location)

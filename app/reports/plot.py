@@ -67,7 +67,7 @@ class BaseDashboardPlot:
         if val < 3.0:
             return "danger"
         if val < 4.0:
-            return "warning"
+            return "#FF8C00"
         return "success"
 
     def make_kpi_cards(self, *, id_region: Optional[int] = None, id_city: Optional[int] = None) -> List[dbc.Row]:
@@ -88,10 +88,22 @@ class BaseDashboardPlot:
         main_value = kpis[main_metric_key]
         main_display = f"{main_value:.2f}" if isinstance(main_value, (int, float)) else "—"
         main_color = self._choose_card_color(main_value)
+        # получаем рекомендацию
+        main_metric_id = self.data_prep.METRIC_IDS.get(main_metric_key)
+        rec_main = BaseDashboardData.get_recommendation(main_metric_id, main_value)
+        # собираем тело карточки: сначала цифра, затем <details> если есть текст
+        body_children = [html.H2(main_display, className="card-title text-white fw-bold")]
+        if rec_main:
+            body_children.append(
+                html.Details([
+                    html.Summary("Рекомендации"),
+                    html.P(rec_main)
+                ], style={"marginTop": "0.5rem"})
+            )
         main_card = dbc.Card(
             [
                 dbc.CardHeader(main_metric_key, className="text-white fs-5"),
-                dbc.CardBody(html.H2(main_display, className="card-title text-white fw-bold"), className="text-center"),
+                dbc.CardBody(body_children, className="text-center"),
             ],
             color=main_color,
             inverse=True,
@@ -107,11 +119,22 @@ class BaseDashboardPlot:
             entity_type = "region" if id_region else "city"
             entity_id = id_region if id_region else id_city
             card_content = make_segment_link(display, entity_type, entity_id)
+            # рекомендация для этой метрики
+            metric_id = self.data_prep.METRIC_IDS.get(name)
+            rec_text = BaseDashboardData.get_recommendation(metric_id, val)
+            infra_body = [html.H4(card_content, className="card-title text-white")]
+            if rec_text:
+                infra_body.append(
+                    html.Details([
+                        html.Summary("Рекомендации"),
+                        html.P(rec_text)
+                    ], style={"marginTop": "0.5rem"})
+                )
             infra_cards.append(
                 dbc.Card(
                     [
                         dbc.CardHeader(name, className="text-white"),
-                        dbc.CardBody(html.H4(card_content, className="card-title text-white")),
+                        dbc.CardBody(infra_body),
                     ],
                     color=color,
                     inverse=True,
@@ -136,11 +159,23 @@ class BaseDashboardPlot:
                 )
             else:
                 body = html.H4(display, className="card-title text-white")
+            # рекомендация
+            metric_id = self.data_prep.METRIC_IDS.get(name)
+            rec = BaseDashboardData.get_recommendation(metric_id, val)
+
+            other_body = [body]
+            if rec:
+                other_body.append(
+                    html.Details([
+                        html.Summary("Рекомендации"),
+                        html.P(rec)
+                    ], style={"marginTop": "0.5rem"})
+                )
             other_cards.append(
                 dbc.Card(
                     [
                         dbc.CardHeader(name, className="text-white"),
-                        dbc.CardBody(body),
+                        dbc.CardBody(other_body),
                     ],
                     color=color,
                     inverse=True,
@@ -148,15 +183,13 @@ class BaseDashboardPlot:
                     style={"minHeight": "110px"}
                 )
             )
-        # Layout
+        # ——— собираем итоговый layout ———
         result = [
             dbc.Row(dbc.Col(main_card, width={"size": 6, "offset": 3}), className="mb-3"),
             dbc.Row([dbc.Col(card, md=4) for card in infra_cards], className="mb-3"),
         ]
-        cols_in_row = 4
-        for i in range(0, len(other_cards), cols_in_row):
-            row = dbc.Row([dbc.Col(card, md=3) for card in other_cards[i:i+cols_in_row]], className="mb-3")
-            result.append(row)
+        for i in range(0, len(other_cards), 4):
+            result.append(dbc.Row([dbc.Col(card, md=3) for card in other_cards[i:i+4]], className="mb-3"))
         return result
 
     def make_segments_table(self, *, id_region: Optional[int] = None, id_city: Optional[int] = None) -> dash_table.DataTable:
@@ -524,40 +557,73 @@ class SegmentDashboardPlot (BaseDashboardPlot):
         if not kpis:
             return [dbc.Row(dbc.Col(dbc.Alert("Нет данных для сегмента", color="secondary")))]
 
-        main_label = 'Главная оценка'
-        other_labels = self.data_prep.SEGMENT_METRIC_LABELS[1:4]
+        labels = self.data_prep.SEGMENT_METRIC_LABELS
+        codes  = self.data_prep.SEGMENTS.get(segment_key, {}).get("codes", [])
 
-        # Главная метрика
+        # ——— главная метрика ———
+        main_label = labels[0]
         main_value = kpis.get(main_label)
         main_display = f"{main_value:.2f}" if isinstance(main_value, (int, float)) else "—"
+        main_color = self._choose_card_color(main_value)
+
+        # рекомендация
+        metric_id_main = codes[0] if len(codes) > 0 else None
+        rec_main = BaseDashboardData.get_recommendation(metric_id_main, main_value)
+
+        main_body = [html.H2(main_display, className="card-title text-white fw-bold")]
+        if rec_main:
+            main_body.append(
+                html.Details([
+                    html.Summary("Рекомендации"),
+                    html.P(rec_main)
+                ], style={"marginTop": "0.5rem"})
+            )
+
         main_card = dbc.Card(
             [
                 dbc.CardHeader(main_label, className="text-white fs-5"),
-                dbc.CardBody(html.H2(main_display, className="card-title text-white fw-bold"), className="text-center"),
+                dbc.CardBody(main_body, className="text-center"),
             ],
-            color= self._choose_card_color(main_value),
+            color=main_color,
             inverse=True,
             className="mb-3 shadow",
             style={"minHeight": "140px", "fontSize": "1.8rem"}
         )
 
-        # Остальные 3 метрики
+        # ——— остальные 3 метрики ———
+        other_labels = labels[1:4]
         other_cards = []
-        for name in other_labels:
+        for idx, name in enumerate(other_labels, start=1):
             val = kpis.get(name)
             display = f"{val:.2f}" if isinstance(val, (int, float)) else "—"
+            color = self._choose_card_color(val)
+
+            # recommendation
+            metric_id = codes[idx] if len(codes) > idx else None
+            rec_text = BaseDashboardData.get_recommendation(metric_id, val)
+
+            body = [html.H4(display, className="card-title text-white")]
+            if rec_text:
+                body.append(
+                    html.Details([
+                        html.Summary("Рекомендации"),
+                        html.P(rec_text)
+                    ], style={"marginTop": "0.5rem"})
+                )
+
             other_cards.append(
                 dbc.Card(
                     [
                         dbc.CardHeader(name, className="text-white"),
-                        dbc.CardBody(html.H4(display, className="card-title text-white")),
+                        dbc.CardBody(body),
                     ],
-                    color= self._choose_card_color(val),
+                    color=color,
                     inverse=True,
                     className="mb-3 shadow-sm",
                     style={"minHeight": "110px"}
                 )
             )
+
         return [
             dbc.Row(dbc.Col(main_card, width={"size": 6, "offset": 3}), className="mb-3"),
             dbc.Row([dbc.Col(card, md=4) for card in other_cards], className="mb-3"),

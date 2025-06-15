@@ -181,8 +181,8 @@ class TourismEvaluation:
                                             id_region=int(row.id_region) if 'id_region' in row and (not pd.isna(row.id_region)) else '',
                                             type_location=type_location
                                             )
-                    if id == 'region':
-                        info_locations = [i for i in info_locations if not i.id_city ]
+                    # if id == 'region':
+                    #     info_locations = [i for i in info_locations if not i.id_city ]
                     # if info_locations:
                     #     # проверка на давность рассчитанной метрики
                     #     if self.check_limit_month(date=info_locations[0].modify_time):
@@ -401,11 +401,12 @@ class TourismEvaluation:
         Рассчет оценки расстояния от столицы до региона
         """
         try:
+            id_c = id_city
             r = Region_calc(id_region = id_region)
             if not id_city:
                 reg = RegionRepository()
                 region = reg.find_region_by_id(id_region=id_region)
-                id_city = region.capital
+                id_c = region.capital
 
             distance = r.get_distance_cities()
             # получение координат столицы
@@ -426,7 +427,7 @@ class TourismEvaluation:
             df =  pd.DataFrame({'length':mass})
             percentiles = df['length'].quantile([i*0.01 for i in range(1,101)])
             percentiles = [percentiles[i*0.01] for i in range(1,101)]
-            city = [i for i in distance['cities'] if i.id_city == id_city][0]
+            city = [i for i in distance['cities'] if i.id_city == id_c][0]
             point = to_shape(city.coordinates)
             longitude_city, latitude_city = point.x, point.y
             # Получаем координаты города и столицы
@@ -462,18 +463,20 @@ class TourismEvaluation:
 
             like_distance = round(like_distance, 2) if like_distance >= 2 else 2
             mv = MetricValueRepository()
-            if id_region:
-                id_city = ''
+            if id_region and not id_city:
+                id_c = ''
             metric = mv.get_info_metricvalue(id_metric = 285,
                                             id_region = id_region,
-                                            id_city = id_city)
+                                            id_city = id_c)
             if id_region and not id_city and len(metric) > 0:
                 metric = [i for i in metric if not i.id_city]
+            if id_city:
+                metric = [i for i in metric if i.id_city == id_city and i.id_region == id_region]
             id_mv = metric[0].id_mv if metric else ''
             mv.loading_info(id_mv = id_mv,
                             id_metric = 285,
                             id_region = id_region,
-                            id_city = id_city,
+                            id_city = id_c,
                             value = str(like_distance))
         except Exception as e:
             logger.error(f'Ошибка в методе calculating_complex_distance: {e}')
@@ -519,6 +522,32 @@ class TourismEvaluation:
             df['price'] = pd.to_numeric(df['price'], errors='coerce')
             df = df.dropna(subset=['price'])
             return df
+        
+        def get_tour_flow_rating(x, pcts):
+            if x < 10:
+                return 2
+            # 1. Если x меньше первого перцентиля
+            if x <= pcts[0]:
+                like_distance = 5.0
+            
+            # 2. Если x больше последнего перцентиля
+            elif x >= pcts[-1]:
+                like_distance = 2.0
+            
+            # 3. Иначе ищем, в какой промежуток попадает x
+            else:
+                for i in range(len(pcts) - 1):
+                    if pcts[i] <= x < pcts[i+1]:
+                        # 4. Доля внутри интервала
+                        alpha = (x - pcts[i]) / (pcts[i+1] - pcts[i])
+                        
+                        # 5. Индекс процентиля i + alpha
+                        # 6. Переводим в шкалу 1..5:
+                        rating = 2 + 4 * ((len(pcts) - 1 - i + alpha) / 99.0)
+                        
+                        # 7. Округляем
+                        like_distance = round(rating, 2) if rating < 5 else 5.0
+                        return like_distance
 
         df_hotel = prepare_df(h_f.get('hotel', []))
         df_flat = prepare_df(h_f.get('flat', []))
@@ -557,14 +586,11 @@ class TourismEvaluation:
         elif id_region and id_region in mean_flat.index:
             mean_price_flat = mean_flat.loc[id_region]
 
-        like_hotel = self.get_tour_flow_rating(x=mean_price_hotel, 
-                                        pcts=percentiles_hotel) if mean_price_hotel and (
-                                            mean_price_hotel != 0
-                                        ) else 2.0
-        like_flat = self.get_tour_flow_rating(x=mean_price_flat, 
-                                        pcts=percentiles_flat) if mean_price_flat and (
-                                            mean_price_flat != 0
-                                        ) else 2.0
+        like_hotel = get_tour_flow_rating(x=mean_price_hotel, 
+                                        pcts=percentiles_hotel)
+        like_flat = get_tour_flow_rating(x=mean_price_flat, 
+                                        pcts=percentiles_flat)
+        
         like = round((like_hotel+like_flat)/2, 2)
         like = like if like >=2 else 2.0
         calc = {

@@ -637,7 +637,7 @@ class LocationsRepository(JSONRepository):
             logger.error(f"Не удалось загрузить локацию Яндекс: {location_name}")
 
     @manage_session
-    def get_locations_by_type(self, type_location: str) -> list[dict]:
+    def get_locations_by_type(self, type_location: str, type = 'types') -> list[dict]:
         """
         Ищет локации по типу в JSON-поле characters.
 
@@ -683,25 +683,45 @@ class LocationsRepository(JSONRepository):
             return []
     
     @manage_session
-    def get_locations_by_types(self, types:List[str], id_region: Optional[int] = None, id_city: Optional[int] = None) -> List[MetricValue]:
+    def get_locations_by_types_2(self, types:List[str]):
         """
-        Получает значения метрик для локаций указанного типа и метрики.
-
-        Args:
-            types (List[str]): Список типов локаций.
-            id_region (int): Идентификатор региона (необязательный).
-            id_city (int): Идентификатор города (необязательный).
+        для получения стоимости жилья
         """
         try:
-            q = self.session.query(Location)
-            if id_region:
-                q = q.filter(Location.id_region == id_region)
-            if id_city:
-                q = q.filter(Location.id_city == id_city)
-            q = q.filter(Location.location_types.op("&&")(types))
-            return q.all()
-        finally:
-            self.session.close()
+            # Формируем запрос с проверкой JSON-поля
+            query = (
+                self.session.query(
+                    self.model.id_location,
+                    self.model.id_city,
+                    self.model.id_region,
+                    self.model.characters
+                )
+                .filter(
+                    # self.model.characters.has_key('types'),  # Проверка наличия ключа
+                    # func.jsonb_array_length(self.model.characters['types']) > 0,  # Проверка наличия элементов
+                    self.model.characters['type'].cast(JSONB).contains([types])  # Поиск в массиве
+                )
+            )
+
+            result = []
+            for loc in query.all():
+                characters = loc.characters or {}
+                if not characters:
+                    continue
+                result.append({
+                    'id_location': loc.id_location,
+                    'id_city': loc.id_city,
+                    'id_region': loc.id_region,
+                    'characters':  characters
+                })
+
+
+            logger.debug(f"Найдено {len(result)} локаций типа '{types}'")
+            return result
+
+        except Exception as e:
+            logger.error(f"Ошибка при поиске локаций: {str(e)}")
+            return []
 
 
 class ReviewRepository(Database):

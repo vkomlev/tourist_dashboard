@@ -22,7 +22,7 @@ c = CitiesRepository()
 # regions = r.full_region_by_id()
 regions = [
             150, 
-            155, 
+            # 155, 
             # 151
             ]
 for id_region in regions:
@@ -48,6 +48,7 @@ for id_region in regions:
         # Комплексная оценка туризма
         t.calculating_complex_like(id_region=id_region,
                                    id_city=id_city)
+        pass
 
 # end_time = time.time()
 # execution_time = end_time - start_time
